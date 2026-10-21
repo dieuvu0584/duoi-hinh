@@ -148,6 +148,8 @@ class ContentRevision(Base):
     caption: Mapped[str | None] = mapped_column(Text)
     hashtags: Mapped[list[str] | None] = mapped_column(JSONB)
     overlay_text: Mapped[str | None] = mapped_column(Text)
+    narration_text: Mapped[str | None] = mapped_column(Text)
+    voice_id: Mapped[str | None] = mapped_column(String(80))
     media_hash: Mapped[str | None] = mapped_column(String(64))
     audio_hash: Mapped[str | None] = mapped_column(String(64))
     template_id: Mapped[str | None] = mapped_column(String(60))

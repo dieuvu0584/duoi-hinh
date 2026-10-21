@@ -25,7 +25,7 @@ Known API error codes for bad media: `1363040` (aspect ratio), `1363127` (resolu
 - Closed GOP of 2 s: `-g 60 -keyint_min 60 -sc_threshold 0 -flags +cgop`.
 - Audio: AAC-LC, 48 kHz, stereo, 128 kbps (silent track if no licensed audio is chosen).
 - `-movflags +faststart`. Target bitrate configurable; start at ~8 Mbps video.
-- Default duration by lane (configurable, pilot hypotheses): rebus 8-12 s, daily_life 6-10 s, news 8-12 s. Hard bounds 3-90 s enforced.
+- Default duration by lane (configurable, pilot hypotheses): rebus 8-12 s, daily_life 6-10 s, news 8-12 s. Hard bounds 3-90 s enforced. **When there is narration the duration is derived, not fixed**: `duration = lead_in + narration_duration + think_time`, clamped to the bounds (see Narration).
 
 ## Timeline templates (data, not code)
 A render is described by a `video_spec` JSON stored on the `video_assets` row, so a video is reproducible from its inputs.
@@ -38,7 +38,9 @@ video_spec = {
             {type: "overlay_text", text, font_id, box, appear_s, disappear_s},
             {type: "countdown", from: 5, appear_s: 3}   // optional "guess now" cue
           ],
-  audio: {source: "silent"|"library", asset_id|null, loudness_target_lufs: -16},
+  audio: {narration: {asset_id, start_s, duration_s}|null,
+          music: {asset_id, duck_db: -18}|null,   // optional, owner-licensed only
+          loudness_target_lufs: -16},
   safe_zone: {top_px, bottom_px, side_px}
 }
 ```
@@ -47,8 +49,42 @@ Motion rules: any zoom/pan is computed so **no required clue leaves the safe are
 ## Safe zones
 Reels UI covers parts of the frame (caption, buttons). Default conservative margins are configuration, not constants: top 250 px, bottom 400 px, sides 60 px at 1080x1920. **These are initial assumptions**; calibrate against Meta's current Reels guidance and real device screenshots during the Package 0 spike, then freeze in config.
 
-## Audio
-- Silent is acceptable technically but performs differently; treat audio as an experiment variable, not a default belief.
+## Narration (voiceover) - decision D-24
+Each Reel is narrated in Vietnamese: the voice reads the question/setup for the image so the viewer understands without reading. Narration is a first-class, reviewed part of the content, not decoration.
+
+### What is spoken, by lane
+- **rebus:** introduces the puzzle and the question ("Nhin hinh doan chuyen: day la mon gi?"), may state neutral facts such as the number of words, and invites the viewer to guess. It **never says or spells the answer, and never gives a hint that equals it**. A deterministic check (`leaks_answer`, tones and punctuation ignored) rejects any revision whose narration, caption or overlay contains the answer.
+- **daily_life:** a short setup or punchline for the scene (about 10-25 spoken words).
+- **news (only if the lane is enabled):** neutral, sourced statements; states that the image is an illustration; always human reviewed.
+
+### Script
+- The narration text is produced with the concept (same LLM step, schema `narration_text`), is a field of the content revision, **is part of `content_hash`** (together with `voice_id`) and is reviewed by the safety gate exactly like the caption. Editing it creates a new revision and invalidates approval.
+- Target length: short enough that the whole Reel stays inside the lane duration (about 2.5 spoken Vietnamese syllables per second is a planning figure, to be measured in the TTS spike).
+- Deterministic text normalisation before synthesis: expand numerals, dates, units, abbreviations and symbols into Vietnamese words ourselves, and fix known mispronunciations with a replacement list. (ElevenLabs documents that Flash models do not normalise numbers by default; do not rely on the model for this.)
+
+### Synthesis (ElevenLabs)
+- Provider adapter `SpeechProvider` (contracts). `POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}`, header `xi-api-key`, body `text`, `model_id`, optional `voice_settings` (`stability`, `similarity_boost`, `style`, `speed`), `seed`, `apply_text_normalization`; `output_format` query. The response is binary audio. Verified against the official reference on 2026-10-22; response headers, per-request limits, 401/429/quota errors and pricing are **not** documented there and must be measured in the spike.
+- Model IDs are configuration (`ELEVENLABS_MODEL_ID`), never hard-coded. Per the official models page: `eleven_multilingual_v2` does **not** list Vietnamese; Vietnamese is listed for `eleven_flash_v2_5` (cheaper, 50% lower price per character) and for `eleven_v3` / `eleven_v4` / `eleven_v4_turbo`. The spike compares Flash v2.5 against a higher-quality model on real Vietnamese lines before choosing.
+- Voice: a single owner-chosen `ELEVENLABS_VOICE_ID`, stored as `voice_id` on the revision. **No cloning of real people**; use a voice the owner is licensed to use commercially under the account plan (record the plan/licence note on the audio asset).
+- Output: request a lossless or high-bitrate format the current plan allows, then re-encode with the video (AAC 48 kHz stereo). Content-address the result by `sha256(text + voice_id + model_id + settings)`; **cache hits cost nothing and make rendering reproducible**.
+- Cost: characters are billed by the provider; every call is written to `cost_ledger` (provider `elevenlabs`) and counted against its own budget (default 0 until the owner sets it, decision D-18). Regeneration is bounded by `max_image_regenerations`-style limits. No blind retries after a timeout: record the attempt first.
+- Failure: if synthesis fails the revision goes to `NEEDS_REWORK` with a reason. The pipeline never silently publishes an un-narrated Reel for a lane that expects narration.
+
+### Timeline and mixing
+- `lead_in` 0.5-1.0 s (image visible, no speech), then narration, then `think_time` (rebus 4-6 s, others 1-2 s) with the puzzle held still, and an optional countdown cue. Total clamped to 3-90 s (target under about 25 s for retention; to be tested).
+- Mix with ffmpeg: narration is the primary track; optional music is ducked (about -18 dB under speech) and must be owner-licensed; normalise the final mix to the target loudness (`loudnorm`, about -16 LUFS integrated, true peak <= -1.5 dBTP; values to be tuned on a phone); final AAC-LC, 48 kHz, stereo, 128 kbps or more.
+- Overlay text shows the key words of the question while they are spoken (readable by viewers watching muted). Full auto-subtitles are out of scope.
+
+### QA and review
+- Validation gate additions: an audio stream exists and is not silent (RMS above a floor), no clipping, narration ends before the hold period, duration within bounds, measured loudness within tolerance, answer-leak check passed.
+- The owner's review card has an **audio player** and the exact narration script next to the video. Pronunciation of Vietnamese tones and proper nouns is the main quality risk; the owner listens before approving during the pilot.
+- The safety review receives the narration text and the audio metadata (`voice_id`, model, settings, text hash). The audio is deterministic from the reviewed text, so the text review plus the owner's listening covers it.
+
+### AI disclosure
+A synthetic voice is AI-generated audio. `is_ai_generated` must be `true` for any narrated Reel, and the Page should not present the voice as a real person. Meta's labelling policy mentions realistic-sounding audio created with AI; see `docs/publishing-meta.md` D4.
+
+## Audio (music and other tracks)
+- With narration the Reel is never silent. Background music is an optional experiment (decision D-13) and must be quieter than speech; silent-only is a fallback for lanes without narration.
 - Only use audio the owner is licensed to use (own/generated/royalty-free with a recorded license). Store `audio_license` metadata per track. No trending-audio scraping.
 - After upload Meta runs a copyright check (`copyright_check_information`: `in_progress`/`complete`, `matches_found`). The publish gate waits for `complete` and blocks on `matches_found=true` unless the owner overrides with audit.
 
@@ -66,7 +102,7 @@ Run `ffprobe` on the rendered file and assert: container mp4, resolution == 1080
 - Temp files in a per-job directory; cleaned on success/failure; disk quota guarded.
 
 ## Out of scope for MVP
-Voiceover/TTS, AI video generation (Veo etc.), auto-subtitles, trending-audio use, multi-scene editing. Re-evaluate after the pilot.
+AI video generation (Veo etc.), voice cloning, auto-subtitles (the on-screen overlay text carries the key words), trending-audio use, multi-scene editing. Re-evaluate after the pilot.
 
 ## Spike evidence (2026-10-20, developer machine, Windows, ffmpeg 9.0.1)
 `spikes/render_reel_spike.py` rendered a Pillow-drawn Vietnamese test card to a 10 s, 1080x1920, 30 fps H.264/yuv420p + AAC 48 kHz stereo mp4 (3.8 MB) in ~13 s with a 1.06x slow zoom; the script's ffprobe gate reported no errors. This only proves the encode recipe and the validation script locally. It does **not** prove Meta accepts the file, GOP closure, safe zones on real phones, or VPS render time - those remain Package 0 items.

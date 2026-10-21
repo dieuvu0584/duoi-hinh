@@ -14,7 +14,7 @@ UUID primary keys, UTC `timestamptz`, explicit enums (PostgreSQL enum or checked
 
 ## Content
 - `content_items`: topic FK nullable (daily_life/rebus may have none), lane, `current_revision_id`, workflow state, `series_id` nullable, dedupe key.
-- `content_revisions` (immutable): `content_item_id`, `revision_no`, `answer_text`, `clue_mapping` JSONB, `rebus_spec` JSONB (below), `visual_blueprint`, caption, hashtags, overlay_text, `expected_viewer_interpretation`, `ambiguity_risks`, `selected_image_asset_id`, `video_asset_id`, `audio_asset_id`, `is_ai_generated`, `content_hash`, `created_by` (`system|owner`), `parent_revision_id`.
+- `content_revisions` (immutable): `content_item_id`, `revision_no`, `answer_text`, `narration_text`, `voice_id`, `clue_mapping` JSONB, `rebus_spec` JSONB (below), `visual_blueprint`, caption, hashtags, overlay_text, `expected_viewer_interpretation`, `ambiguity_risks`, `selected_image_asset_id`, `video_asset_id`, `audio_asset_id`, `is_ai_generated`, `content_hash`, `created_by` (`system|owner`), `parent_revision_id`.
 - `explanation_tickets`: one per revision; private admin metadata (answer, intended meaning, visual explanation, clue mapping, ambiguity risks, reveal policy, safety status).
 - `answer_reveals`: revision FK, mode (`manual_comment|api_comment|follow_up_reel`), scheduled_at, state, posted_ref.
 
@@ -36,7 +36,7 @@ Rules: every syllable is covered by >= 1 clue; every clue maps to a syllable; `h
 - `clue_symbols`: reusable rebus symbol library (id, label, tags, source `generated|manual|licensed`, license note, storage key, hash, approved flag).
 - `image_assets`: content_revision FK nullable, provider (`flux|gemini|manual|library`), model ID (nullable for manual), prompt + `prompt_version_id`, params, storage keys for **original** and **processed** (separate immutable keys), MIME, bytes, original/processed dimensions, processing metadata, provenance (who uploaded, license/copyright declaration), QA JSON, cost, `content_hash`.
 - `video_assets`: revision FK, `video_spec` JSONB, `video_spec_hash`, storage key, `content_hash`, ffprobe JSON, encoder version, duration, status (`RENDERING|VALID|INVALID`), keyframe keys.
-- `audio_assets`: source, license note/URL, duration, hash, storage key.
+- `audio_assets`: kind (`narration|music|mix`), provider (`elevenlabs|library`), model_id, `voice_id`, synthesis settings JSONB, `text_hash` (sha256 of text + voice + model + settings, the cache key), duration, `sha256`, storage key, cost, license/plan note. Narration assets are content-addressed, so an identical request is a free cache hit.
 - `prompt_versions`: name, version, body hash, schema version; every LLM call and image prompt records the version used.
 
 ## Review and approval

@@ -8,8 +8,9 @@ Goal: prove the three assumptions the whole product depends on, using throwaway 
 2. **Video render spike.** ffmpeg: image -> 10 s mp4 meeting the spec, ffprobe validation script, safe-zone screenshots on real phones. Output: calibrated safe zones and `video_spec` template defaults.
 3. **Image/rebus quality spike.** Run ~20 concepts across the 3 lanes through the candidate image providers; owner scores usability blind. Test Vietnamese rebus decomposition with and without human verification. Output: go/no-go for each provider and for LLM-generated rebus (vs. human-authored answers + LLM assist), and the measured cost per usable asset.
 4. **Decisions closed** (see `docs/decisions.md`): admin surface, notifications, hosting, audio policy, reveal policy, lane mix.
-5. **Provider terms and legal check.** Record each provider's commercial-use, output-ownership and content-policy terms, and Meta's current content distribution and AI-label policies; the owner has no lawyer (D-16), so the news lane stays disabled until the owner completes the checklist in `docs/content-guidelines.md`.
-6. **Retraction check.** Determine if the API can delete/unpublish a Reel.
+5. **TTS spike (cheap, ElevenLabs).** Synthesise 8-10 real Vietnamese lines (numbers, dates, tones, proper nouns, a rebus question) with `eleven_flash_v2_5` and one higher-quality model; owner listens and scores; measure price per character, syllables per second, response headers and error codes; confirm commercial-use terms for the chosen voice. Capped by a character budget, never by guesswork. Needs P-6.
+6. **Provider terms and legal check.** Record each provider's commercial-use, output-ownership and content-policy terms, and Meta's current content distribution and AI-label policies; the owner has no lawyer (D-16), so the news lane stays disabled until the owner completes the checklist in `docs/content-guidelines.md`.
+7. **Retraction check.** Done 2026-10-22: `DELETE /{video-id}` works for drafts and published Reels.
 Exit: spike reports committed; owner inputs P-1..P-5 in `docs/decisions.md` provided or consciously deferred; roadmap re-baselined.
 
 ## Package A - Backend foundation
@@ -23,7 +24,7 @@ Source registry (terms-reviewed gate), manual topic intake first, then RSS/offic
 DoD: fake-provider unit tests + a small recorded-fixture contract test per adapter; no live API in unit tests.
 
 ## Package C - Image + video pipeline
-Image provider adapters (current docs only), manual upload validation, asset store, 1080x1920 normalization, symbol library + deterministic rebus composition, Pillow overlays (diacritics golden tests), **video renderer + ffprobe gate** (`docs/video-pipeline.md`), keyframe QA with vision review, explanation tickets, regeneration budget, final safety gate bound to `content_hash`.
+Image provider adapters (current docs only), manual upload validation, asset store, 1080x1920 normalization, symbol library + deterministic rebus composition, Pillow overlays (diacritics golden tests), **video renderer + ffprobe gate**, Vietnamese narration via ElevenLabs (text normalisation, content-addressed cache, mix with loudness normalisation, answer-leak check, audio player in the review card) (`docs/video-pipeline.md`), keyframe QA with vision review, explanation tickets, regeneration budget, final safety gate bound to `content_hash`.
 DoD: golden-image tests, ffprobe tests on rendered output, hard-failure overrides score.
 
 ## Package D - Publishing + analytics

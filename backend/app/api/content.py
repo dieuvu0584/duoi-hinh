@@ -23,6 +23,8 @@ class RevisionFields(BaseModel):
     caption: str | None = Field(default=None, max_length=2000)
     hashtags: list[str] | None = Field(default=None, max_length=30)
     overlay_text: str | None = Field(default=None, max_length=500)
+    narration_text: str | None = Field(default=None, max_length=2000)
+    voice_id: str | None = Field(default=None, max_length=80, pattern=r"^[A-Za-z0-9_-]+$")
     media_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     audio_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     template_id: str | None = Field(default=None, max_length=60)

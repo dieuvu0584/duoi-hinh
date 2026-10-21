@@ -65,6 +65,11 @@
     "novelty_score": { "type": "number", "minimum": 0, "maximum": 1 },
     "visualizability_score": { "type": "number", "minimum": 0, "maximum": 1 },
     "caption_draft": { "type": "string" },
+    "narration_text": {
+      "type": "string",
+      "maxLength": 600,
+      "description": "Vietnamese voiceover script. For rebus it must never contain the answer."
+    },
     "hashtags": { "type": "array", "items": { "type": "string" } },
     "reasoning_summary": { "type": "string" }
   }

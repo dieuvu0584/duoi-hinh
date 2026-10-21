@@ -74,3 +74,43 @@ def test_cannot_set_status_or_hash_through_the_api(client, owner, auth_headers):
     forged = client.post(f"/api/content/{item['id']}/revisions", headers=auth_headers,
                          json={**REVISION, "content_hash": "f" * 64})
     assert forged.status_code == 422
+
+
+def test_rebus_answer_must_not_appear_in_public_text(client, owner, auth_headers):
+    for field in ("caption", "overlay_text", "narration_text"):
+        bad = {**REVISION, field: "Đây chính là bánh chưng nhé"}
+        resp = client.post("/api/content", headers=auth_headers,
+                           json={"lane": "rebus", "revision": bad})
+        assert resp.status_code == 422, field
+        assert resp.json()["error"]["code"] == "answer_leak"
+
+
+def test_answer_leak_is_also_blocked_when_editing(client, owner, auth_headers):
+    item = create(client, auth_headers).json()
+    resp = client.post(f"/api/content/{item['id']}/revisions", headers=auth_headers,
+                       json={**REVISION, "narration_text": "Đáp án là Banh Chung đấy"})
+    assert resp.status_code == 422 and resp.json()["error"]["code"] == "answer_leak"
+    assert client.get(f"/api/content/{item['id']}", headers=auth_headers
+                      ).json()["current_revision"]["revision_no"] == 1
+
+
+def test_the_leak_rule_applies_only_to_rebus(client, owner, auth_headers):
+    resp = create(client, auth_headers, lane="daily_life")
+    assert resp.status_code == 201
+    same = client.post("/api/content", headers=auth_headers, json={
+        "lane": "daily_life", "revision": {**REVISION, "caption": "Món bánh chưng ngày Tết"}})
+    assert same.status_code == 201
+
+
+def test_narration_is_stored_and_changes_the_hash(client, owner, auth_headers):
+    plain = create(client, auth_headers).json()
+    narrated = client.post(f"/api/content/{plain['id']}/revisions", headers=auth_headers,
+                           json={**REVISION, "voice_id": "voice_A1",
+                                 "narration_text": "Nhìn hình đoán chuyện: đây là gì nhỉ?"}).json()
+    assert narrated["current_revision"]["content_hash"] != plain["current_revision"]["content_hash"]
+
+
+def test_voice_id_is_validated(client, owner, auth_headers):
+    bad = client.post("/api/content", headers=auth_headers, json={
+        "lane": "rebus", "revision": {**REVISION, "voice_id": "../etc/passwd"}})
+    assert bad.status_code == 422

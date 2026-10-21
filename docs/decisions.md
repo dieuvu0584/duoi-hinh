@@ -24,11 +24,13 @@
 | D-19 (P-3) | **Công bố đáp án rebus là tùy chọn**, có thể không công bố (`answer_reveals` không bắt buộc, mặc định tắt). | Chủ dự án chọn (2026-10-21). Cập nhật D-12. |
 | D-21 (P-4) | **Sao lưu giai đoạn đầu chỉ lưu trên ổ cứng local của PC** (RPO 24 giờ, RTO 4 giờ làm mục tiêu). Chủ dự án chấp nhận rủi ro: nếu ổ đĩa hoặc PC hỏng thì mất cả dữ liệu lẫn bản sao lưu. Nên đặt bản sao lưu ở ổ vật lý hoặc phân vùng khác với dữ liệu chạy nếu có, và xem lại quyết định này trước khi đầu tư thêm. | Chủ dự án chọn (2026-10-21) để tiết kiệm; rủi ro được chấp nhận có chủ đích (R-25). |
 | D-22 (P-2) | Hướng dẫn nội dung và thương hiệu (`content-guidelines.md`) được **giữ nguyên các giá trị mặc định**: giọng vui/ấm áp, format Reel, caption <= 150 ký tự (tối đa 300), 3-5 hashtag, danh sách từ cấm theo các nhóm đã nêu. | Chủ dự án chấp nhận (2026-10-21). |
+| D-24 | **Video có giọng đọc thuyết minh tiếng Việt bằng ElevenLabs** để mô tả hình ảnh và đặt câu hỏi. Kịch bản giọng đọc thuộc revision (nằm trong `content_hash`), rebus không bao giờ đọc đáp án, giọng tổng hợp luôn gắn `is_ai_generated=true`. Chủ dự án tự cung cấp `ELEVENLABS_API_KEY` và `ELEVENLABS_VOICE_ID`. | Chủ dự án yêu cầu (2026-10-22). Chi tiết: `video-pipeline.md` mục Narration. |
 | D-20 (P-5) | Dùng **Page test** để thử Meta; việc tạo app Meta và Page test làm trong Package 0. | Chủ dự án xác nhận (2026-10-21). |
 
 ## B. Còn cần chủ dự án cung cấp
 | ID | Việc | Hạn |
 |---|---|---|
+| P-6 | Cung cấp `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, đặt ngân sách riêng cho ElevenLabs trong app (mặc định 0 = chặn mọi lần gọi tốn tiền), và xác nhận giọng được dùng thương mại theo gói tài khoản. | Trước khi chạy thử giọng đọc |
 | P-5 | Tạo tài khoản/app Meta, Page test, và (nếu cần) tài khoản nhà cung cấp ảnh để chạy Package 0. Chủ dự án đã đồng ý dùng Page test; cần làm khi bắt đầu Package 0. | Package 0 |
 
 ## B2. Kết quả đo thật (Package 0)
@@ -40,4 +42,6 @@
 - Token Page có thời hạn khoảng 60 ngày: cần cảnh báo trước khi hết hạn.
 
 ## C. Điều Package 0 phải xác nhận (VERIFY)
+- Giọng đọc: chất lượng tiếng Việt thực tế (dấu, thanh điệu, tên riêng) của `eleven_flash_v2_5` so với `eleven_v3`/`eleven_v4`; giá theo ký tự của gói đang dùng; tốc độ nói thực tế (số âm tiết/giây); giới hạn độ dài mỗi lần gọi và lỗi 401/429/hết hạn mức (tài liệu chính thức không nêu); quyền dùng thương mại của giọng đã chọn.
+
 Xem danh sách trong `docs/publishing-meta.md` và `docs/video-pipeline.md`: Standard access có đủ không (khỏi App Review), vòng đời token, thời gian `ready` còn hiệu lực trước FINISH, FINISH có idempotent không, DRAFT có đăng lại được không, quyền comment/ghim bình luận, safe zone thực tế, chính sách nhãn AI hiện hành của Meta, API có xóa được Reel không, thời gian render trên PC của chủ dự án.

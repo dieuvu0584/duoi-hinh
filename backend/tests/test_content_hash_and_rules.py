@@ -18,9 +18,9 @@ BASE = {
 
 def test_golden_hash_is_stable():
     # If this changes, HASH_VERSION must be bumped: published approvals depend on it.
-    assert HASH_VERSION == 1
+    assert HASH_VERSION == 2
     assert compute_content_hash(BASE) == (
-        "1137f296b6819e860719f50c85e0cc8f0f111359f2b779cc5a2d935beafde34b"
+        "11355034897b62d9303338eff3933c35f2cd073654c552843acdcb334e14e3d3"
     )
 
 
@@ -40,7 +40,8 @@ def test_unicode_normalisation_is_irrelevant():
 @pytest.mark.parametrize(
     "change",
     [{"answer_text": "Bánh chưng "}, {"caption": "Đoán thử nhé"}, {"media_hash": "b" * 64},
-     {"is_ai_generated": False}, {"overlay_text": "x"}, {"template_id": "t2"}],
+     {"is_ai_generated": False}, {"overlay_text": "x"}, {"template_id": "t2"},
+     {"narration_text": "Bạn đoán được chưa?"}, {"voice_id": "voice_A1"}],
 )
 def test_any_content_change_changes_the_hash(change):
     assert compute_content_hash({**BASE, **change}) != compute_content_hash(BASE)
@@ -79,3 +80,25 @@ def test_review_expiry_uses_lane_ttl_capped_by_topic_freshness():
     far = t + timedelta(days=9)
     assert safety_rules.review_expiry("rebus", t, far) == t + timedelta(hours=24)
     assert safety_rules.review_expiry("mystery", t, None) == t + timedelta(hours=6)
+
+
+@pytest.mark.parametrize(
+    ("answer", "text", "leaks"),
+    [
+        ("Bánh chưng", "Đây là món gì? Bánh chưng!", True),
+        ("Bánh chưng", "banh chung ngày Tết", True),       # tones ignored
+        ("Bánh chưng", "BÁNH, CHƯNG...", True),            # case and punctuation ignored
+        ("Bánh chưng", "Một chiếc bánh và cây chưng cất", False),  # words apart, not the phrase
+        ("Bánh chưng", None, False),
+        ("Đuổi hình bắt chữ", "đuoi hinh bat chu", True),  # d-stroke folded
+        ("", "anything", False),
+        (None, "anything", False),
+    ],
+)
+def test_leaks_answer_matches_whole_phrases_ignoring_tones(answer, text, leaks):
+    assert safety_rules.leaks_answer(answer, text) is leaks
+
+
+def test_leaks_answer_checks_every_public_text():
+    assert safety_rules.leaks_answer("Bánh chưng", "ok", None, "nói về bánh chưng") is True
+    assert safety_rules.leaks_answer("Bánh chưng", "ok", "vẫn ổn") is False

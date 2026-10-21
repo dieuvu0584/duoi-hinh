@@ -11,7 +11,7 @@ import json
 import unicodedata
 from typing import Any
 
-HASH_VERSION = 1
+HASH_VERSION = 2  # v2: narration_text and voice_id are part of the reviewed content
 
 HASHED_FIELDS = (
     "answer_text",
@@ -20,6 +20,8 @@ HASHED_FIELDS = (
     "caption",
     "hashtags",
     "overlay_text",
+    "narration_text",
+    "voice_id",
     "media_hash",
     "audio_hash",
     "is_ai_generated",

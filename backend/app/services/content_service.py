@@ -71,6 +71,13 @@ def add_revision(
 ) -> ContentRevision:
     """Edits never mutate: they append a revision. Older approvals/reviews stop matching."""
     unknown = set(fields) - set(REVISION_FIELDS)
+    if item.lane == "rebus" and safety_rules.leaks_answer(
+        fields.get("answer_text"), fields.get("caption"), fields.get("overlay_text"),
+        fields.get("narration_text"),
+    ):
+        # The answer is private admin metadata (CLAUDE.md content invariants).
+        raise ApiError(422, "answer_leak",
+                       "The rebus answer appears in the caption, overlay or narration")
     if unknown:
         raise ApiError(422, "unknown_field", "Unknown revision field",
                        fields=[{"field": f, "issue": "not_allowed"} for f in sorted(unknown)])

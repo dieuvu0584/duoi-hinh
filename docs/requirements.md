@@ -3,7 +3,7 @@
 ## 1. Mục tiêu và phạm vi
 Hệ thống một chủ sở hữu giúp tạo, kiểm duyệt, duyệt tay và đăng **Facebook Reels** cho thương hiệu "Nhìn Hình Đoán Chuyện", ba mảng: `daily_life`, `rebus`, `news`. Backend chạy trên VPS; điện thoại/web chỉ là giao diện quản trị.
 
-**Ngoài phạm vi (MVP):** đa người dùng, đăng nền tảng khác (Instagram/TikTok), video do AI sinh, giọng đọc TTS, phụ đề tự động, tự động đăng không qua duyệt, quảng cáo trả phí.
+**Ngoài phạm vi (MVP):** đa người dùng, đăng nền tảng khác (Instagram/TikTok), video do AI sinh, nhân bản giọng, phụ đề tự động, tự động đăng không qua duyệt, quảng cáo trả phí.
 
 **Giả định cần kiểm chứng:** xem `docs/decisions.md` mục B, C.
 
@@ -25,6 +25,9 @@ Hệ thống một chủ sở hữu giúp tạo, kiểm duyệt, duyệt tay và
 - **FR-9** QA tự động (khung hình chính) với quy tắc lỗi cứng ghi đè điểm.
 - **FR-10** Mỗi revision có "explanation ticket" riêng cho admin.
 - **FR-11** Dedup chủ đề và đáp án trong cửa sổ cấu hình.
+- **FR-12** Video có giọng đọc thuyết minh tiếng Việt cho hình ảnh/câu hỏi (ElevenLabs). Kịch bản giọng đọc là một phần của revision, nằm trong `content_hash` và qua cùng cổng an toàn như caption.
+- **FR-13** Với rebus, giọng đọc/caption/chữ trên video không bao giờ chứa đáp án (kiểm tra bằng code, bỏ qua dấu và dấu câu).
+- **FR-14** Chuẩn hóa văn bản tiếng Việt trước khi tổng hợp (số, ngày, đơn vị, viết tắt), lưu cache âm thanh theo hash của (văn bản, giọng, model, cài đặt) và ghi chi phí từng lần gọi.
 ### An toàn và duyệt
 - **FR-20** Ba cổng an toàn: tiếp nhận, nội dung cuối, trước khi đăng. Thiếu/sai/quá hạn/không khớp `content_hash` thì chặn.
 - **FR-21** Chủ đề nhạy cảm bắt buộc người duyệt (danh sách ở `.claude/rules/safety-and-publishing.md`).

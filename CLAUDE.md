@@ -29,6 +29,7 @@ Initial experiment mix: 40% daily_life, 30% rebus, 30% news. This is a hypothesi
 - Decide the intended answer before creating an image prompt.
 - Freeze answer and required clue mapping during generation. Do not silently alter the answer to fit an incorrect image.
 - For rebus, keep the answer out of the public image and public caption by default; it is visible in the private admin review card.
+- Videos carry a Vietnamese synthetic voiceover (ElevenLabs, decision D-24). The narration script is part of the reviewed revision and its hash, must never reveal a rebus answer, and a narrated Reel is always declared `is_ai_generated=true`. Voice cloning of real people is not allowed.
 - Do not render exact Vietnamese text using image generation. Overlay text deterministically with Pillow after generation.
 - The published artifact is a **Reel mp4** rendered from the processed image (`docs/video-pipeline.md`); the Meta API takes video, not images. Validate every mp4 with ffprobe before upload.
 - Default canvas is 1080x1920 (9:16). Never stretch; preserve aspect ratio, use a deliberate crop/pad, and verify that all puzzle clues remain visible.

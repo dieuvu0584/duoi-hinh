@@ -33,6 +33,16 @@ Each box must be backed by an automated test or a documented manual verification
 - [ ] Explanation ticket exists for every revision.
 - [ ] Hard failures override numeric QA scores.
 
+## Narration (FR-12..14, D-24)
+- [x] Rebus answer cannot appear in caption, overlay or narration on create or edit (`test_content_api.py`, `test_content_hash_and_rules.py::test_leaks_answer_*`).
+- [x] Narration text and voice id are part of `content_hash`; editing either invalidates approval (`test_content_hash_and_rules.py`, `test_narration_is_stored_and_changes_the_hash`).
+- [ ] Vietnamese numerals/dates/units are expanded deterministically before synthesis (golden tests).
+- [ ] Identical (text, voice, model, settings) is served from cache and records no new cost.
+- [ ] A synthesis failure sends the revision to NEEDS_REWORK; nothing is published un-narrated.
+- [ ] The rendered mix has an audio stream, is not silent, does not clip, ends before the hold period and is within loudness tolerance.
+- [ ] Narrated Reels always publish with `is_ai_generated=true`.
+- [ ] ElevenLabs spend is recorded before any retry and respects its own budget (default 0).
+
 ## Safety/approval (FR-20..23)
 - [x] Missing, invalid, stale, blocked or hash-mismatched review prevents publishing. (`test_publish_gate.py`; wired to DB data, not yet to a scheduler)
 - [x] Editing a revision invalidates its approval and safety review. (`test_publish_gate.py`: edit -> `revision_superseded`; new revision -> `content_not_approved`)
