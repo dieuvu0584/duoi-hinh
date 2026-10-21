@@ -25,12 +25,14 @@
 | D-21 (P-4) | **Sao lưu giai đoạn đầu chỉ lưu trên ổ cứng local của PC** (RPO 24 giờ, RTO 4 giờ làm mục tiêu). Chủ dự án chấp nhận rủi ro: nếu ổ đĩa hoặc PC hỏng thì mất cả dữ liệu lẫn bản sao lưu. Nên đặt bản sao lưu ở ổ vật lý hoặc phân vùng khác với dữ liệu chạy nếu có, và xem lại quyết định này trước khi đầu tư thêm. | Chủ dự án chọn (2026-10-21) để tiết kiệm; rủi ro được chấp nhận có chủ đích (R-25). |
 | D-22 (P-2) | Hướng dẫn nội dung và thương hiệu (`content-guidelines.md`) được **giữ nguyên các giá trị mặc định**: giọng vui/ấm áp, format Reel, caption <= 150 ký tự (tối đa 300), 3-5 hashtag, danh sách từ cấm theo các nhóm đã nêu. | Chủ dự án chấp nhận (2026-10-21). |
 | D-24 | **Video có giọng đọc thuyết minh tiếng Việt bằng ElevenLabs** để mô tả hình ảnh và đặt câu hỏi. Kịch bản giọng đọc thuộc revision (nằm trong `content_hash`), rebus không bao giờ đọc đáp án, giọng tổng hợp luôn gắn `is_ai_generated=true`. Chủ dự án tự cung cấp `ELEVENLABS_API_KEY` và `ELEVENLABS_VOICE_ID`. | Chủ dự án yêu cầu (2026-10-22). Chi tiết: `video-pipeline.md` mục Narration. |
+| D-26 | **Một ảnh gốc vuông 1:1 (1920x1920) sinh bằng fal.ai, cắt giữa (không viền đen) thành hai video từ cùng nội dung và giọng đọc: 9:16 1080x1920 đăng Facebook Reels và 16:9 1920x1080 đăng kênh YouTube.** Chủ thể và mọi manh mối phải nằm trong hình vuông an toàn ở giữa (56,25% mỗi chiều); kiểm tra bằng tọa độ khung manh mối, nếu không vừa thì dùng chế độ `fit` (nền mờ) hoặc sinh lại. Thêm nền tảng đăng YouTube (xem `publishing-youtube.md`), mặc định tắt (`youtube_enabled=false`). | Chủ dự án yêu cầu (2026-10-22). |
 | D-20 (P-5) | Dùng **Page test** để thử Meta; việc tạo app Meta và Page test làm trong Package 0. | Chủ dự án xác nhận (2026-10-21). |
 
 ## B. Còn cần chủ dự án cung cấp
 | ID | Việc | Hạn |
 |---|---|---|
 | P-6 | Cung cấp `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, đặt ngân sách riêng cho ElevenLabs trong app (mặc định 0 = chặn mọi lần gọi tốn tiền), và xác nhận giọng được dùng thương mại theo gói tài khoản. | Trước khi chạy thử giọng đọc |
+| P-7 | Cho YouTube: kênh (nên có kênh thử nghiệm), dự án Google Cloud, OAuth client và refresh token (`YOUTUBE_*` trong `.env`), để chạy thử upload ở Package 0. | Trước khi bật YouTube |
 | P-5 | Tạo tài khoản/app Meta, Page test, và (nếu cần) tài khoản nhà cung cấp ảnh để chạy Package 0. Chủ dự án đã đồng ý dùng Page test; cần làm khi bắt đầu Package 0. | Package 0 |
 
 ## B2. Kết quả đo thật (Package 0)
@@ -47,7 +49,11 @@
 
 - **Kết quả nghe thử giọng đọc (chủ dự án, 2026-10-22):** `eleven_flash_v2_5` và `eleven_turbo_v2_5` đọc sai ngày tháng năm (cả bản số lẫn bản đánh vần) và đọc sai cụm "thật no"; bản `eleven_v3` không có lỗi nào được báo. **D-25: dùng `eleven_v3` cho giọng đọc** (đắt gấp đôi trên mỗi ký tự, vẫn không đáng kể, chậm hơn nhưng render ngoại tuyến nên không ảnh hưởng).
 
+- **Hai bản video từ ảnh vuông (đã làm thử):** cả hai tạo được, tràn khung, không viền đen, qua ffprobe, âm lượng -15,5 LUFS. **Mô hình không giữ được chủ thể trong hình vuông giữa** dù đã dặn (đuôi mèo, mép đồng hồ bị cắt) nên bắt buộc có bước kiểm tra bố cục và chế độ `fit` dự phòng. Ảnh 1920x1920 tốn khoảng 0,044$.
+
 ## C. Điều Package 0 phải xác nhận (VERIFY)
+- YouTube: tải thử lên kênh thử nghiệm (riêng tư rồi công khai, `publishAt`, `containsSyntheticMedia`, xóa); tài liệu nói dự án API chưa xác minh không bị khóa riêng tư, cần thử để chắc.
+
 - Giọng đọc: chất lượng tiếng Việt thực tế (dấu, thanh điệu, tên riêng) của `eleven_flash_v2_5` so với `eleven_v3`/`eleven_v4`; giá theo ký tự của gói đang dùng; tốc độ nói thực tế (số âm tiết/giây); giới hạn độ dài mỗi lần gọi và lỗi 401/429/hết hạn mức (tài liệu chính thức không nêu); quyền dùng thương mại của giọng đã chọn.
 
 Xem danh sách trong `docs/publishing-meta.md` và `docs/video-pipeline.md`: Standard access có đủ không (khỏi App Review), vòng đời token, thời gian `ready` còn hiệu lực trước FINISH, FINISH có idempotent không, DRAFT có đăng lại được không, quyền comment/ghim bình luận, safe zone thực tế, chính sách nhãn AI hiện hành của Meta, API có xóa được Reel không, thời gian render trên PC của chủ dự án.

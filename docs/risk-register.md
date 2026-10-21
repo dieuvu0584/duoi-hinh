@@ -39,4 +39,10 @@ Mức độ: khả năng xảy ra (K) x tác động (T), thấp/vừa/cao. Đâ
 | R-31 | Giọng tổng hợp bị coi là giả mạo người thật hoặc vi phạm điều khoản giọng | T | C | Không nhân bản giọng; dùng giọng được cấp phép thương mại; `is_ai_generated=true`; ghi gói/giấy phép vào asset. |
 | R-32 | Nhãn AI của Meta cho âm thanh tổng hợp thực tế | V | V | Luôn đặt `is_ai_generated=true`, không xóa dấu hiệu nguồn gốc, kiểm tra chính sách hiện hành ở Package 0. |
 
+
+| R-33 | Cắt giữa làm mất một phần chủ thể hoặc manh mối (mô hình không đặt đúng vào vùng giữa) | C | C | Kiểm tra tọa độ khung manh mối so với hình vuông an toàn bằng code, chế độ `fit`, sinh lại, QA khung hình cả hai bản video. |
+| R-34 | YouTube: hạn mức/kiểm định API, khóa riêng tư cho dự án chưa xác minh, chính sách nội dung AI hoặc lặp lại | V | V | Chạy thử trên kênh thử nghiệm ở Package 0, luôn đặt `containsSyntheticMedia=true`, giữ `youtube_enabled=false` đến khi xác nhận. |
+| R-35 | Lộ refresh token YouTube hoặc đăng nhầm kênh | T | C | Secret store, kiểm tra token định kỳ, xác nhận `YOUTUBE_CHANNEL_ID` trước khi đăng, kill switch chung và cờ riêng từng nền tảng. |
+| R-36 | Hai nền tảng nhân đôi sai sót (một lỗi đăng cả hai nơi) | V | V | Mỗi (nền tảng, bản video) có bản ghi và cổng riêng; duyệt cả hai bản trước; kill switch chặn cả hai. |
+
 K/T: T = thấp, V = vừa, C = cao.

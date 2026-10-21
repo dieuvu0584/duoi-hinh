@@ -20,7 +20,8 @@ Hệ thống một chủ sở hữu giúp tạo, kiểm duyệt, duyệt tay và
 - **FR-4** Tin tức: tách nguồn, ngày đăng, ngày sự kiện, sự kiện đã xác minh, tuyên bố chưa xác minh, quan điểm; không coi bài đăng lại là nguồn độc lập.
 - **FR-5** Sinh ảnh qua FLUX/Gemini hoặc ảnh tải lên thủ công; mọi ảnh qua cùng quy trình kiểm tra, nguồn gốc, bản quyền, an toàn.
 - **FR-6** Rebus ghép bằng thư viện biểu tượng theo bố cục xác định; chữ tiếng Việt chèn bằng Pillow.
-- **FR-7** Chuẩn hóa 1080x1920 không méo ảnh; kiểm tra manh mối nằm trong safe zone.
+- **FR-7** Ảnh gốc vuông 1:1 (1920x1920), không méo; kiểm tra mọi manh mối nằm trong hình vuông an toàn ở giữa trước khi cắt.
+- **FR-7b** Từ cùng một ảnh gốc và cùng giọng đọc, tạo hai video: 9:16 1080x1920 (Facebook Reels) và 16:9 1920x1080 (YouTube), cắt giữa ảnh để không có viền đen; nếu manh mối không nằm trong vùng an toàn thì dùng chế độ `fit` (nền mờ) hoặc sinh lại.
 - **FR-8** Render Reel mp4 theo `video_spec` và qua cổng ffprobe (`docs/video-pipeline.md`).
 - **FR-9** QA tự động (khung hình chính) với quy tắc lỗi cứng ghi đè điểm.
 - **FR-10** Mỗi revision có "explanation ticket" riêng cho admin.

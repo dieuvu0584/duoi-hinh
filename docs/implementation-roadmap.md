@@ -24,10 +24,11 @@ Source registry (terms-reviewed gate), manual topic intake first, then RSS/offic
 DoD: fake-provider unit tests + a small recorded-fixture contract test per adapter; no live API in unit tests.
 
 ## Package C - Image + video pipeline
-Image provider adapters (current docs only), manual upload validation, asset store, 1080x1920 normalization, symbol library + deterministic rebus composition, Pillow overlays (diacritics golden tests), **video renderer + ffprobe gate**, Vietnamese narration via ElevenLabs (text normalisation, content-addressed cache, mix with loudness normalisation, answer-leak check, audio player in the review card) (`docs/video-pipeline.md`), keyframe QA with vision review, explanation tickets, regeneration budget, final safety gate bound to `content_hash`.
+Image provider adapters (current docs only), manual upload validation, asset store, 1080x1920 normalization, symbol library + deterministic rebus composition, Pillow overlays (diacritics golden tests), **two-rendition video renderer (9:16 and 16:9, centre-crop `fill` with `fit` fallback) + composition check + ffprobe gate**, Vietnamese narration via ElevenLabs (text normalisation, content-addressed cache, mix with loudness normalisation, answer-leak check, audio player in the review card) (`docs/video-pipeline.md`), keyframe QA with vision review, explanation tickets, regeneration budget, final safety gate bound to `content_hash`.
 DoD: golden-image tests, ffprobe tests on rendered output, hard-failure overrides score.
 
 ## Package D - Publishing + analytics
+(Facebook first. **YouTube** adapter (`docs/publishing-youtube.md`) follows once the Facebook path is proven; it needs owner inputs P-7 and a Package 0 YouTube spike.)
 Meta adapter (two-phase), scheduler with `prepare_lead`, full pre-publish gate, `UNKNOWN_RESULT` reconciliation, token health job, kill switch drills, reveal handling, insights collector with snapshots.
 DoD: fault-injection tests (timeouts at each step), duplicate-prevention test, kill switch tested on scheduled and publish-now; one real end-to-end publish to the test Page, then the production Page with manual approval.
 

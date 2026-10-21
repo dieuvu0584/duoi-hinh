@@ -56,6 +56,13 @@ PROMPTS: list[tuple[str, str, str]] = [
     ("news_metaphor", "news",
      "An editorial illustration of a small boat steering through rising floodwater in a city "
      "street, clearly an illustration not a photograph, vertical composition, no text"),
+    ("square_cat_alarm", "daily_life",
+     "A tired cartoon cat in pajamas sitting on a bed glaring at a ringing red alarm clock, "
+     "morning light, humorous meme illustration, full-bleed square composition: the scene "
+     "fills the entire frame edge to edge, no border, no frame, no white margin. Keep the "
+     "cat and the clock compact and close together in the exact center of the picture, "
+     "occupying only the middle half of the image; the outer area is only simple bedroom "
+     "wall, curtain and bed continuing to the edges, no text"),
     ("daily_cooking_chaos", "daily_life",
      "A cartoon home cook surrounded by too many pots and steam, calm smiling face, "
      "humorous illustration, bright kitchen, vertical composition, no text"),
@@ -145,7 +152,8 @@ class Fal:
 def run(args: argparse.Namespace, env: dict[str, str]) -> dict[str, Any]:
     price = args.price_per_mp if args.price_per_mp is not None else PRICE_PER_MP.get(args.model)
     ledger = Ledger(Path(args.ledger))
-    picks = PROMPTS[: args.max_images]
+    only = getattr(args, "only", None)
+    picks = [p for p in PROMPTS if p[0] == only] if only else PROMPTS[: args.max_images]
     est = estimate_usd(args.width, args.height, price) if price is not None else None
     plan = {"model": args.model, "images": [p[0] for p in picks], "budget_usd": args.budget_usd,
             "already_spent_usd": ledger.usd, "size": f"{args.width}x{args.height}",
@@ -208,6 +216,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--budget-usd", type=float, default=4.0)
     p.add_argument("--price-per-mp", type=float, default=None)
     p.add_argument("--max-images", type=int, default=4)
+    p.add_argument("--only", default=None, help="generate just this prompt label")
     p.add_argument("--width", type=int, default=1080)
     p.add_argument("--height", type=int, default=1920)
     p.add_argument("--queue-base", default=QUEUE_BASE)

@@ -32,7 +32,7 @@ Initial experiment mix: 40% daily_life, 30% rebus, 30% news. This is a hypothesi
 - Videos carry a Vietnamese synthetic voiceover (ElevenLabs, decision D-24). The narration script is part of the reviewed revision and its hash, must never reveal a rebus answer, and a narrated Reel is always declared `is_ai_generated=true`. Voice cloning of real people is not allowed.
 - Do not render exact Vietnamese text using image generation. Overlay text deterministically with Pillow after generation.
 - The published artifact is a **Reel mp4** rendered from the processed image (`docs/video-pipeline.md`); the Meta API takes video, not images. Validate every mp4 with ffprobe before upload.
-- Default canvas is 1080x1920 (9:16). Never stretch; preserve aspect ratio, use a deliberate crop/pad, and verify that all puzzle clues remain visible.
+- Images are generated as a **square 1:1 master (1920x1920)**; two videos are rendered from it by centre-cropping: **9:16 1080x1920 (Facebook Reel)** and **16:9 1920x1080 (YouTube)**, with no black bars (decision D-26). Never stretch. Everything essential (subject, every clue) must lie inside the **central safe square** (the middle 56.25% of each side, i.e. 1080x1080 of the 1920 master); a check on the clue bounding boxes decides crop mode (`fill`) or, if they do not fit, the blurred-backdrop fallback (`fit`) or a regeneration.
 - Every candidate image must have an admin-only explanation ticket: intended answer/message, intended meaning, visual explanation, clue mapping, ambiguity risks, caption and safety status.
 - AI-generated illustrations must never be presented as genuine documentary photographs.
 

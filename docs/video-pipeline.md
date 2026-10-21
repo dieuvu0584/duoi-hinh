@@ -1,4 +1,4 @@
-# Video pipeline (image -> Reel mp4)
+# Video pipeline (square master -> Reel 9:16 and YouTube 16:9)
 
 Facebook Reels are published as **video**. Verified against Meta's Reels Publishing API guide (Graph API v26.0 at time of writing): the Page `video_reels` edge accepts an uploaded video file, not an image. The still 1080x1920 image produced by the image pipeline is therefore an *intermediate*; the publishable artifact is an `.mp4` rendered deterministically from it.
 
@@ -128,3 +128,23 @@ Because the hand-spelled date was also read wrongly by Flash/Turbo, the cause is
 - These lines (and any future mispronunciation) live in a **regression list** kept with the TTS code; whenever the model, voice, settings or pronunciation lexicon change, re-synthesise them and have the owner re-listen before the change ships.
 - A **pronunciation lexicon** (owner-maintained data: written form -> respelling, versioned) is applied before synthesis and its version is stored on the audio asset. ElevenLabs also supports pronunciation dictionaries (`pronunciation_dictionary_locators`); whether they work for Vietnamese is unverified.
 - During the pilot the owner listens to every narration before approving; a mispronunciation sends the revision back to rework (change the wording or the lexicon).
+
+## Two renditions from one master (decision D-26)
+The same square master, the same narration and the same caption produce two videos:
+
+| Target | Size | Used for |
+|---|---|---|
+| `reel_9x16` | 1080x1920, 30 fps | Facebook Reel (specs above) |
+| `youtube_16x9` | 1920x1080, 30 fps, H.264 High, yuv420p, AAC 48 kHz stereo, `faststart` | YouTube channel (see `docs/publishing-youtube.md`) |
+
+- **Master:** 1:1, generated at **1920x1920** so both crops are native resolution (no upscaling). With fal.ai FLUX.2 this costs about USD 0.044 per image (megapixel pricing, 3.69 MP at USD 0.012/MP; measured USD 0.0442). A 1280x1280 master (about USD 0.020) is possible but needs a 1.5x upscale of each crop.
+- **Mode `fill` (default):** centre-crop with no black bars and no extra backdrop (`scale=W:H:force_original_aspect_ratio=increase,crop=W:H`). Cropping a square to 9:16 keeps 56.25% of the width; cropping to 16:9 keeps 56.25% of the height. The only area both crops share is the **central safe square** (x and y from 0.21875 to 0.78125, 1080x1080 on a 1920 master). Essential subject and clues must be inside it. This square also sits inside the Reels usable band (rows 420-1500 of 1920, between the 250 px top and 400 px bottom UI margins).
+- **Mode `fit` (fallback):** the whole square at the target's size over a blurred, dimmed copy of itself. Used when clues do not fit in the safe square, or by owner choice. Nothing is cropped.
+- **Composition check (new, mandatory before `fill`):** a vision model returns normalised bounding boxes for every essential clue/subject (`composition.clue_boxes`); the backend (not the model) tests containment in the safe square. Outside -> `fit` or regenerate. Prompts asking for a centred subject help but do **not** guarantee it (measured, below), so this check cannot be skipped.
+- **Captions per target:** 9:16 caption in the top band (y 255-395, above the central square and below the Reels top margin); 16:9 caption in the right side band (x 1520-1880). Rendered with Pillow (Vietnamese diacritics verified).
+- **Shared timeline and audio:** lead-in 0.8 s, narration, 2 s hold; one narration file is mixed into both; loudness-normalised (`loudnorm` -16 LUFS / -1.5 dBTP; measured -15.5 LUFS and -1.5 dBTP on both outputs).
+- Both renditions go through the ffprobe gate for their own size and the keyframe QA/safety review; the content hash covers the master and the template version, so a re-render with a different template needs a new review.
+- YouTube has no 250/400 px UI margins, but the same safe square keeps the two crops consistent.
+
+### Measured (2026-10-22, `spikes/render_renditions_spike.py`)
+Master 1920x1920 (cat and alarm clock, prompt asking for a compact centred subject) -> `reel_9x16.mp4` and `youtube_16x9.mp4`, both 7.6 s (0.8 + 4.8 narration + 2.0), 4.5 MB, validated by ffprobe with no errors, rendered in about 25 s each. Findings: no black bars in either; the picture fills the frame; Vietnamese caption renders with all diacritics. **The model did not keep the subject inside the central square**: the cat's tail and the right edge of the clock fell outside it, so the 9:16 crop cut the clock's right edge and the 16:9 crop cut the bottom of the clock and the cat's paws. Acceptable for a meme, a failure for a rebus clue; hence the mandatory composition check and the `fit` fallback.

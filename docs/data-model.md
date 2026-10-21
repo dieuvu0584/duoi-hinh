@@ -35,7 +35,7 @@ Rules: every syllable is covered by >= 1 clue; every clue maps to a syllable; `h
 ## Assets
 - `clue_symbols`: reusable rebus symbol library (id, label, tags, source `generated|manual|licensed`, license note, storage key, hash, approved flag).
 - `image_assets`: content_revision FK nullable, provider (`flux|gemini|manual|library`), model ID (nullable for manual), prompt + `prompt_version_id`, params, storage keys for **original** and **processed** (separate immutable keys), MIME, bytes, original/processed dimensions, processing metadata, provenance (who uploaded, license/copyright declaration), QA JSON, cost, `content_hash`.
-- `video_assets`: revision FK, `video_spec` JSONB, `video_spec_hash`, storage key, `content_hash`, ffprobe JSON, encoder version, duration, status (`RENDERING|VALID|INVALID`), keyframe keys.
+- `video_assets`: revision FK, **`target` (`reel_9x16|youtube_16x9`), `mode` (`fill|fit`)**, `video_spec` JSONB, `video_spec_hash`, storage key, `content_hash`, ffprobe JSON, encoder version, duration, status (`RENDERING|VALID|INVALID`), keyframe keys.
 - `audio_assets`: kind (`narration|music|mix`), provider (`elevenlabs|library`), model_id, `voice_id`, synthesis settings JSONB, `text_hash` (sha256 of text + voice + model + settings, the cache key), duration, `sha256`, storage key, cost, license/plan note. Narration assets are content-addressed, so an identical request is a free cache hit.
 - `prompt_versions`: name, version, body hash, schema version; every LLM call and image prompt records the version used.
 
@@ -49,7 +49,7 @@ Rules: every syllable is covered by >= 1 clue; every clue maps to a syllable; `h
 - `jobs`: type, entity ref, status, attempts, `retry_after`, lease owner/expiry, redacted error, `idempotency_key` (unique per scope), timestamps.
 - `idempotency_keys`: key, scope, request hash, response ref, expiry (for API commands).
 - `cost_ledger`: provider, operation, units, `cost_amount`, currency, entity, `recorded_at`, estimate-vs-actual flag. Budgets are enforced by summing this table; cost is recorded **before** a blind retry is allowed.
-- `publishing_records`: content_revision FK, `content_hash`, schedule, status, `intent_key` (unique per logical publish intent), `meta_video_id`, `meta_post_id`, permalink, attempts (child rows `publishing_attempts` with START/UPLOAD/FINISH timestamps, redacted request/response, error code), reconciliation timestamps.
+- `publishing_records`: **`platform` (`facebook|youtube`), `target`**, content_revision FK, `content_hash`, schedule, status, `intent_key` (unique per logical publish intent), `meta_video_id`, `meta_post_id`, permalink, attempts (child rows `publishing_attempts` with START/UPLOAD/FINISH timestamps, redacted request/response, error code), reconciliation timestamps.
 - `system_settings`: single row, see `docs/workflow.md`; `system_setting_changes` via `audit_events`.
 - `token_health`: provider, checked_at, valid, scopes, expires_at (if known), error.
 - `audit_events`: actor (`system|owner|device:<id>`), action, entity, result, redacted metadata, `request_id`, timestamp. Append-only (no update/delete from the app role).

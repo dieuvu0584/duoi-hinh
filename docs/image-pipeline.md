@@ -4,7 +4,7 @@
 2. Generate one or more candidates using configured FLUX/Gemini adapter, or accept a manual upload.
 3. Validate file content/MIME, byte size, decoded dimensions and format. Reject corrupt or unsupported files.
 4. Preserve original asset; record provider, model, prompt/version, parameters and provenance.
-5. Normalize to 1080x1920 (9:16) with aspect-preserving crop/pad. Never stretch. Verify clue safe areas.
+5. Keep the **square 1:1 master** (1920x1920, request it at that size; providers may round dimensions, e.g. fal returned 1088 for a 1080 request, so crop/resize the returned size). Verify that the bounding boxes of every essential clue lie inside the **central safe square** (normalised 0.21875-0.78125 on both axes). If they do, render with `fill` (centre crop); if not, use `fit` or regenerate. Never stretch. Both renditions come from this same master.
 6. Compose rebus symbols deterministically when possible; overlay Vietnamese text with Pillow and a font supporting diacritics.
 7. Run visual QA against frozen answer/clue mapping and check for missing clues, ambiguous alternate readings, clipping, text legibility and artifacts.
 8. Create private explanation ticket for admin review.
