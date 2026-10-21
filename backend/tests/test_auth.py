@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 import pytest
@@ -160,7 +161,8 @@ def test_every_api_route_requires_auth_except_the_public_ones(client):
             assert op.get("security"), f"{key} is not protected"
             # And behaviourally: no token -> 401, never 200/422/500.
             call = getattr(client, method)
-            resp = call(path.replace("{device_id}", "00000000-0000-0000-0000-000000000000"))
+            concrete = re.sub(r"\{[^}]+\}", "00000000-0000-0000-0000-000000000000", path)
+            resp = call(concrete)
             assert resp.status_code == 401, f"{key} returned {resp.status_code} without auth"
     assert public <= seen
 

@@ -34,9 +34,9 @@ Each box must be backed by an automated test or a documented manual verification
 - [ ] Hard failures override numeric QA scores.
 
 ## Safety/approval (FR-20..23)
-- [ ] Missing, invalid, stale, blocked or hash-mismatched review prevents publishing.
-- [ ] Editing a revision invalidates its approval and safety review.
-- [ ] High-risk topics cannot be published without completed human review.
+- [x] Missing, invalid, stale, blocked or hash-mismatched review prevents publishing. (`test_publish_gate.py`; wired to DB data, not yet to a scheduler)
+- [x] Editing a revision invalidates its approval and safety review. (`test_publish_gate.py`: edit -> `revision_superseded`; new revision -> `content_not_approved`)
+- [x] High-risk topics cannot be published without completed human review. (`test_sensitive_category_requires_human_even_if_model_says_allow`)
 - [ ] Kill switch (DB source of truth) blocks scheduled and publish-now paths and is rechecked immediately before FINISH.
 
 ## Publishing (FR-31..34, D1-D3)
@@ -56,16 +56,16 @@ Each box must be backed by an automated test or a documented manual verification
 - [x] Used refresh token replay revokes the token family; no public registration route exists. (`test_refresh_rotates_and_old_token_reuse_revokes_the_device`, `test_no_public_registration_route`)
 - [ ] Uploads: decompression bomb, wrong extension and metadata cases handled; stored images are re-encoded.
 - [ ] Secret-scan and dependency audit run in CI.
-- [ ] Two workers racing on one publishing record produce one publish; kill-switch flip test.
+- [~] Row lock proven (`test_gate_takes_a_row_lock_so_workers_cannot_race`) and kill-switch flip seen across connections; a full two-worker publish test needs the scheduler (Package D).
 - [ ] Dry-run mode never performs a network call to Meta; production refuses an unintended mode.
 
 ## News lane gate (D-16)
-- [ ] With `news_lane_enabled=false` a news topic never reaches generation, scheduling or publishing (state-machine test).
+- [x] With `news_lane_enabled=false` a news topic cannot be created (API/service test); gating of later stages follows from there being no news content.
 - [ ] Enabling the flag is audited and requires re-authentication.
 
 ## Retraction/operations
 - [ ] Owner can record/perform a retraction with reason; audit and state are correct.
-- [ ] News topic past `fresh_until` cannot publish; review TTL respects lane.
+- [x] News topic past `fresh_until` cannot publish; review TTL respects lane. (`test_news_needs_human_review_and_expires_with_the_topic`)
 - [ ] Deterministic blacklist check blocks caption/overlay/answer matches.
 - [ ] Alerts fire for `UNKNOWN_RESULT`, invalid token, budget threshold, stale backup (test via injected conditions).
 

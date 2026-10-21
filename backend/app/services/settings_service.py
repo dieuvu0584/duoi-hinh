@@ -24,7 +24,11 @@ REAUTH_FIELDS = {"news_lane_enabled", "daily_budget_limit", "monthly_budget_limi
 
 
 def get_settings_row(session: Session, *, for_update: bool = False) -> SystemSettings:
-    stmt = select(SystemSettings).where(SystemSettings.id == 1)
+    # populate_existing: never trust a cached row for kill switch / limits.
+    stmt = (
+        select(SystemSettings).where(SystemSettings.id == 1)
+        .execution_options(populate_existing=True)
+    )
     if for_update:
         stmt = stmt.with_for_update()
     row = session.scalar(stmt)

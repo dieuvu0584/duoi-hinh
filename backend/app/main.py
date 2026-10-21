@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI
 
-from app.api import auth, system
+from app.api import auth, content, system
 from app.core.config import settings
 from app.core.errors import install_error_handling
 from app.core.logging import configure_logging
@@ -21,6 +21,7 @@ def create_app() -> FastAPI:
     api = APIRouter(prefix="/api")
     api.include_router(auth.router)
     api.include_router(system.router)
+    api.include_router(content.router)
     app.include_router(api)
 
     @app.get("/", include_in_schema=False)

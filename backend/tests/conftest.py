@@ -45,7 +45,10 @@ def db(engine):
     """Fresh state per test: truncate data tables and restore the fail-closed settings row."""
     with engine.begin() as conn:
         conn.execute(
-            text("TRUNCATE login_attempts, devices, owner_account, audit_events CASCADE")
+            text(
+                "TRUNCATE login_attempts, devices, owner_account, audit_events, publishing_records,"
+                " approvals, safety_reviews, content_revisions, content_items, token_health CASCADE"
+            )
         )
         conn.execute(
             text(

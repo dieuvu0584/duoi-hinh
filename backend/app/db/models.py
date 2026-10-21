@@ -13,6 +13,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -107,3 +108,139 @@ class AuditEvent(Base):
     request_id: Mapped[str | None] = mapped_column(String(40))
     event_metadata: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
     note: Mapped[str | None] = mapped_column(Text)
+
+
+class ContentItem(TimestampMixin, Base):
+    __tablename__ = "content_items"
+    __table_args__ = (
+        CheckConstraint("lane IN ('daily_life', 'rebus', 'news')", name="lane_valid"),
+        # News must carry a freshness window so stale news can never publish (R-20).
+        CheckConstraint("lane <> 'news' OR fresh_until IS NOT NULL", name="news_needs_fresh_until"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    lane: Mapped[str] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(30), default="DRAFT", index=True)
+    fresh_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    current_revision_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("content_revisions.id", use_alter=True, name="fk_content_items_current_revision")
+    )
+
+    revisions: Mapped[list["ContentRevision"]] = relationship(
+        back_populates="item", foreign_keys="ContentRevision.content_item_id"
+    )
+
+
+class ContentRevision(Base):
+    """Immutable (database trigger). Any edit creates a new revision with a new content_hash."""
+
+    __tablename__ = "content_revisions"
+    __table_args__ = (
+        Index("uq_content_revisions_item_no", "content_item_id", "revision_no", unique=True),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    content_item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("content_items.id"), index=True)
+    revision_no: Mapped[int] = mapped_column(Integer)
+    answer_text: Mapped[str | None] = mapped_column(Text)
+    clue_mapping: Mapped[dict[str, Any] | list | None] = mapped_column(JSONB)
+    rebus_spec: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    caption: Mapped[str | None] = mapped_column(Text)
+    hashtags: Mapped[list[str] | None] = mapped_column(JSONB)
+    overlay_text: Mapped[str | None] = mapped_column(Text)
+    media_hash: Mapped[str | None] = mapped_column(String(64))
+    audio_hash: Mapped[str | None] = mapped_column(String(64))
+    template_id: Mapped[str | None] = mapped_column(String(60))
+    is_ai_generated: Mapped[bool] = mapped_column(Boolean, default=True)
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    hash_version: Mapped[int] = mapped_column(Integer)
+    created_by: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    item: Mapped[ContentItem] = relationship(
+        back_populates="revisions", foreign_keys=[content_item_id]
+    )
+
+
+class SafetyReview(Base):
+    """Immutable record of one review, bound to the exact revision hash it examined."""
+
+    __tablename__ = "safety_reviews"
+    __table_args__ = (
+        CheckConstraint("gate IN ('intake', 'final', 'prepublish')", name="gate_valid"),
+        CheckConstraint("decision IN ('allow', 'hold_for_human', 'block')", name="decision_valid"),
+        Index("ix_safety_reviews_lookup", "revision_id", "content_hash", "gate", "reviewed_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    revision_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("content_revisions.id"))
+    content_hash: Mapped[str] = mapped_column(String(64))
+    gate: Mapped[str] = mapped_column(String(12))
+    decision: Mapped[str] = mapped_column(String(20))
+    risk_level: Mapped[str] = mapped_column(String(10))
+    categories: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    findings: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+    human_review_required: Mapped[bool] = mapped_column(Boolean)
+    human_review_complete: Mapped[bool] = mapped_column(Boolean, default=False)
+    policy_version: Mapped[str] = mapped_column(String(40))
+    reviewer: Mapped[str] = mapped_column(String(80))  # llm:<model> | owner:<id>
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Approval(Base):
+    __tablename__ = "approvals"
+    __table_args__ = (
+        CheckConstraint("decision IN ('approved', 'rejected')", name="decision_valid"),
+        Index("ix_approvals_lookup", "revision_id", "content_hash", "decided_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    revision_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("content_revisions.id"))
+    content_hash: Mapped[str] = mapped_column(String(64))
+    decision: Mapped[str] = mapped_column(String(10))
+    actor: Mapped[str] = mapped_column(String(80))
+    note: Mapped[str | None] = mapped_column(Text)
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class PublishingRecord(TimestampMixin, Base):
+    __tablename__ = "publishing_records"
+    __table_args__ = (
+        # At most one non-terminal publishing record per revision (no double scheduling).
+        Index(
+            "uq_publishing_records_one_active",
+            "revision_id",
+            unique=True,
+            postgresql_where=text(
+                "status NOT IN ('FAILED', 'CANCELLED', 'SKIPPED_LATE', 'RETRACTED')"
+            ),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    revision_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("content_revisions.id"))
+    content_hash: Mapped[str] = mapped_column(String(64))
+    intent_key: Mapped[str] = mapped_column(String(80), unique=True)
+    status: Mapped[str] = mapped_column(String(30), default="NOT_SCHEDULED", index=True)
+    scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    meta_video_id: Mapped[str | None] = mapped_column(String(64))
+    meta_post_id: Mapped[str | None] = mapped_column(String(64))
+    media_ready: Mapped[bool] = mapped_column(Boolean, default=False)
+    copyright_clear: Mapped[bool] = mapped_column(Boolean, default=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error_code: Mapped[str | None] = mapped_column(String(60))
+
+
+class TokenHealth(Base):
+    """Result of the latest provider token check. Absent or old = publishing is blocked."""
+
+    __tablename__ = "token_health"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    provider: Mapped[str] = mapped_column(String(20), index=True)
+    valid: Mapped[bool] = mapped_column(Boolean)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    scopes: Mapped[list[str] | None] = mapped_column(JSONB)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error: Mapped[str | None] = mapped_column(String(200))
