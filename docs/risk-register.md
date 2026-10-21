@@ -30,6 +30,6 @@ Mức độ: khả năng xảy ra (K) x tác động (T), thấp/vừa/cao. Đâ
 
 K/T: T = thấp, V = vừa, C = cao.
 | R-24 | PC cá nhân tắt, ngủ, mất mạng hoặc tự khởi động lại đúng giờ đăng | C | V | Bài quá hạn thành `SKIPPED_LATE` (không đăng muộn bất ngờ), thông báo FCM khi hệ thống trở lại, cấu hình không ngủ, tự khởi động lại Docker (operations.md mục 8). |
-| R-25 | Ổ đĩa PC hỏng hoặc bị mã độc, mất dữ liệu và bí mật | T | C | Sao lưu ra ngoài máy theo lịch, diễn tập khôi phục, BitLocker, tách quyền thư mục `.env`. |
+| R-25 | Ổ đĩa PC hỏng hoặc bị mã độc, mất dữ liệu và bí mật (sao lưu cũng nằm trên PC, D-21) | T | C | **Rủi ro được chủ dự án chấp nhận có chủ đích.** Giảm nhẹ không tốn tiền: ổ/phân vùng khác, giữ nhiều bản, diễn tập khôi phục một lần, BitLocker, tách quyền `.env`. Xem lại khi đầu tư thêm. |
 | R-26 | Lộ dịch vụ ra mạng (nhầm bind cổng) hoặc mất điện thoại có Tailscale | T | C | API chỉ bind localhost/Tailscale, kiểm tra cổng trong checklist, thu hồi node và thiết bị Flutter khi mất máy. |
 | R-27 | Chủ dự án không có luật sư nhưng mảng news có rủi ro pháp lý | V | C | `news_lane_enabled=false` mặc định, duyệt tay mọi bài, checklist trước khi bật; hệ thống không tuyên bố đã tuân thủ pháp luật (D-16). |

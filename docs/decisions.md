@@ -22,13 +22,13 @@
 | D-17 (O-10) | Bắt đầu bằng nhập chủ đề thủ công; thêm nguồn tự động từng cái sau khi đọc điều khoản. | Chấp nhận đề xuất mặc định. |
 | D-18 (O-7/P-1) | Giới hạn nhỏ 1-3 bài/ngày. **Chủ dự án tự đặt ngân sách ngày/tháng trong màn hình admin của app Flutter.** Nguyên tắc: tiết kiệm tối đa, chứng minh hệ thống chạy ổn rồi mới đầu tư thêm. Mặc định ngân sách = 0, nghĩa là mọi lệnh gọi trả phí bị chặn cho đến khi chủ dự án đặt số. | Chủ dự án chọn (2026-10-21). |
 | D-19 (P-3) | **Công bố đáp án rebus là tùy chọn**, có thể không công bố (`answer_reveals` không bắt buộc, mặc định tắt). | Chủ dự án chọn (2026-10-21). Cập nhật D-12. |
+| D-21 (P-4) | **Sao lưu giai đoạn đầu chỉ lưu trên ổ cứng local của PC** (RPO 24 giờ, RTO 4 giờ làm mục tiêu). Chủ dự án chấp nhận rủi ro: nếu ổ đĩa hoặc PC hỏng thì mất cả dữ liệu lẫn bản sao lưu. Nên đặt bản sao lưu ở ổ vật lý hoặc phân vùng khác với dữ liệu chạy nếu có, và xem lại quyết định này trước khi đầu tư thêm. | Chủ dự án chọn (2026-10-21) để tiết kiệm; rủi ro được chấp nhận có chủ đích (R-25). |
 | D-20 (P-5) | Dùng **Page test** để thử Meta; việc tạo app Meta và Page test làm trong Package 0. | Chủ dự án xác nhận (2026-10-21). |
 
 ## B. Còn cần chủ dự án cung cấp
 | ID | Việc | Hạn |
 |---|---|---|
 | P-2 | Điền các mục trong ngoặc vuông ở `docs/content-guidelines.md` (giọng điệu, danh sách từ cấm, giới hạn caption). | Trước Package B |
-| P-4 | Xác nhận RPO/RTO mong muốn cho dữ liệu (đề xuất 24 giờ / 4 giờ) và nơi để bản sao lưu ngoài PC. | Trước Package F |
 | P-5 | Tạo tài khoản/app Meta, Page test, và (nếu cần) tài khoản nhà cung cấp ảnh để chạy Package 0. Chủ dự án đã đồng ý dùng Page test; cần làm khi bắt đầu Package 0. | Package 0 |
 
 ## C. Điều Package 0 phải xác nhận (VERIFY)
