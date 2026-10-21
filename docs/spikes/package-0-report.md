@@ -75,3 +75,7 @@ Findings:
 4. fal returns images as signed CDN URLs; we download immediately and do not send the API key to the CDN.
 5. Not evaluated: how well the model keeps a **consistent style across several clue images** for one rebus, and Vietnamese-specific rebus clue accuracy; both need a larger human-scored batch.
 6. Not measured: fal error shapes and the HTTP status when the balance is insufficient (not triggered), rate limits, media retention time.
+
+## 2026-10-22 - Owner listening test of the 18 TTS files
+Verdict from the owner: with `eleven_flash_v2_5` and `eleven_turbo_v2_5`, **dates were read incorrectly in both `digits_raw` and `digits_spelled`**, and **"that no" was read incorrectly in `tone_minimal_pairs`**. No problem was reported for `eleven_v3` (assumed acceptable; the owner is asked to confirm).
+Decision D-25: narration uses `eleven_v3` (about twice the credits per character and 2-4 s latency per line, both negligible for offline rendering). The failing lines are kept as a pronunciation regression set (`docs/video-pipeline.md`). Open: exactly how the dates were mispronounced (not recorded); whether v3 also reads unusual dates/units correctly beyond the six test lines.

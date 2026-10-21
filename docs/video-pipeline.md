@@ -64,7 +64,7 @@ Each Reel is narrated in Vietnamese: the voice reads the question/setup for the 
 
 ### Synthesis (ElevenLabs)
 - Provider adapter `SpeechProvider` (contracts). `POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}`, header `xi-api-key`, body `text`, `model_id`, optional `voice_settings` (`stability`, `similarity_boost`, `style`, `speed`), `seed`, `apply_text_normalization`; `output_format` query. The response is binary audio. Verified against the official reference on 2026-10-22; response headers, per-request limits, 401/429/quota errors and pricing are **not** documented there and must be measured in the spike.
-- Model IDs are configuration (`ELEVENLABS_MODEL_ID`), never hard-coded. Per the official models page: `eleven_multilingual_v2` does **not** list Vietnamese; Vietnamese is listed for `eleven_flash_v2_5` (cheaper, 50% lower price per character) and for `eleven_v3` / `eleven_v4` / `eleven_v4_turbo`. The spike compares Flash v2.5 against a higher-quality model on real Vietnamese lines before choosing.
+- Model IDs are configuration (`ELEVENLABS_MODEL_ID`), never hard-coded. Per the official models page: `eleven_multilingual_v2` does **not** list Vietnamese; Vietnamese is listed for `eleven_flash_v2_5` (cheaper, 50% lower price per character) and for `eleven_v3` / `eleven_v4` / `eleven_v4_turbo`. **Chosen (decision D-25, owner listening test 2026-10-22): `eleven_v3`.** `eleven_flash_v2_5` and `eleven_turbo_v2_5` mispronounced dates and the phrase "that no" and are not used for narration; they could only serve non-critical previews. `eleven_v3` costs about twice as much per character (about 0.4 vs 0.2 credits) and takes 2-4 s per line, which is irrelevant for offline rendering.
 - Voice: a single owner-chosen `ELEVENLABS_VOICE_ID`, stored as `voice_id` on the revision. **No cloning of real people**; use a voice the owner is licensed to use commercially under the account plan (record the plan/licence note on the audio asset).
 - Output: request a lossless or high-bitrate format the current plan allows, then re-encode with the video (AAC 48 kHz stereo). Content-address the result by `sha256(text + voice_id + model_id + settings)`; **cache hits cost nothing and make rendering reproducible**.
 - Cost: characters are billed by the provider; every call is written to `cost_ledger` (provider `elevenlabs`) and counted against its own budget (default 0 until the owner sets it, decision D-18). Regeneration is bounded by `max_image_regenerations`-style limits. No blind retries after a timeout: record the attempt first.
@@ -115,3 +115,15 @@ AI video generation (Veo etc.), voice cloning, auto-subtitles (the on-screen ove
 - **Other headers:** `request-id`, `history-item-id`, and concurrency headers (`maximum-concurrent-requests: 6`).
 - **Quota:** Starter, 81,227 characters per period and no overage (`can_extend_character_limit: false`), so a narrated 25-word Reel (about 130 characters) uses roughly 26-52 credits; the plan allows well over a thousand Reels a month.
 - **Not measured:** pronunciation quality (needs a human to listen; the files are in `spikes/output/tts/`, gitignored), number/date reading correctness, error codes for 401/429/quota.
+
+### Pronunciation regression set (owner-verified)
+Failures found by the owner's listening test (2026-10-22, voice "Ngoc Ngan - Vietnamese Storyteller"):
+| Line | flash_v2_5 | turbo_v2_5 | v3 |
+|---|---|---|---|
+| `digits_raw` ("ngay 25/10/2026, ... 3 ngay lien, ... 24.500 dong") | date read wrongly | date read wrongly | no problem reported |
+| `digits_spelled` (same, fully spelled out) | date read wrongly | date read wrongly | no problem reported |
+| `tone_minimal_pairs` ("... an Tet that no") | "that no" read wrongly | "that no" read wrongly | no problem reported |
+Because the hand-spelled date was also read wrongly by Flash/Turbo, the cause is the model, not missing normalisation. Rules that follow:
+- These lines (and any future mispronunciation) live in a **regression list** kept with the TTS code; whenever the model, voice, settings or pronunciation lexicon change, re-synthesise them and have the owner re-listen before the change ships.
+- A **pronunciation lexicon** (owner-maintained data: written form -> respelling, versioned) is applied before synthesis and its version is stored on the audio asset. ElevenLabs also supports pronunciation dictionaries (`pronunciation_dictionary_locators`); whether they work for Vietnamese is unverified.
+- During the pilot the owner listens to every narration before approving; a mispronunciation sends the revision back to rework (change the wording or the lexicon).

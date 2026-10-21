@@ -40,6 +40,7 @@ Each box must be backed by an automated test or a documented manual verification
 - [ ] Identical (text, voice, model, settings) is served from cache and records no new cost.
 - [ ] A synthesis failure sends the revision to NEEDS_REWORK; nothing is published un-narrated.
 - [ ] The rendered mix has an audio stream, is not silent, does not clip, ends before the hold period and is within loudness tolerance.
+- [ ] The pronunciation regression list (dates, "that no", tones, names) is re-synthesised and re-listened by the owner whenever model, voice, settings or lexicon change.
 - [ ] Narrated Reels always publish with `is_ai_generated=true`.
 - [ ] ElevenLabs spend is recorded before any retry and respects its own budget (default 0).
 

@@ -45,6 +45,8 @@
 
 - **Tạo ảnh qua fal.ai (model FLUX.2)**: 4 ảnh 9:16 thử thành công, mỗi ảnh khoảng 0,025$ và 10-12 giây; chất lượng đủ dùng cho meme và biểu tượng rebus. Đã dùng khoảng 0,10$ trong ngân sách 4$. Ảnh sinh ra có **chữ giả méo mó dù đã dặn 'no text'** (biển hiệu trong ảnh xe máy), nên QA phải coi chữ méo là lỗi cứng và chữ thật vẫn chỉ thêm bằng Pillow.
 
+- **Kết quả nghe thử giọng đọc (chủ dự án, 2026-10-22):** `eleven_flash_v2_5` và `eleven_turbo_v2_5` đọc sai ngày tháng năm (cả bản số lẫn bản đánh vần) và đọc sai cụm "thật no"; bản `eleven_v3` không có lỗi nào được báo. **D-25: dùng `eleven_v3` cho giọng đọc** (đắt gấp đôi trên mỗi ký tự, vẫn không đáng kể, chậm hơn nhưng render ngoại tuyến nên không ảnh hưởng).
+
 ## C. Điều Package 0 phải xác nhận (VERIFY)
 - Giọng đọc: chất lượng tiếng Việt thực tế (dấu, thanh điệu, tên riêng) của `eleven_flash_v2_5` so với `eleven_v3`/`eleven_v4`; giá theo ký tự của gói đang dùng; tốc độ nói thực tế (số âm tiết/giây); giới hạn độ dài mỗi lần gọi và lỗi 401/429/hết hạn mức (tài liệu chính thức không nêu); quyền dùng thương mại của giọng đã chọn.
 
