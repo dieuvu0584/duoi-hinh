@@ -13,6 +13,19 @@ services:
       redis:
         condition: service_started
     restart: unless-stopped
+  worker:
+    # Runs the scheduler tick (docs/workflow.md). Dry-run unless NHD_PUBLISH_MODE=live.
+    build: ../backend
+    command: ["python", "-m", "app.worker"]
+    env_file: ../.env
+    environment:
+      NHD_MEDIA_DIR: /app/media
+    volumes:
+      - ../media:/app/media:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
   postgres:
     image: postgres:16
     environment:
@@ -32,7 +45,6 @@ services:
     volumes:
       - redisdata:/data
     restart: unless-stopped
-  # TODO(Package B): add worker and scheduler only after their modules exist.
 volumes:
   pgdata:
   redisdata:

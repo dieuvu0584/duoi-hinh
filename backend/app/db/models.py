@@ -232,6 +232,9 @@ class PublishingRecord(TimestampMixin, Base):
     copyright_clear: Mapped[bool] = mapped_column(Boolean, default=False)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error_code: Mapped[str | None] = mapped_column(String(60))
+    # Path of the rendered video inside NHD_MEDIA_DIR (never an arbitrary filesystem path).
+    video_ref: Mapped[str | None] = mapped_column(String(300))
+    reconcile_attempts: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class TokenHealth(Base):

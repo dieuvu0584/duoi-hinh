@@ -21,6 +21,13 @@ docker compose --env-file ../.env up -d --build
 ```
 Always pass `--env-file ../.env`; compose does not read the root `.env` for interpolation otherwise, and missing `POSTGRES_*` values now fail loudly. Set `NHD_API_PORT` in `.env` if port 8000 is taken. The API container applies migrations on start (`alembic upgrade head`).
 
+## Worker (scheduler)
+```
+python -m app.worker --once     # one tick
+python -m app.worker            # loop every 30 s (--interval to change)
+```
+It does nothing unless `automation_enabled` is true (default false), uses the dry-run provider unless `NHD_PUBLISH_MODE=live`, and in Docker runs as the `worker` service with `../media` mounted read-only at `/app/media`.
+
 ## Create the owner account (once, on the server)
 ```
 docker compose --env-file ../.env exec api python -m app.cli create-owner --username owner

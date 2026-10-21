@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     publishing_kill_switch: bool = True
     publish_mode: Literal["dry_run", "live"] = "dry_run"
 
+    # Rendered videos live under this directory; publishing refuses any path outside it.
+    media_dir: str = "media"
+
     # Meta (names come straight from .env: META_*). The token is a SecretStr and never printed.
     meta_page_id: str | None = Field(default=None, validation_alias=AliasChoices("META_PAGE_ID"))
     meta_access_token: SecretStr | None = Field(

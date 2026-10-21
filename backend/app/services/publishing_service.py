@@ -11,7 +11,7 @@ Soft gate reasons (not due yet, rate limit) leave the record untouched; the rest
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -22,6 +22,7 @@ from app.db.base import utcnow
 from app.db.models import ContentItem, ContentRevision, PublishingRecord
 from app.providers.contracts import ReelsPublishingProvider
 from app.providers.errors import (
+    ProviderError,
     ProviderExpired,
     ProviderPermanent,
     ProviderTimeout,
@@ -79,6 +80,7 @@ def _load(session: Session, record_id: uuid.UUID) -> PublishingRecord:
 
 def schedule(
     session: Session, *, item: ContentItem, scheduled_for: datetime, actor: str = "system",
+    video_ref: str | None = None,
 ) -> PublishingRecord:
     """Create the publishing record for the item's CURRENT revision (item must be APPROVED)."""
     if scheduled_for.tzinfo is None:
@@ -94,7 +96,8 @@ def schedule(
     record = PublishingRecord(
         revision_id=revision.id, content_hash=revision.content_hash,
         intent_key=f"{revision.id}:facebook:reel_9x16:{attempt}",
-        status=PublishState.NOT_SCHEDULED.value, scheduled_for=scheduled_for)
+        status=PublishState.NOT_SCHEDULED.value, scheduled_for=scheduled_for,
+        video_ref=video_ref)
     session.add(record)
     session.flush()
     _move(session, record, PublishState.SCHEDULED, actor=actor)
@@ -129,12 +132,16 @@ async def prepare(
         _move(session, record, PublishState.EXPIRED, actor=actor, reason="provider_expired")
         session.commit()
         return record
-    except (ProviderPermanent, ProviderTransient, ProviderTimeout) as exc:
+    except Exception as exc:  # noqa: BLE001 - never leave a record stuck in PREPARING
         # Nothing public exists yet, so any failure here is a clean FAILED (the draft, if any,
         # can be deleted). The owner or scheduler decides on a new attempt.
+        session.rollback()
+        record = _load(session, record_id)
         record.last_error_code = getattr(exc, "code", type(exc).__name__)[:60]
         _move(session, record, PublishState.FAILED, actor=actor, reason=type(exc).__name__)
         session.commit()
+        if not isinstance(exc, ProviderError):
+            raise  # a programming error: record is safe, but make it visible
         return record
 
     record.meta_video_id = prepared.video_id
@@ -194,6 +201,13 @@ async def publish_due(
         _move(session, record, PublishState.FAILED, actor=actor, reason=type(exc).__name__)
         session.commit()
         return "failed", record.last_error_code
+    except Exception as exc:  # noqa: BLE001 - anything unrecognised may have gone public
+        session.rollback()
+        record = _load(session, record_id)
+        _move(session, record, PublishState.UNKNOWN_RESULT, actor=actor,
+              reason=f"unexpected:{type(exc).__name__}")
+        session.commit()
+        return "unknown_result", type(exc).__name__
 
     _finish_published(session, record, result.permalink, actor)
     return "published", "ok"
@@ -284,3 +298,48 @@ async def retract(
     _move(session, record, PublishState.RETRACTED, actor=actor)
     session.commit()
     return "retracted"
+
+
+async def skip_late(session: Session, provider: ReelsPublishingProvider,
+                    record_id: uuid.UUID) -> None:
+    """A slot that was never prepared and is now past `max_lateness`: skip it, do not publish."""
+    record = _load(session, record_id)
+    _move(session, record, PublishState.SKIPPED_LATE, actor="system", reason="skipped_late")
+    session.commit()
+    await _discard_draft(session, provider, record)
+
+
+async def block(session: Session, record_id: uuid.UUID, *, reason: str,
+                actor: str = "system") -> None:
+    """Block a SCHEDULED record that cannot be prepared (e.g. unsafe or missing video)."""
+    record = _load(session, record_id)
+    _move(session, record, PublishState.BLOCKED, actor=actor, reason=reason)
+    session.commit()
+
+
+def recover_stuck(session: Session, *, now: datetime) -> dict[str, int]:
+    """Repair records left in a transient state by a crash or a lost worker.
+
+    PREPARING for too long -> EXPIRED (nothing public exists; it can be prepared again).
+    PUBLISHING for too long -> UNKNOWN_RESULT (the promotion may or may not have happened, so
+    it must be reconciled, never assumed). Both are audited.
+    """
+    fixed = {"preparing": 0, "publishing": 0}
+    for status, target, key, max_age in (
+        (PublishState.PREPARING, PublishState.EXPIRED, "preparing", timedelta(minutes=20)),
+        (PublishState.PUBLISHING, PublishState.UNKNOWN_RESULT, "publishing",
+         timedelta(minutes=10)),
+    ):
+        ids = session.scalars(
+            select(PublishingRecord.id).where(
+                PublishingRecord.status == status.value,
+                PublishingRecord.updated_at < now - max_age)).all()
+        for record_id in ids:
+            record = _load(session, record_id)
+            if record.status != status.value:
+                session.rollback()
+                continue
+            _move(session, record, target, actor="system", reason=f"stuck_{key}")
+            session.commit()
+            fixed[key] += 1
+    return fixed

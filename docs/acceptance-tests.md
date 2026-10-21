@@ -9,7 +9,7 @@ Each box must be backed by an automated test or a documented manual verification
 - [x] Invalid state transitions return `409 invalid_state_transition`; transition tests are generated from `docs/workflow.md` tables. - verified at the state-machine layer (`test_state_machine.py`); not yet wired to content routes
 - [x] Audit events are append-only and redact secrets. (DB trigger + `test_audit_log_is_append_only_in_the_database`, `test_audit_metadata_is_redacted`)
 - [x] Migrations apply from an empty database and upgrade an existing schema. - empty -> head verified by the test fixtures; upgrade-from-older-schema untested (only one migration exists)
-- [ ] A worker killed mid-job leaves the job recoverable; no job is lost or double-run with side effects.
+- [x] A worker killed mid-publish leaves the record recoverable without a duplicate (stuck-state recovery + reconciliation) and two workers racing on one record publish it once (`test_scheduler.py`).
 
 ## Topics/news (FR-1, FR-4, FR-30)
 - [ ] Source URL, publisher, publication date, event date and retrieval date are separate; event date never defaults from publication date.
@@ -91,7 +91,7 @@ Each box must be backed by an automated test or a documented manual verification
 - [ ] Only metrics returned by the API are stored; unknown metric names do not break ingestion.
 
 ## Operations (NFR-5, FR-36, FR-37)
-- [ ] Closing the admin UI does not stop backend jobs.
+- [~] Backend scheduling is independent of any UI: the worker/scheduler (`app/scheduler.py`, `app/worker.py`) runs on its own; a record stuck by a crash is recovered (PREPARING -> EXPIRED, PUBLISHING -> UNKNOWN_RESULT then reconciled) (`test_scheduler.py`). Generic job tables/leases for image/LLM jobs are still to do.
 - [ ] Offline UI is explicit and never claims success before backend confirmation.
 - [x] Spend budgets enforced server-side and recorded before the call (`backend/tests/test_budget.py`, 21 tests); regeneration-count limits are still to do.
 - [ ] Backup/restore and token revocation drills documented and performed.
