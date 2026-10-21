@@ -19,13 +19,12 @@ from pathlib import Path
 import meta_reels_spike as base  # reuse load_env
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
-from sqlalchemy import select, text  # noqa: E402
-
 from app.core.config import Settings  # noqa: E402
 from app.db.models import CostLedger, ProviderBudget  # noqa: E402
 from app.db.session import session_factory  # noqa: E402
 from app.providers.elevenlabs_tts import ElevenLabsSpeech  # noqa: E402
 from app.services import narration_service as ns  # noqa: E402
+from sqlalchemy import select, text  # noqa: E402
 
 LINE = "Sáng thứ Hai, 25/10, chiếc đồng hồ báo thức reo lúc 6h30, còn con mèo thì ngủ tiếp."
 

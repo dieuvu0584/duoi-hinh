@@ -53,7 +53,7 @@ def db(engine):
             text(
                 "TRUNCATE login_attempts, devices, owner_account, audit_events, publishing_records,"
                 " approvals, safety_reviews, content_revisions, content_items, token_health,"
-                " cost_ledger, provider_budgets, audio_assets CASCADE"
+                " cost_ledger, provider_budgets, audio_assets, video_assets CASCADE"
             )
         )
         conn.execute(

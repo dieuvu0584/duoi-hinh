@@ -34,9 +34,9 @@ Each box must be backed by an automated test or a documented manual verification
 - [ ] Hard failures override numeric QA scores.
 
 ## Dual renditions and composition (FR-7, FR-7b, D-26)
-- [ ] A 1920x1920 master renders to 1080x1920 and 1920x1080 by centre crop with no black bars and no stretching.
+- [x] A 1920x1920 master renders to 1080x1920 and 1920x1080 by centre crop (`fill`) or whole-square-over-blur (`fit`), never stretched (`backend/tests/test_render_service.py`, real ffmpeg).
 - [x] Clue boxes outside the safe region of a target are rejected for `fill` (switch to `fit`); boxes inside pass; missing boxes fail closed to `fit`; per-target geometry incl. the Reels UI margins (`backend/tests/test_composition.py`, 13 tests).
-- [ ] Both renditions pass the ffprobe gate for their own size, share one narration, and have separate keyframe QA.
+- [~] Both renditions pass the ffprobe gate for their own size (resolution, constant fps, codec, pixel format, duration, AAC 48 kHz stereo, not silent) and share one narration; separate keyframe QA (vision review of extracted frames) is still to do.
 - [ ] Each (platform, target) has its own publishing record, gate and idempotency key; the global kill switch stops both.
 - [ ] `youtube_enabled=false` blocks every YouTube action.
 
@@ -46,7 +46,7 @@ Each box must be backed by an automated test or a documented manual verification
 - [x] Vietnamese numerals/dates/times/units are expanded deterministically before synthesis (`backend/tests/test_vi_normalizer.py`, 72 tests; an invalid date is never turned into a date).
 - [x] Identical (text, voice, model, settings) - and any spelling that normalises alike - is served from cache and records no new cost (`backend/tests/test_narration.py`).
 - [ ] A synthesis failure sends the revision to NEEDS_REWORK; nothing is published un-narrated.
-- [ ] The rendered mix has an audio stream, is not silent, does not clip, ends before the hold period and is within loudness tolerance.
+- [~] The rendered mix has an audio stream, is not silent and is loudness-normalised (-16 LUFS target, measured and recorded); clipping and 'narration ends before the hold' checks are not asserted yet.
 - [ ] The pronunciation regression list (dates, "that no", tones, names) is re-synthesised and re-listened by the owner whenever model, voice, settings or lexicon change.
 - [ ] Narrated Reels always publish with `is_ai_generated=true`.
 - [x] ElevenLabs spend is reserved before the call, settled from the provider's `character-cost`, kept on timeout and released only for known-uncharged failures; no budget row means no request (`test_narration.py`).

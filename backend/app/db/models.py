@@ -314,3 +314,30 @@ class CostLedger(Base):
     reserved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     note: Mapped[str | None] = mapped_column(Text)
+
+
+class VideoAsset(Base):
+    """A rendered video (one target, one mode), content-addressed by the hash of its render spec."""
+
+    __tablename__ = "video_assets"
+    __table_args__ = (
+        CheckConstraint("target IN ('reel_9x16', 'youtube_16x9')", name="target_valid"),
+        CheckConstraint("mode IN ('fill', 'fit')", name="mode_valid"),
+        CheckConstraint("status IN ('valid', 'invalid')", name="status_valid"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    target: Mapped[str] = mapped_column(String(20))
+    mode: Mapped[str] = mapped_column(String(4))
+    spec: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    spec_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    storage_ref: Mapped[str] = mapped_column(String(300))  # relative to NHD_MEDIA_DIR
+    sha256: Mapped[str] = mapped_column(String(64))
+    probe: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    duration_s: Mapped[Decimal | None] = mapped_column(Numeric(8, 3))
+    width: Mapped[int] = mapped_column(Integer)
+    height: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(8), default="valid")
+    audio_asset_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("audio_assets.id"))
+    master_ref: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # Rendered videos live under this directory; publishing refuses any path outside it.
     media_dir: str = "media"
 
+    # Rendering: x264 preset (slower = smaller files) and an optional font with Vietnamese glyphs.
+    x264_preset: str = "medium"
+    font_path: str | None = None
+
     # ElevenLabs (voiceover). The key is a SecretStr; USD per credit is an ASSUMPTION used for the
     # budget estimate (set it from your plan/invoice; the default is deliberately on the high side).
     elevenlabs_api_key: SecretStr | None = Field(

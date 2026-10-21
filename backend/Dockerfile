@@ -1,6 +1,10 @@
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
+# ffmpeg renders and validates the videos; DejaVu has full Vietnamese glyph coverage for captions.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml ./
 COPY app ./app
 COPY alembic.ini ./
