@@ -123,6 +123,7 @@ Failures found by the owner's listening test (2026-10-22, voice "Ngoc Ngan - Vie
 | `digits_raw` ("ngay 25/10/2026, ... 3 ngay lien, ... 24.500 dong") | date read wrongly | date read wrongly | no problem reported |
 | `digits_spelled` (same, fully spelled out) | date read wrongly | date read wrongly | no problem reported |
 | `tone_minimal_pairs` ("... an Tet that no") | "that no" read wrongly | "that no" read wrongly | no problem reported |
+| `tones_names` ("Anh Tuan o Da Nang **chay** xe may qua cau Rong ...") | no problem reported | the word "chay" read wrongly | no problem reported |
 Because the hand-spelled date was also read wrongly by Flash/Turbo, the cause is the model, not missing normalisation. Rules that follow:
 - These lines (and any future mispronunciation) live in a **regression list** kept with the TTS code; whenever the model, voice, settings or pronunciation lexicon change, re-synthesise them and have the owner re-listen before the change ships.
 - A **pronunciation lexicon** (owner-maintained data: written form -> respelling, versioned) is applied before synthesis and its version is stored on the audio asset. ElevenLabs also supports pronunciation dictionaries (`pronunciation_dictionary_locators`); whether they work for Vietnamese is unverified.
