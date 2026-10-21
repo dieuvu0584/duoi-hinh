@@ -55,14 +55,14 @@ Each box must be backed by an automated test or a documented manual verification
 - [x] Missing, invalid, stale, blocked or hash-mismatched review prevents publishing. (`test_publish_gate.py`; wired to DB data, not yet to a scheduler)
 - [x] Editing a revision invalidates its approval and safety review. (`test_publish_gate.py`: edit -> `revision_superseded`; new revision -> `content_not_approved`)
 - [x] High-risk topics cannot be published without completed human review. (`test_sensitive_category_requires_human_even_if_model_says_allow`)
-- [ ] Kill switch (DB source of truth) blocks scheduled and publish-now paths and is rechecked immediately before FINISH.
+- [x] Kill switch (DB source of truth) is rechecked immediately before the promotion, also on a retry after reconciliation (`test_publishing_service.py`; both scheduled and publish-now will call the same `publish_due`, the scheduler itself is not built yet).
 
 ## Publishing (FR-31..34, D1-D3)
 - [ ] Prepared video that is not `ready` or whose copyright check is not clear is never finished.
-- [ ] FINISH is called at most once per intent unless reconciliation proves it had no effect.
-- [ ] Fault injection: timeout after START, during UPLOAD, after FINISH -> no duplicate posts; `UNKNOWN_RESULT` reconciled before any retry.
-- [ ] `max_lateness` skips late posts instead of publishing them.
-- [ ] Local publish cap and Meta 30/24 h limit enforced.
+- [x] The public step (promotion) is called at most once per intent unless reconciliation proves it had no effect; reconciliation never publishes (`test_publishing_service.py`, fake provider).
+- [~] Fault injection with a fake provider: timeout/permanent/expired during prepare, timeout applied and not applied during promotion, ambiguous and missing reconciliation -> no duplicate posts, UNKNOWN_RESULT reconciled before any retry. Real Meta adapter and per-step (START/UPLOAD) injection still to do.
+- [x] `max_lateness` skips late posts instead of publishing them and deletes the draft (`test_a_slot_that_is_too_late_is_skipped_and_the_draft_deleted`).
+- [~] Local daily publish cap enforced and counts what was published (`test_the_daily_publish_cap_counts_what_was_published`); the Meta 30/24 h hard limit is covered by the lower local cap (max 30 in settings), not tested against Meta.
 - [ ] `is_ai_generated` follows the rule and is audited when overridden.
 - [ ] Token health job detects invalid/expiring token and blocks publishing.
 - [ ] Meta tokens and raw sensitive payloads never appear in logs (log-scan test).

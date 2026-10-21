@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 
 @dataclass(frozen=True)
@@ -13,11 +14,25 @@ class ProviderResult:
 
 @dataclass(frozen=True)
 class PreparedReel:
-    """Result of START + UPLOAD + processing; nothing is public yet."""
+    """Result of START + UPLOAD + FINISH(DRAFT) + waiting: a ready draft; nothing is public."""
 
     video_id: str
-    status: str  # provider status, e.g. upload_complete / processing / ready / expired
+    status: str  # provider status, e.g. ready / processing / expired
     copyright_clear: bool | None  # None while the check is still running
+
+
+@dataclass(frozen=True)
+class PublishedReel:
+    video_id: str
+    permalink: str | None
+
+
+@dataclass(frozen=True)
+class ReconcileResult:
+    """What the provider says about a video after an unknown outcome."""
+
+    state: Literal["published", "draft_ready", "missing", "error", "ambiguous"]
+    permalink: str | None = None
 
 
 class TextAnalysisProvider(Protocol):
@@ -40,26 +55,26 @@ class ImageProvider(Protocol):
 
 
 class ReelsPublishingProvider(Protocol):
-    """Draft-then-promote publishing (docs/publishing-meta.md D1, decision D-23).
+    """Draft-then-promote publishing (docs/publishing-meta.md D1, decision D-26 flow).
 
     `prepare` uploads, waits for the copyright check, finishes as a DRAFT and waits until the
-    draft is ready; nothing is public. `publish` promotes that draft and is the only public
-    step, so the pre-publish gate and kill switch run right before it. Implementations must
-    persist the provider video id before uploading, never log tokens, and classify errors as
-    transient / permanent / unknown.
+    draft is ready; nothing is public. It must call `on_video_id` as soon as the provider id is
+    known (before the upload) so the caller can persist it. `publish` promotes that draft and is
+    the only public step; the pre-publish gate and kill switch run right before it. Errors are
+    typed (`app.providers.errors`): a timeout is UNKNOWN, never retried blindly. Implementations
+    never log tokens.
     """
 
     async def prepare(
-        self, *, video_path: Path, description: str, is_ai_generated: bool, intent_key: str
+        self, *, video_path: Path, description: str, is_ai_generated: bool, intent_key: str,
+        on_video_id: Callable[[str], None],
     ) -> PreparedReel: ...
 
-    async def get_status(self, *, video_id: str) -> PreparedReel: ...
+    async def publish(self, *, video_id: str, intent_key: str) -> PublishedReel: ...
 
-    async def publish(self, *, video_id: str, intent_key: str) -> ProviderResult: ...
+    async def delete(self, *, video_id: str) -> None: ...  # cancel a draft or retract a Reel
 
-    async def delete(self, *, video_id: str) -> ProviderResult: ...  # cancel a draft or retract
-
-    async def reconcile(self, *, video_id: str) -> ProviderResult: ...
+    async def reconcile(self, *, video_id: str) -> ReconcileResult: ...
 
 
 # Implement concrete adapters only after verifying current official provider documentation.

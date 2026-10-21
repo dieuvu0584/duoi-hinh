@@ -102,11 +102,15 @@ PUBLISH_TRANSITIONS: dict[PublishState, frozenset[PublishState]] = {
     P.SCHEDULED: frozenset({P.PREPARING, P.BLOCKED, P.CANCELLED, P.SKIPPED_LATE}),
     P.PREPARING: frozenset({P.READY_TO_PUBLISH, P.FAILED, P.EXPIRED, P.BLOCKED, P.CANCELLED}),
     P.EXPIRED: frozenset({P.PREPARING}),
-    P.READY_TO_PUBLISH: frozenset({P.PUBLISHING, P.BLOCKED, P.CANCELLED, P.EXPIRED}),
+    P.READY_TO_PUBLISH: frozenset(
+        {P.PUBLISHING, P.BLOCKED, P.CANCELLED, P.EXPIRED, P.SKIPPED_LATE}
+    ),
     # PUBLISHING -> FAILED only for a definite provider rejection; ambiguity is UNKNOWN_RESULT.
     P.PUBLISHING: frozenset({P.PUBLISHED, P.UNKNOWN_RESULT, P.FAILED}),
-    # UNKNOWN_RESULT -> PUBLISHING only after reconciliation proves FINISH had no effect.
-    P.UNKNOWN_RESULT: frozenset({P.PUBLISHED, P.FAILED, P.PUBLISHING}),
+    # After reconciliation proves the promotion had no effect the record goes back to
+    # READY_TO_PUBLISH, so the retry passes the full pre-publish gate again (never straight to
+    # PUBLISHING).
+    P.UNKNOWN_RESULT: frozenset({P.PUBLISHED, P.FAILED, P.READY_TO_PUBLISH}),
     P.BLOCKED: frozenset({P.SCHEDULED}),
     P.PUBLISHED: frozenset({P.RETRACTION_REQUESTED}),
     P.RETRACTION_REQUESTED: frozenset({P.RETRACTED, P.RETRACTION_FAILED}),

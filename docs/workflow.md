@@ -50,7 +50,8 @@ Terminal until an authorized edit creates a new revision: REJECTED, BLOCKED, SUP
 | READY_TO_PUBLISH | EXPIRED | provider reports `expired` before FINISH |
 | RETRACTION_FAILED | RETRACTION_REQUESTED / RETRACTED | owner retries, or records a manual retraction |
 | UNKNOWN_RESULT | PUBLISHED / FAILED | reconciliation result |
-| UNKNOWN_RESULT | PUBLISHING | only if reconciliation proves FINISH did not take effect (and FINISH idempotency verified) |
+| UNKNOWN_RESULT | READY_TO_PUBLISH | reconciliation proves the promotion had no effect; the retry then passes the **full gate again** (kill switch, approval, review) - there is no direct UNKNOWN_RESULT -> PUBLISHING edge |
+| READY_TO_PUBLISH | SKIPPED_LATE | the slot is older than `max_lateness` when the gate runs (the draft is deleted) |
 | SCHEDULED / PREPARING / READY_TO_PUBLISH | BLOCKED | any gate failure (reason code) |
 | BLOCKED | SCHEDULED | cause cleared + owner re-confirms |
 | SCHEDULED... | CANCELLED | owner cancels |
