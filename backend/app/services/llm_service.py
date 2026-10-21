@@ -52,7 +52,7 @@ async def call_json(
     full = load_schema(schema_name, schema_dir)
     wire = wire_schema(full)
     last_error = "no attempt made"
-    for attempt in range(1, attempts + 1):
+    for _ in range(attempts):
         reservation = budget_service.reserve(
             session, provider=PROVIDER, operation=f"llm:{purpose}",
             estimated_usd=_usd(est_input_tokens, max_tokens, cfg),

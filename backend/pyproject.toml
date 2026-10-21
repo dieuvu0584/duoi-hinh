@@ -37,3 +37,8 @@ testpaths = ["tests"]
 line-length = 100
 extend-exclude = ["migrations/versions"]
 target-version = "py312"
+
+[tool.ruff.lint]
+# Explicit rule set so a new ruff release cannot change what CI enforces.
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008"]  # FastAPI Depends() in argument defaults is the framework idiom
