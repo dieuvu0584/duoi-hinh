@@ -59,7 +59,7 @@ Each Reel is narrated in Vietnamese: the voice reads the question/setup for the 
 
 ### Script
 - The narration text is produced with the concept (same LLM step, schema `narration_text`), is a field of the content revision, **is part of `content_hash`** (together with `voice_id`) and is reviewed by the safety gate exactly like the caption. Editing it creates a new revision and invalidates approval.
-- Target length: short enough that the whole Reel stays inside the lane duration (about 2.5 spoken Vietnamese syllables per second is a planning figure, to be measured in the TTS spike).
+- Target length: short enough that the whole Reel stays inside the lane duration (**measured 2026-10-22: about 3.1-3.3 spoken Vietnamese words/syllables per second** with the chosen voice, so a 10-25 word line is roughly 3-8 s).
 - Deterministic text normalisation before synthesis: expand numerals, dates, units, abbreviations and symbols into Vietnamese words ourselves, and fix known mispronunciations with a replacement list. (ElevenLabs documents that Flash models do not normalise numbers by default; do not rely on the model for this.)
 
 ### Synthesis (ElevenLabs)
@@ -106,3 +106,12 @@ AI video generation (Veo etc.), voice cloning, auto-subtitles (the on-screen ove
 
 ## Spike evidence (2026-10-20, developer machine, Windows, ffmpeg 9.0.1)
 `spikes/render_reel_spike.py` rendered a Pillow-drawn Vietnamese test card to a 10 s, 1080x1920, 30 fps H.264/yuv420p + AAC 48 kHz stereo mp4 (3.8 MB) in ~13 s with a 1.06x slow zoom; the script's ffprobe gate reported no errors. This only proves the encode recipe and the validation script locally. It does **not** prove Meta accepts the file, GOP closure, safe zones on real phones, or VPS render time - those remain Package 0 items.
+
+## Narration measurements (2026-10-22, ElevenLabs, Starter plan, voice "Ngoc Ngan - Vietnamese Storyteller", `spikes/elevenlabs_tts_spike.py`)
+6 Vietnamese lines x 3 models, 18 calls, 1,593 characters sent. All returned HTTP 200 mp3 (44.1 kHz/128 kbps).
+- **Speed:** mean 3.3 (Flash v2.5), 3.1 (Turbo v2.5), 3.2 (v3) words per second; audio for the 6 lines ran 36-39 s per model.
+- **Latency:** Flash/Turbo about 0.3-0.5 s per line (the first call was 2.7 s, a cold start); v3 about 2-3.8 s.
+- **Billing:** the response header `character-cost` is authoritative and the account counter moved by exactly its sum (425 for 1,593 characters sent): about **0.2 per character on Flash and Turbo and 0.4 per character on v3** on this plan. The counter updates with a delay of up to a minute. Track spend from `character-cost`, not from request length; keep the request length as the pre-call upper bound.
+- **Other headers:** `request-id`, `history-item-id`, and concurrency headers (`maximum-concurrent-requests: 6`).
+- **Quota:** Starter, 81,227 characters per period and no overage (`can_extend_character_limit: false`), so a narrated 25-word Reel (about 130 characters) uses roughly 26-52 credits; the plan allows well over a thousand Reels a month.
+- **Not measured:** pronunciation quality (needs a human to listen; the files are in `spikes/output/tts/`, gitignored), number/date reading correctness, error codes for 401/429/quota.

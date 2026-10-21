@@ -39,3 +39,21 @@ Authorised by the owner for the test Page. Every video created was deleted after
 Consequence (decision D-23): the main publishing flow is now *prepare as draft, then promote at T*. This keeps the kill switch and cancellation effective until the last moment, removes processing latency at go-live, and a repeated FINISH cannot create a duplicate. `docs/publishing-meta.md` D1-D2, `docs/workflow.md`, `backend/app/providers/contracts.py` updated.
 
 Still open: how long a `ready` draft stays valid; whether promotion is idempotent; whether App Review is ever required (public posting worked in the app's current mode); safe zones on real phones; longer videos.
+
+## 2026-10-22 - ElevenLabs Vietnamese narration spike (`spikes/elevenlabs_tts_spike.py`)
+Account: Starter plan, 81,227 characters per period, no overage. Voice: library voice "Ngoc Ngan - Vietnamese Storyteller" (category professional, language `vi`). Spend: 1,593 characters sent, **425 credits** deducted (sum of the `character-cost` response headers; the account counter agreed after a short delay).
+
+| Model | words/s (mean) | latency per line | credits per character |
+|---|---|---|---|
+| eleven_flash_v2_5 | 3.3 | 0.3-0.5 s (first call 2.7 s) | about 0.2 |
+| eleven_turbo_v2_5 (listed as deprecated in the docs, verified for this voice) | 3.1 | 0.3-0.4 s | about 0.2 |
+| eleven_v3 | 3.2 | 2-3.8 s | about 0.4 |
+
+Findings:
+1. Vietnamese synthesis works on all three models with this voice; no error responses.
+2. Planning figure corrected from 2.5 to about 3.2 spoken words per second.
+3. Cost is negligible on this plan (a narrated Reel costs tens of credits against 81k), but spend must be read from `character-cost`.
+4. Digits: the raw-digit line produced audio of a similar length to the hand-spelled line, so the model did read the numbers; whether it read them **correctly** needs a listening check. Our own deterministic normaliser is still required for dates, units and abbreviations.
+5. Error codes (401/429/quota), per-request character limit and behaviour at the plan limit were not triggered.
+
+Pending: the owner listens to `spikes/output/tts/*.mp3` (18 files: `<line>__<model>.mp3`) and scores pronunciation of tones, names (Da Nang, cau Rong), numbers/dates and the rebus question, which decides the model for production.

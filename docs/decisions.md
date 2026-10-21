@@ -41,6 +41,8 @@
 - **D-23: luồng đăng chính = chuẩn bị bản nháp (FINISH ở chế độ DRAFT, chờ `ready` và bản quyền sạch), đến giờ thì qua cổng kiểm tra rồi chuyển nháp sang công khai.** Cách này giữ được kill switch và quyền hủy tới phút cuối, và không có độ trễ xử lý khi lên sóng.
 - Token Page có thời hạn khoảng 60 ngày: cần cảnh báo trước khi hết hạn.
 
+- **Giọng đọc ElevenLabs chạy được**: 18 lần thử (3 model x 6 câu) thành công; tốc độ khoảng 3,1-3,3 từ/giây; độ trễ Flash/Turbo khoảng 0,3-0,5 giây, v3 khoảng 2-3,8 giây. Chi phí đo bằng header `character-cost`: khoảng 0,2 đơn vị mỗi ký tự cho Flash/Turbo và 0,4 cho v3 trên gói Starter của bạn (81.227 ký tự/kỳ, không vượt hạn mức). **Chất lượng phát âm chưa đánh giá được vì cần bạn nghe thử** (file ở `spikes/output/tts/`).
+
 ## C. Điều Package 0 phải xác nhận (VERIFY)
 - Giọng đọc: chất lượng tiếng Việt thực tế (dấu, thanh điệu, tên riêng) của `eleven_flash_v2_5` so với `eleven_v3`/`eleven_v4`; giá theo ký tự của gói đang dùng; tốc độ nói thực tế (số âm tiết/giây); giới hạn độ dài mỗi lần gọi và lỗi 401/429/hết hạn mức (tài liệu chính thức không nêu); quyền dùng thương mại của giọng đã chọn.
 
