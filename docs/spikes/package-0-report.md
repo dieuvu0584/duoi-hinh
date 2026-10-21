@@ -57,3 +57,21 @@ Findings:
 5. Error codes (401/429/quota), per-request character limit and behaviour at the plan limit were not triggered.
 
 Pending: the owner listens to `spikes/output/tts/*.mp3` (18 files: `<line>__<model>.mp3`) and scores pronunciation of tones, names (Da Nang, cau Rong), numbers/dates and the rebus question, which decides the model for production.
+
+## 2026-10-22 - Image generation through fal.ai (`spikes/fal_image_spike.py`)
+The owner's image key is a **fal.ai** key (not Black Forest Labs). Endpoint `fal-ai/flux-2` via the queue API (`https://queue.fal.run`, `Authorization: Key ...`), 1080x1920 requested, PNG, safety checker on. Budget cap USD 4.00; spent **about USD 0.10** (4 images). fal does not return the cost, so the spike computes it from the megapixels (price USD 0.012/MP from fal.ai/pricing) and reserves it in a ledger before each request.
+
+| Image | Time | Result (viewed by the assistant) |
+|---|---|---|
+| rebus_symbol_banh (rice cake in banana leaf) | 11.0 s | Clean single object on plain background; very usable as a deterministic rebus symbol. |
+| rebus_symbol_chung (square wrapped cake, bamboo string) | 10.5 s | Clean single object; recognisably a wrapped square cake (the woven pattern is more ketupat-like than banh chung). |
+| daily_cat_alarm | 9.2 s | High quality, readable emotion and humour; floating "??" glyphs appeared although not requested. |
+| daily_rain_motorbike | 11.7 s | High quality, Vietnamese street feel; **garbled pseudo-text on a shop sign** despite "no text". |
+
+Findings:
+1. **Size:** a 1080x1920 request came back **1088x1920** (rounded up), so the normaliser must crop 4 px per side (never stretch) and the cost uses the returned size; settled cost was USD 0.025068 per image. A bug in the spike (settled cost clamped to the estimate) was found and fixed; the ledger was corrected to USD 0.100272.
+2. **Garbled text appears even when told "no text":** confirms the design rule - never rely on generated text; QA must treat unreadable/garbled lettering as a hard failure; real text is overlaid with Pillow.
+3. Symbols on a plain background leave much empty canvas on a 9:16 frame; the compositor should scale and place them (and crop to the subject) instead of using the raw frame.
+4. fal returns images as signed CDN URLs; we download immediately and do not send the API key to the CDN.
+5. Not evaluated: how well the model keeps a **consistent style across several clue images** for one rebus, and Vietnamese-specific rebus clue accuracy; both need a larger human-scored batch.
+6. Not measured: fal error shapes and the HTTP status when the balance is insufficient (not triggered), rate limits, media retention time.
