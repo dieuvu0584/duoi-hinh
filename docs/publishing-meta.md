@@ -67,6 +67,9 @@ Collect only metrics the API returns for the granted permissions (Reels video in
 | 6000 upload problem / `upload_failed` | transient | resume at `bytes_transfered`, bounded retries, else new START |
 | network timeout on FINISH | unknown | `UNKNOWN_RESULT` reconciliation (D2) |
 
+## Production adapter (2026-10-22)
+`backend/app/providers/meta_reels.py` implements the draft-then-promote contract. Verified live on the test Page: all calls authenticate with `Authorization: OAuth <token>` in the header only (Graph accepted both `OAuth` and `Bearer` forms on GET), so the token never appears in a URL or log; one full cycle (prepare, promote, reconcile, delete) succeeded in about 56 s, leaving no video behind. Error mapping: codes 190/200/10/102/100/368 and 6000/136xxxx are permanent, 613/4/17/32/341/1/2 transient, and a transport timeout or 5xx on a state-changing call is UNKNOWN (never retried inside the adapter).
+
 ## Measured on the test Page (2026-10-22, Graph API v26.0) - see docs/spikes/package-0-report.md
 - A 10 s, 1080x1920, 30 fps H.264/AAC, 3.8 MB mp4 made by our ffmpeg recipe was **accepted and processed** by Meta.
 - START ~1 s; UPLOAD of 3.8 MB ~5 s; copyright check completed within ~55 s of START (no matches); FINISH ~3 s; processing after FINISH ~17 s.

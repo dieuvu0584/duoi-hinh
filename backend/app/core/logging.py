@@ -60,3 +60,7 @@ def configure_logging(level: str = "INFO") -> None:
     root = logging.getLogger()
     root.handlers = [handler]
     root.setLevel(level)
+    # HTTP client libraries log full request URLs at INFO; keep them quiet as a second defence
+    # (credentials are never put in URLs, see app/providers/meta_reels.py).
+    for noisy in ("httpx", "httpx2", "httpcore"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)

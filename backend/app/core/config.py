@@ -1,10 +1,14 @@
 from typing import Literal
 
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="NHD_", extra="ignore")
+    # ".env" next to the working directory, or the repo-root one when running from backend/.
+    model_config = SettingsConfigDict(
+        env_file=(".env", "../.env"), env_prefix="NHD_", extra="ignore"
+    )
 
     environment: str = "development"
     log_level: str = "INFO"
@@ -13,6 +17,13 @@ class Settings(BaseSettings):
     # Seeds system_settings on first boot only; the database value is authoritative afterwards.
     publishing_kill_switch: bool = True
     publish_mode: Literal["dry_run", "live"] = "dry_run"
+
+    # Meta (names come straight from .env: META_*). The token is a SecretStr and never printed.
+    meta_page_id: str | None = Field(default=None, validation_alias=AliasChoices("META_PAGE_ID"))
+    meta_access_token: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("META_ACCESS_TOKEN"))
+    meta_api_version: str = Field(
+        default="v26.0", validation_alias=AliasChoices("META_API_VERSION"))
 
     # Auth. The secret must be set explicitly outside development (see validate_for_runtime).
     jwt_secret: str = "dev-only-insecure-secret-change-me-32-bytes-min"
@@ -28,6 +39,11 @@ class Settings(BaseSettings):
                 raise RuntimeError("NHD_JWT_SECRET must be set to a random value (>= 32 chars)")
             if "nhd_dev_only" in self.database_url:
                 raise RuntimeError("NHD_DATABASE_URL still uses the development password")
+            if self.publish_mode == "dry_run" and self.meta_access_token:
+                raise RuntimeError(
+                    "a Meta token is configured but NHD_PUBLISH_MODE=dry_run: set it to 'live' "
+                    "deliberately or remove the token"
+                )
 
 
 settings = Settings()

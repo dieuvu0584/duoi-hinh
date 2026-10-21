@@ -6,6 +6,9 @@ TEST_DB_URL = os.environ.get(
 )
 os.environ["NHD_DATABASE_URL"] = TEST_DB_URL
 os.environ.setdefault("NHD_ENVIRONMENT", "development")
+# Tests must never pick up the developer's real Meta credentials from a local .env file.
+os.environ["META_PAGE_ID"] = ""
+os.environ["META_ACCESS_TOKEN"] = ""
 
 import pathlib  # noqa: E402
 
