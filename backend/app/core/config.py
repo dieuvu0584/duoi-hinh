@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     # Rendered videos live under this directory; publishing refuses any path outside it.
     media_dir: str = "media"
 
+    # Words the owner never wants in public text (checked deterministically, in addition to the LLM
+    # review). Comma-separated in NHD_BLACKLIST_WORDS; empty by default.
+    blacklist_words: str = ""
+    # Folder with the system prompts (prompts/*.md) and the JSON schemas (docs/schemas).
+    prompts_dir: str = "prompts"
+    schemas_dir: str = "docs/schemas"
+
     # Rendering: x264 preset (slower = smaller files) and an optional font with Vietnamese glyphs.
     x264_preset: str = "medium"
     font_path: str | None = None

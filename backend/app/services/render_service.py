@@ -14,6 +14,7 @@ import hashlib
 import json
 import re
 import subprocess
+import uuid
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -159,6 +160,7 @@ def validate(info: dict[str, Any], loudness: dict[str, float | None], *, width: 
 def render_rendition(
     session: Session, cfg: Settings, *, master_ref: str, audio: AudioAsset, caption: str,
     target: str, mode: str = "fill", preset: str | None = None,
+    revision_id: uuid.UUID | None = None,
 ) -> VideoAsset:
     if target not in TARGETS:
         raise ApiError(422, "unknown_target", "Unknown render target")
@@ -242,6 +244,7 @@ def render_rendition(
     asset = existing or VideoAsset(target=target, mode=mode, spec=spec, spec_hash=key,
                                    audio_asset_id=audio.id, master_ref=master_ref)
     asset.storage_ref, asset.sha256, asset.status = ref, sha, "valid"
+    asset.revision_id = revision_id or asset.revision_id
     asset.probe = {"format": info["format"], "loudness": loud}
     asset.duration_s = Decimal(str(round(float(info["format"]["duration"]), 3)))
     asset.width, asset.height = w, h
@@ -253,12 +256,13 @@ def render_rendition(
 
 def render_both(
     session: Session, cfg: Settings, *, master_ref: str, audio: AudioAsset, caption: str,
-    boxes: list[Box], preset: str | None = None,
+    boxes: list[Box], preset: str | None = None, revision_id: uuid.UUID | None = None,
+    expected: list[str] | None = None,
 ) -> dict[str, VideoAsset]:
     """Both renditions, each in the mode the composition check allows (never an unchecked crop)."""
-    decision = decide_modes(boxes)
+    decision = decide_modes(boxes, expected=expected)
     return {target: render_rendition(session, cfg, master_ref=master_ref, audio=audio,
                                      caption=caption, target=target, mode=decision.modes[target],
-                                     preset=preset)
+                                     preset=preset, revision_id=revision_id)
             for target in SAFE_REGIONS}
 

@@ -14,7 +14,8 @@ Content is edited as immutable **revisions** (`content_revisions`). Approval, sa
 | HELD_FOR_HUMAN | READY_FOR_GENERATION / REJECTED | owner decision after an **intake-gate** hold (audited) |
 | HELD_FOR_HUMAN | PENDING_APPROVAL | owner clears a **final-gate** hold (service checks which gate held it) |
 | READY_FOR_GENERATION | GENERATING | image/clue assets job started (budget ok) |
-| GENERATING | RENDERING | image candidate selected and processed |
+| GENERATING | RENDERING | image, composition check and narration are ready (revision now binds the media by hash) |
+| GENERATING / RENDERING / QA_PENDING | HELD_FOR_HUMAN | a stage cannot continue without a person (image prompt needs revision, render or QA could not run, assets missing) |
 | GENERATING | NEEDS_REWORK | all candidates fail QA; regeneration budget remains |
 | RENDERING | QA_PENDING | video rendered and ffprobe gate passed |
 | RENDERING | NEEDS_REWORK | render/gate failure |

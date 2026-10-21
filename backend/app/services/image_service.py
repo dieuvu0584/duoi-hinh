@@ -10,6 +10,7 @@
 
 import hashlib
 import io
+import uuid
 from decimal import Decimal
 from pathlib import Path
 
@@ -58,7 +59,7 @@ def sanitize_png(data: bytes) -> tuple[bytes, int, int]:
 
 async def generate_master(
     session: Session, provider: ImageProvider, cfg: Settings, *, prompt: str, size: int = 1920,
-    seed: int | None = None,
+    seed: int | None = None, content_item_id: uuid.UUID | None = None,
 ) -> ImageAsset:
     estimate = estimate_usd(size, size, cfg.fal_usd_per_megapixel)
     reservation = budget_service.reserve(
@@ -94,7 +95,8 @@ async def generate_master(
     asset = ImageAsset(
         provider=PROVIDER, model_id=cfg.fal_model, prompt=prompt,
         prompt_hash=hashlib.sha256(prompt.encode()).hexdigest(), seed=result.seed, width=width,
-        height=height, sha256=digest, storage_ref=ref, cost_ledger_id=reservation.id)
+        height=height, sha256=digest, storage_ref=ref, cost_ledger_id=reservation.id,
+        content_item_id=content_item_id)
     session.add(asset)
     session.commit()
     return asset

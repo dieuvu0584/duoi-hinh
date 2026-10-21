@@ -76,9 +76,12 @@ CONTENT_TRANSITIONS: dict[ContentState, frozenset[ContentState]] = {
     # before choosing READY_FOR_GENERATION (intake) or PENDING_APPROVAL (final).
     C.HELD_FOR_HUMAN: frozenset({C.READY_FOR_GENERATION, C.PENDING_APPROVAL, C.REJECTED}),
     C.READY_FOR_GENERATION: frozenset({C.GENERATING}),
-    C.GENERATING: frozenset({C.RENDERING, C.NEEDS_REWORK}),
-    C.RENDERING: frozenset({C.QA_PENDING, C.NEEDS_REWORK}),
-    C.QA_PENDING: frozenset({C.FINAL_SAFETY_PENDING, C.NEEDS_REWORK, C.REJECTED}),
+    # Mid-pipeline stops that need a person (e.g. the image prompt cannot represent the idea).
+    C.GENERATING: frozenset({C.RENDERING, C.NEEDS_REWORK, C.HELD_FOR_HUMAN}),
+    C.RENDERING: frozenset({C.QA_PENDING, C.NEEDS_REWORK, C.HELD_FOR_HUMAN}),
+    C.QA_PENDING: frozenset(
+        {C.FINAL_SAFETY_PENDING, C.NEEDS_REWORK, C.REJECTED, C.HELD_FOR_HUMAN}
+    ),
     C.NEEDS_REWORK: frozenset({C.GENERATING, C.REJECTED}),
     C.FINAL_SAFETY_PENDING: frozenset({C.PENDING_APPROVAL, C.HELD_FOR_HUMAN, C.BLOCKED}),
     C.PENDING_APPROVAL: frozenset({C.APPROVED, C.REJECTED, C.NEEDS_REWORK}),
