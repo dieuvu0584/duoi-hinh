@@ -1,10 +1,33 @@
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
 
-from app.api.health import router as health_router
+from fastapi import APIRouter, FastAPI
 
-app = FastAPI(title="Nhìn Hình Đoán Chuyện API", version="0.1.0")
-app.include_router(health_router, prefix="/api")
+from app.api import auth, system
+from app.core.config import settings
+from app.core.errors import install_error_handling
+from app.core.logging import configure_logging
 
-@app.get("/", include_in_schema=False)
-def root() -> dict[str, str]:
-    return {"service": "nhin-hinh-doan-chuyen", "status": "scaffold"}
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings.validate_for_runtime()
+    configure_logging(settings.log_level)
+    yield
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="Nhìn Hình Đoán Chuyện API", version="0.1.0", lifespan=lifespan)
+    install_error_handling(app)
+    api = APIRouter(prefix="/api")
+    api.include_router(auth.router)
+    api.include_router(system.router)
+    app.include_router(api)
+
+    @app.get("/", include_in_schema=False)
+    def root() -> dict[str, str]:
+        return {"service": "nhin-hinh-doan-chuyen", "status": "scaffold"}
+
+    return app
+
+
+app = create_app()

@@ -11,7 +11,8 @@ Content is edited as immutable **revisions** (`content_revisions`). Approval, sa
 | ANALYZING | READY_FOR_GENERATION | analysis valid, intake safety `allow` (or human-cleared) |
 | ANALYZING | HELD_FOR_HUMAN | intake gate `hold_for_human` or `needs_revision` |
 | ANALYZING | REJECTED | `reject`/`block` |
-| HELD_FOR_HUMAN | READY_FOR_GENERATION / REJECTED | owner decision (audited) |
+| HELD_FOR_HUMAN | READY_FOR_GENERATION / REJECTED | owner decision after an **intake-gate** hold (audited) |
+| HELD_FOR_HUMAN | PENDING_APPROVAL | owner clears a **final-gate** hold (service checks which gate held it) |
 | READY_FOR_GENERATION | GENERATING | image/clue assets job started (budget ok) |
 | GENERATING | RENDERING | image candidate selected and processed |
 | GENERATING | NEEDS_REWORK | all candidates fail QA; regeneration budget remains |
@@ -45,6 +46,9 @@ Terminal until an authorized edit creates a new revision: REJECTED, BLOCKED, SUP
 | READY_TO_PUBLISH | PUBLISHING | pre-publish gate passed at `T`; `PUBLISHING` and `video_id` persisted before FINISH |
 | PUBLISHING | PUBLISHED | FINISH success confirmed (post id / `publish_status=published`) |
 | PUBLISHING | UNKNOWN_RESULT | timeout/ambiguous response |
+| PUBLISHING | FAILED | definite provider rejection of FINISH (never for ambiguous results) |
+| READY_TO_PUBLISH | EXPIRED | provider reports `expired` before FINISH |
+| RETRACTION_FAILED | RETRACTION_REQUESTED / RETRACTED | owner retries, or records a manual retraction |
 | UNKNOWN_RESULT | PUBLISHED / FAILED | reconciliation result |
 | UNKNOWN_RESULT | PUBLISHING | only if reconciliation proves FINISH did not take effect (and FINISH idempotency verified) |
 | SCHEDULED / PREPARING / READY_TO_PUBLISH | BLOCKED | any gate failure (reason code) |

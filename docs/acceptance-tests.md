@@ -3,12 +3,12 @@
 Each box must be backed by an automated test or a documented manual verification with date and evidence. IDs refer to `docs/requirements.md`.
 
 ## Backend/auth (FR-40..42, NFR-1..3)
-- [ ] Health endpoint reports service/dependency status without exposing secrets.
-- [ ] Every admin route rejects unauthenticated requests (test enumerates the router).
-- [ ] Login/pairing is rate-limited and audited; device revocation invalidates refresh tokens.
-- [ ] Invalid state transitions return `409 invalid_state_transition`; transition tests are generated from `docs/workflow.md` tables.
-- [ ] Audit events are append-only and redact secrets.
-- [ ] Migrations apply from an empty database and upgrade an existing schema.
+- [x] Health endpoint reports service/dependency status without exposing secrets. (`test_health_is_public_and_minimal`)
+- [x] Every admin route rejects unauthenticated requests (test enumerates the router). (`test_every_api_route_requires_auth_except_the_public_ones`)
+- [x] Login/pairing is rate-limited and audited; device revocation invalidates refresh tokens. (`test_auth.py`)
+- [x] Invalid state transitions return `409 invalid_state_transition`; transition tests are generated from `docs/workflow.md` tables. - verified at the state-machine layer (`test_state_machine.py`); not yet wired to content routes
+- [x] Audit events are append-only and redact secrets. (DB trigger + `test_audit_log_is_append_only_in_the_database`, `test_audit_metadata_is_redacted`)
+- [x] Migrations apply from an empty database and upgrade an existing schema. - empty -> head verified by the test fixtures; upgrade-from-older-schema untested (only one migration exists)
 - [ ] A worker killed mid-job leaves the job recoverable; no job is lost or double-run with side effects.
 
 ## Topics/news (FR-1, FR-4, FR-30)
@@ -53,7 +53,7 @@ Each box must be backed by an automated test or a documented manual verification
 - [ ] Prompt-injection corpus does not change lane, answer, risk decision or approval.
 - [ ] Fetcher blocks private/loopback/metadata IPs, including after redirects.
 - [ ] Stored XSS payloads render inert; CSP and CSRF protections present.
-- [ ] Used refresh token replay revokes the token family; no public registration route exists.
+- [x] Used refresh token replay revokes the token family; no public registration route exists. (`test_refresh_rotates_and_old_token_reuse_revokes_the_device`, `test_no_public_registration_route`)
 - [ ] Uploads: decompression bomb, wrong extension and metadata cases handled; stored images are re-encoded.
 - [ ] Secret-scan and dependency audit run in CI.
 - [ ] Two workers racing on one publishing record produce one publish; kill-switch flip test.
