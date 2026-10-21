@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nhin-hinh-doan-chuyen-backend"
+version = "0.1.0"
+description = "Backend scaffold for Nhin Hinh Doan Chuyen"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "uvicorn[standard]>=0.30,<1.0",
+  "pydantic-settings>=2.4,<3.0",
+]
+
+[project.optional-dependencies]
+# Package A will add SQLAlchemy, Alembic, psycopg, auth libraries; Package C adds Pillow; Package D adds Celery/Redis.
+dev = ["pytest>=8.0", "httpx>=0.27", "ruff>=0.6"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nhd/analyze_topic/1",
+  "title": "AnalyzeTopicResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "lane", "reasoning_summary"],
+  "properties": {
+    "decision": { "enum": ["proceed", "hold_for_human", "reject"] },
+    "reject_or_hold_reasons": { "type": "array", "items": { "type": "string" } },
+    "lane": { "enum": ["daily_life", "rebus", "news"] },
+    "content_type": { "enum": ["everyday_meme", "rebus", "news_meme"] },
+    "answer_or_message": { "type": "string", "description": "Frozen intended answer (rebus) or message (others)." },
+    "intended_viewer_inference": { "type": "string" },
+    "clue_mapping": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["clue_id", "visual_clue", "maps_to"],
+        "properties": {
+          "clue_id": { "type": "string" },
+          "visual_clue": { "type": "string" },
+          "maps_to": { "type": "string" },
+          "operation": { "enum": ["literal", "homophone", "drop_tone", "add", "remove", "sound_alike", "position", "metaphor"] }
+        }
+      }
+    },
+    "rebus_spec": {
+      "type": "object",
+      "description": "Required when lane=rebus. Must be human-verified before generation.",
+      "required": ["answer_text", "syllables"],
+      "properties": {
+        "answer_text": { "type": "string" },
+        "syllables": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["text", "clue_ids"],
+            "properties": { "text": { "type": "string" }, "tone": { "type": "string" }, "clue_ids": { "type": "array", "items": { "type": "string" } } }
+          }
+        },
+        "difficulty": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "alternate_answers": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "ambiguity_risks": { "type": "array", "items": { "type": "string" } },
+    "news": {
+      "type": "object",
+      "description": "Required when lane=news.",
+      "required": ["source_urls", "verified_facts", "unverified_claims", "opinion_seed"],
+      "properties": {
+        "source_urls": { "type": "array", "items": { "type": "string" } },
+        "publisher": { "type": "string" },
+        "published_at": { "type": ["string", "null"], "format": "date-time" },
+        "event_date": { "type": ["string", "null"], "format": "date" },
+        "verified_facts": { "type": "array", "items": { "type": "string" } },
+        "unverified_claims": { "type": "array", "items": { "type": "string" } },
+        "opinion_seed": { "type": "string" },
+        "independent_source_groups": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "risk_level": { "enum": ["low", "medium", "high", "critical"] },
+    "sensitive_categories": { "type": "array", "items": { "type": "string" } },
+    "novelty_score": { "type": "number", "minimum": 0, "maximum": 1 },
+    "visualizability_score": { "type": "number", "minimum": 0, "maximum": 1 },
+    "caption_draft": { "type": "string" },
+    "hashtags": { "type": "array", "items": { "type": "string" } },
+    "reasoning_summary": { "type": "string" }
+  }
+}

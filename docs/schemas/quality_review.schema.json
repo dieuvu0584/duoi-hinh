@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nhd/quality_review/1",
+  "title": "QualityReviewResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["score_total", "scores", "hard_failures", "recommendation"],
+  "properties": {
+    "score_total": { "type": "number", "minimum": 0, "maximum": 100 },
+    "scores": {
+      "type": "object",
+      "required": ["clue_accuracy", "answer_inferability", "humor_surprise", "mobile_composition", "brand_fit"],
+      "properties": {
+        "clue_accuracy": { "type": "number", "minimum": 0, "maximum": 100 },
+        "answer_inferability": { "type": "number", "minimum": 0, "maximum": 100 },
+        "humor_surprise": { "type": "number", "minimum": 0, "maximum": 100 },
+        "mobile_composition": { "type": "number", "minimum": 0, "maximum": 100 },
+        "brand_fit": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "hard_failures": { "type": "array", "items": { "type": "string" } },
+    "missing_clues": { "type": "array", "items": { "type": "string" } },
+    "ambiguous_alternatives": { "type": "array", "items": { "type": "string" } },
+    "crop_or_text_issues": { "type": "array", "items": { "type": "string" } },
+    "keyframes_reviewed": { "type": "array", "items": { "type": "string" } },
+    "recommendation": { "enum": ["pass", "revise", "reject"] },
+    "explanation": { "type": "string" }
+  }
+}

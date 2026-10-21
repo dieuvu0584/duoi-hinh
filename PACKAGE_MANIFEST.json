@@ -1,0 +1,33 @@
+{
+  "name": "nhin-hinh-doan-chuyen-claude-code-handoff-kit",
+  "version": "0.2.0",
+  "status": "reviewed_design_not_production_ready",
+  "includes": [
+    "CLAUDE.md",
+    ".claude/rules",
+    ".claude/skills",
+    ".claude/commands",
+    "prompts",
+    "docs",
+    "backend scaffold",
+    "deploy scaffold"
+  ],
+  "not_yet_implemented": [
+    "video rendering (ffmpeg) and ffprobe gate",
+    "revision/content_hash binding in the database",
+    "production authentication",
+    "database models and migrations",
+    "Celery workers and schedules",
+    "Claude/FLUX/Gemini adapters",
+    "Meta Graph API publishing",
+    "upload/object storage service",
+    "Flutter app",
+    "analytics collector",
+    "production deployment hardening"
+  ],
+  "safety_defaults": {
+    "publishing_kill_switch": true,
+    "human_approval_for_high_risk": true,
+    "fail_closed_on_missing_review": true
+  }
+}
