@@ -51,6 +51,8 @@
 
 - **Hai bản video từ ảnh vuông (đã làm thử):** cả hai tạo được, tràn khung, không viền đen, qua ffprobe, âm lượng -15,5 LUFS. **Mô hình không giữ được chủ thể trong hình vuông giữa** dù đã dặn (đuôi mèo, mép đồng hồ bị cắt) nên bắt buộc có bước kiểm tra bố cục và chế độ `fit` dự phòng. Ảnh 1920x1920 tốn khoảng 0,044$.
 
+- **Kiểm tra bố cục bằng Claude chạy được:** Claude trả tọa độ manh mối chính xác (đã xem khung vẽ lên ảnh), khoảng 0,012$ mỗi ảnh; code (`composition.py`, 13 test) quyết định cắt hay dùng nền mờ cho từng bản video, và thiếu tọa độ thì mặc định không cắt.
+
 ## C. Điều Package 0 phải xác nhận (VERIFY)
 - YouTube: tải thử lên kênh thử nghiệm (riêng tư rồi công khai, `publishAt`, `containsSyntheticMedia`, xóa); tài liệu nói dự án API chưa xác minh không bị khóa riêng tư, cần thử để chắc.
 

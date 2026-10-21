@@ -35,7 +35,7 @@ Each box must be backed by an automated test or a documented manual verification
 
 ## Dual renditions and composition (FR-7, FR-7b, D-26)
 - [ ] A 1920x1920 master renders to 1080x1920 and 1920x1080 by centre crop with no black bars and no stretching.
-- [ ] Clue boxes outside the central safe square are rejected for `fill` (switch to `fit` or regenerate); boxes inside pass (golden tests on box geometry).
+- [x] Clue boxes outside the safe region of a target are rejected for `fill` (switch to `fit`); boxes inside pass; missing boxes fail closed to `fit`; per-target geometry incl. the Reels UI margins (`backend/tests/test_composition.py`, 13 tests).
 - [ ] Both renditions pass the ffprobe gate for their own size, share one narration, and have separate keyframe QA.
 - [ ] Each (platform, target) has its own publishing record, gate and idempotency key; the global kill switch stops both.
 - [ ] `youtube_enabled=false` blocks every YouTube action.

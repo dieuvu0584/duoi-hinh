@@ -81,3 +81,9 @@ Verdict from the owner: with `eleven_flash_v2_5` and `eleven_turbo_v2_5`, **date
 Decision D-25: narration uses `eleven_v3` (about twice the credits per character and 2-4 s latency per line, both negligible for offline rendering). The failing lines are kept as a pronunciation regression set (`docs/video-pipeline.md`). Open: exactly how the dates were mispronounced (not recorded); whether v3 also reads unusual dates/units correctly beyond the six test lines.
 
 Addendum (same day): the owner also reported that **"chay" in "chay xe may" was read wrongly**, in `tones_names__eleven_flash_v2_5.mp3` (first reported against the wrong file name, then corrected by the owner: the error is Flash, not Turbo). Turbo and v3 were not reported for this word. Decision D-25 (use `eleven_v3`) is unchanged.
+
+## 2026-10-22 - Dual renditions and the composition check
+- `spikes/render_renditions_spike.py`: one 1920x1920 fal master + the v3 narration -> `reel_9x16.mp4` and `youtube_16x9.mp4` (centre-crop `fill`, no black bars). Both valid by ffprobe, 7.6 s, -15.5 LUFS / -1.5 dBTP; Vietnamese captions render with diacritics. A `fit` mode (whole square over a blurred copy) exists as the fallback.
+- The image model did **not** keep the subject inside the central square even when asked (cat tail and clock edge cut by the crops).
+- `spikes/claude_composition_spike.py` + `backend/app/services/composition.py`: Claude returned accurate clue boxes (verified by eye on an overlay) for about USD 0.012; our geometry code chose `fit` for both targets, correctly.
+- fal spend so far about USD 0.184 of 4.00 (7 images); ElevenLabs 425 credits; Anthropic about USD 0.012.
