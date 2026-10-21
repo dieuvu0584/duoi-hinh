@@ -160,6 +160,12 @@ def test_connection_error_message_is_redacted(video):
     assert TOKEN not in str(exc.value)
 
 
+def test_api_version_defaults_when_not_set(server, video):
+    report = spike.run(args(video, server), {"META_PAGE_ID": PAGE, "META_ACCESS_TOKEN": TOKEN})
+    assert report["mode"] == "dry_run"
+    assert any("/v26.0/" in step for step in report["plan"])
+
+
 def test_load_env_parses_without_exposing(tmp_path):
     p = tmp_path / ".env"
     p.write_text('# c\nMETA_PAGE_ID="42"\nMETA_ACCESS_TOKEN=abc\nEMPTY=\n', encoding="utf-8")

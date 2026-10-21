@@ -27,6 +27,7 @@ from typing import Any
 import httpx
 
 DEFAULT_BASE = "https://graph.facebook.com"
+DEFAULT_API_VERSION = "v26.0"
 TERMINAL_BAD = {"upload_failed", "error", "expired"}
 
 
@@ -217,8 +218,8 @@ def plan(args: argparse.Namespace, graph: str, page_id: str) -> list[str]:
 def run(args: argparse.Namespace, env: dict[str, str]) -> dict[str, Any]:
     token = env.get("META_ACCESS_TOKEN", "")
     page_id = env.get("META_PAGE_ID", "")
-    version = env.get("META_API_VERSION", "")
-    graph = f"{args.base_url.rstrip('/')}/{version}" if version else args.base_url.rstrip("/")
+    version = env.get("META_API_VERSION") or DEFAULT_API_VERSION
+    graph = f"{args.base_url.rstrip('/')}/{version}"
     video = Path(args.video)
     if not video.is_file():
         raise SpikeError(f"video not found: {video}")
@@ -227,9 +228,9 @@ def run(args: argparse.Namespace, env: dict[str, str]) -> dict[str, Any]:
         return {"mode": "dry_run", "video": str(video), "bytes": video.stat().st_size,
                 "plan": plan(args, graph, page_id or "<PAGE_ID>"),
                 "env_present": {k: bool(env.get(k)) for k in
-                                ("META_APP_ID", "META_PAGE_ID", "META_ACCESS_TOKEN", "META_API_VERSION")}}
+                                ("META_PAGE_ID", "META_ACCESS_TOKEN", "META_API_VERSION")}}
 
-    missing = [k for k in ("META_PAGE_ID", "META_ACCESS_TOKEN", "META_API_VERSION") if not env.get(k)]
+    missing = [k for k in ("META_PAGE_ID", "META_ACCESS_TOKEN") if not env.get(k)]
     if missing:
         raise SpikeError(f"missing in .env: {', '.join(missing)}")
     if args.confirm_page_id != page_id:
