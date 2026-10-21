@@ -55,10 +55,10 @@ Terminal until an authorized edit creates a new revision: REJECTED, BLOCKED, SUP
 | RETRACTION_REQUESTED | RETRACTED / RETRACTION_FAILED | API deletion confirmed / failed (then manual retraction recorded) |
 
 ## Independent system controls (single source of truth: `system_settings` in PostgreSQL)
-`automation_enabled`, `generation_paused`, `publishing_kill_switch`, `daily_budget_limit`, `monthly_budget_limit`, `max_image_regenerations`, `max_publishes_per_day`, `default_posting_schedule`, `max_lateness_minutes`, `prepare_lead_minutes`. Environment variables only seed initial values; changing a control writes an audit event. `publishing_kill_switch` defaults to **true** on a fresh database.
+`automation_enabled`, `generation_paused`, `publishing_kill_switch`, `daily_budget_limit`, `monthly_budget_limit`, `max_image_regenerations`, `max_publishes_per_day`, `default_posting_schedule`, `max_lateness_minutes`, `prepare_lead_minutes`, `news_lane_enabled` (default **false**; budget limits default to **0** so paid provider calls are blocked until the owner sets them in the app (D-18); while false, news topics cannot leave `DRAFT`/`HELD_FOR_HUMAN`). Environment variables only seed initial values; changing a control writes an audit event. `publishing_kill_switch` defaults to **true** on a fresh database.
 
 ## Mandatory publish sequence
 See `docs/publishing-meta.md` D1-D3. Scheduled and publish-now share one service; publish-now simply uses `T = now` and still needs a `READY_TO_PUBLISH` video, the full gate and an owner action.
 
 ## Reveal items (rebus)
-`answer_reveals` have their own schedule/state (`PENDING -> SCHEDULED -> POSTED | SKIPPED | FAILED`) and pass the same kill switch and safety checks.
+`answer_reveals` are optional (owner may choose not to reveal, D-19) and have their own schedule/state (`PENDING -> SCHEDULED -> POSTED | SKIPPED | FAILED`) and pass the same kill switch and safety checks.

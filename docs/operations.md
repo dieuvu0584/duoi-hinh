@@ -24,10 +24,21 @@ First owner is created by a one-time CLI command on the server; there is no publ
 
 ## 5. Monitoring and alerts
 Metrics: job queue depth/age, worker heartbeat, provider error rates and latency, daily cost vs. budget, publish attempts/outcomes, `UNKNOWN_RESULT` count, token health, disk usage, render durations, backup age.
-Alerts to the owner (channel per O-2): publish failure or `UNKNOWN_RESULT`, token invalid or near expiry, budget at 80%/100%, worker down, backup stale, Meta rate-limit response, a safety `block` on scheduled content, copyright match.
+Alerts to the owner (FCM push, D-10): publish failure or `UNKNOWN_RESULT`, token invalid or near expiry, budget at 80%/100%, worker down, backup stale, Meta rate-limit response, a safety `block` on scheduled content, copyright match.
 
 ## 6. Change management
 Prompts and models are versioned (`prompt_versions`). A prompt or model change requires re-running the evaluation set before enabling in production. Meta API version bumps are tested against the test Page first.
 
 ## 7. Dry-run mode
 `NHD_PUBLISH_MODE=dry_run` (default outside production) runs the entire pipeline and gate but replaces the Meta adapter with a clearly labelled fake that never performs network calls. Production refuses to start in `dry_run` with real tokens present, and `live` requires an explicit setting.
+
+## 8. Hosting on the owner's PC (decision D-11)
+The system runs on a personal PC, which is not a server. Design for that:
+- **Availability is not guaranteed.** If the PC is off, asleep or offline at publish time, the post becomes `SKIPPED_LATE` (fail-closed, `max_lateness`) and the owner is notified when the system is back; nothing publishes late by surprise. Set Windows power plan to never sleep while the stack is meant to run; avoid scheduled slots outside hours the PC is on.
+- **Auto-start and restart:** Docker Desktop starts at login; compose services use `restart: unless-stopped`; the worker resumes `RUNNING` jobs after the lease expires (NFR-1). Note Windows updates may reboot the machine.
+- **Time:** keep Windows time synchronized (clock drift affects schedules and token checks); all storage stays UTC.
+- **Tailscale:** the phone connects via the tailnet; the API binds to the Tailscale interface or `127.0.0.1` plus Tailscale serve; never `0.0.0.0` on a public network. Enable key expiry reminders and device approval; revoke the phone's node if lost.
+- **Backups off the machine:** PostgreSQL dumps and media copies go to a second location (external disk or cloud storage) on a schedule; a restore drill is required (P-4). A single PC disk failure must not lose the Page's content history or audit log.
+- **Secrets on the PC:** keep `.env` and tokens in a folder only the owner account can read; disk encryption (BitLocker) is recommended; no secrets in Docker images or compose files.
+- **Resource contention:** rendering/image jobs compete with daily use; limit worker concurrency and schedule heavy jobs outside active hours when possible.
+- **Power and network failures** are expected events, not incidents: the state machines (`UNKNOWN_RESULT` reconciliation, job leases, `expired` upload re-prepare) are designed for them; test by killing the stack mid-upload.

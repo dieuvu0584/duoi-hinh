@@ -26,7 +26,7 @@ Bắt đầu đọc `docs/design-review.md` (kết quả rà soát), `docs/requi
 - Redis + Celery/Celery Beat cho job nền.
 - Pillow/OpenCV cho kiểm tra kích thước, bố cục và overlay chữ tiếng Việt.
 - Adapter riêng cho Claude, FLUX, Gemini, Meta Graph API.
-- Giao diện quản trị: web admin responsive (mặc định, xem `docs/decisions.md` O-1); Flutter chỉ nếu chủ dự án quyết.
+- Giao diện quản trị: app Flutter Android-first, push qua FCM (D-9, D-10). Backend chạy Docker trên PC của chủ dự án, truy cập qua Tailscale (D-11).
 - ffmpeg/ffprobe để render và kiểm tra Reel mp4.
 - Docker Compose trên Linux/VPS; object storage tương thích S3 khi triển khai.
 

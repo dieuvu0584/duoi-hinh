@@ -37,7 +37,7 @@ Hệ thống một chủ sở hữu giúp tạo, kiểm duyệt, duyệt tay và
 - **FR-33** Khai báo `is_ai_generated` theo quy tắc; chờ kiểm tra bản quyền của Meta.
 - **FR-34** Quy trình công bố đáp án rebus như một mục lịch riêng.
 - **FR-35** Thu thập chỉ số theo mốc +1h/+24h/+72h/+7d, chỉ những chỉ số API trả về.
-- **FR-36** Thông báo cho chủ sở hữu khi cần duyệt, khi lỗi, khi gần hết hạn token/ngân sách.
+- **FR-36** Thông báo cho chủ sở hữu qua FCM khi cần duyệt, khi lỗi, khi gần hết hạn token/ngân sách.
 - **FR-37** Ngân sách và giới hạn số lần sinh lại cưỡng chế phía server.
 ### Quản trị
 - **FR-40** Đăng nhập chủ sở hữu, phiên theo thiết bị, thu hồi thiết bị.

@@ -59,6 +59,10 @@ Each box must be backed by an automated test or a documented manual verification
 - [ ] Two workers racing on one publishing record produce one publish; kill-switch flip test.
 - [ ] Dry-run mode never performs a network call to Meta; production refuses an unintended mode.
 
+## News lane gate (D-16)
+- [ ] With `news_lane_enabled=false` a news topic never reaches generation, scheduling or publishing (state-machine test).
+- [ ] Enabling the flag is audited and requires re-authentication.
+
 ## Retraction/operations
 - [ ] Owner can record/perform a retraction with reason; audit and state are correct.
 - [ ] News topic past `fresh_until` cannot publish; review TTL respects lane.

@@ -49,7 +49,7 @@ Use a Page access token obtained per Meta's documented process (VERIFY long-live
 `description` carries caption + hashtags (no documented limit; we cap locally e.g. 2,200 chars and a hashtag count). Rebus: **no answer in caption**. Answer reveal policy below.
 
 ### D7. Answer reveal for rebus
-Public Reel never contains the answer. Reveal options (decision O-4): (a) owner posts a comment manually after N hours (MVP), (b) backend posts a comment via API if permitted (VERIFY permission `pages_manage_engagement` and whether pinning is available through API), (c) a follow-up "answer" Reel. The reveal is a first-class scheduled item with its own safety check, not an afterthought.
+Public Reel never contains the answer. Reveal options (decision D-12): (a) owner posts a comment manually after N hours (MVP), (b) backend posts a comment via API if permitted (VERIFY permission `pages_manage_engagement` and whether pinning is available through API), (c) a follow-up "answer" Reel. The reveal is a first-class scheduled item with its own safety check, not an afterthought.
 
 ## Insights (analytics)
 Collect only metrics the API returns for the granted permissions (Reels video insights). Snapshots at +1 h, +24 h, +72 h, +7 d; store raw returned metric names and values as returned, plus `captured_at`; do not infer metrics that are not provided. Metric availability and definitions are VERIFIED in Package D.

@@ -8,9 +8,9 @@ Goal: prove the three assumptions the whole product depends on, using throwaway 
 2. **Video render spike.** ffmpeg: image -> 10 s mp4 meeting the spec, ffprobe validation script, safe-zone screenshots on real phones. Output: calibrated safe zones and `video_spec` template defaults.
 3. **Image/rebus quality spike.** Run ~20 concepts across the 3 lanes through the candidate image providers; owner scores usability blind. Test Vietnamese rebus decomposition with and without human verification. Output: go/no-go for each provider and for LLM-generated rebus (vs. human-authored answers + LLM assist), and the measured cost per usable asset.
 4. **Decisions closed** (see `docs/decisions.md`): admin surface, notifications, hosting, audio policy, reveal policy, lane mix.
-5. **Provider terms and legal check.** Record each provider's commercial-use, output-ownership and content-policy terms, and Meta's current content distribution and AI-label policies; owner confirms Vietnamese legal review for the news lane (O-9).
+5. **Provider terms and legal check.** Record each provider's commercial-use, output-ownership and content-policy terms, and Meta's current content distribution and AI-label policies; the owner has no lawyer (D-16), so the news lane stays disabled until the owner completes the checklist in `docs/content-guidelines.md`.
 6. **Retraction check.** Determine if the API can delete/unpublish a Reel.
-Exit: spike reports committed; open questions O-1..O-8 answered or consciously deferred; roadmap re-baselined.
+Exit: spike reports committed; owner inputs P-1..P-5 in `docs/decisions.md` provided or consciously deferred; roadmap re-baselined.
 
 ## Package A - Backend foundation
 FastAPI app, config, structured logging with redaction, health with dependency checks, PostgreSQL + SQLAlchemy 2 + Alembic baseline (identity, settings, audit, jobs, idempotency), single-owner auth (argon2id, short-lived access token + rotating refresh, device sessions, rate-limited login, revocation), error envelope + request IDs, state-machine service with table-driven tests, `system_settings` (kill switch default true), audit abstraction, the publishing policy (already written; see tests), CI (ruff, mypy/pyright, pytest, migration check on empty DB).
@@ -29,7 +29,7 @@ Meta adapter (two-phase), scheduler with `prepare_lead`, full pre-publish gate, 
 DoD: fault-injection tests (timeouts at each step), duplicate-prevention test, kill switch tested on scheduled and publish-now; one real end-to-end publish to the test Page, then the production Page with manual approval.
 
 ## Package E - Owner admin surface
-Default (pending O-1): responsive **web admin** served by the same backend behind the private network - dashboard, review queue with explanation ticket, jobs, schedule, kill switch, settings, metrics. Flutter Android app only if the pilot shows it is needed.
+**Flutter Android app** (decision D-9) over Tailscale: secure login/pairing, dashboard, review queue with explanation ticket and video preview, jobs, schedule, kill switch (re-auth), cost, settings, metrics, FCM push (D-10), explicit offline/last-known state. Because the API is the only interface, Package A-D expose everything through typed, versioned REST endpoints so the app can be built against a stable contract; start the Flutter work once the review-queue API exists. Until the app exists, a minimal CLI or API docs page is the operator interface during Package 0-C.
 
 ## Package F - Pilot and hardening
 Threat model, backup/restore drill, token revocation drill, load of 1-3 posts/day, alerting, cost caps. Pilot with **manual approval for every post**. Auto-publish of anything is a separate, evidence-based owner decision.

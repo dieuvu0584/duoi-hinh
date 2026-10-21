@@ -6,9 +6,12 @@ The v0.1 kit had no editorial definition, so the LLM would have to invent tone a
 - Name: Nhìn Hình Đoán Chuyện. Language: Vietnamese (standard orthography, NFC). Tone: [playful, warm, never mocking real individuals]. Recurring format: [intro hook in first 1-2 s, puzzle held >= 5 s, "đoán thử" call to comment].
 - Series naming and numbering: [e.g. "Câu đố số N"] so the audience learns the format.
 
+## Enabling the news lane (decision D-16)
+The news lane ships **disabled**. The owner enables it by switching `news_lane_enabled` after personally completing this checklist (the system cannot verify legal compliance): (1) read the platform's and applicable Vietnamese rules on publishing news and on false information and keep notes of what you relied on; (2) accept that every news post is manually reviewed; (3) decide the correction/retraction practice; (4) confirm sources and their terms. Consider a professional legal opinion before scaling.
+
 ## Per-lane rules
 - **daily_life:** relatable, harmless situations; no stereotyping groups; no humiliation of identifiable people; avoid health, money-scam and workplace-conflict stunts that could be mistaken for advice.
-- **rebus:** one intended answer, one acceptable answer set (`alternate_answers` reviewed), a difficulty label, answer not shown in the public Reel. Reveal per decision O-4. Avoid phonetic jokes that become vulgar or demeaning.
+- **rebus:** one intended answer, one acceptable answer set (`alternate_answers` reviewed), a difficulty label, answer not shown in the public Reel. Reveal per decision D-12. Avoid phonetic jokes that become vulgar or demeaning.
 - **news:** only verified facts; label as illustration/meme; never show the generated image as documentary evidence; no tragedies, deaths, active emergencies, elections/politicians, identifiable private persons; include source credit in the caption where appropriate; apply the correction policy (docs/operations.md).
 
 ## Caption and hashtag rules
