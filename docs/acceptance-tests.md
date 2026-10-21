@@ -30,6 +30,7 @@ Each box must be backed by an automated test or a documented manual verification
 - [ ] Rendered mp4 passes the ffprobe gate (resolution, constant 24-60 fps, 3-90 s, yuv420p, H.264/H.265, AAC 48 kHz stereo, GOP <= 5 s).
 - [ ] Motion never moves a required clue outside the safe zone at any sampled frame.
 - [ ] Mismatched image is rejected/regenerated; the answer is never changed silently.
+- [x] Generated images are decoded and re-encoded under a pixel cap (no metadata, corrupt files rejected), written atomically inside the media dir, provider-flagged images are never stored, and the image URL must be public https (`backend/tests/test_image_generation.py`, 48 tests).
 - [ ] Explanation ticket exists for every revision.
 - [ ] Hard failures override numeric QA scores.
 

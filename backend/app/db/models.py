@@ -316,6 +316,44 @@ class CostLedger(Base):
     note: Mapped[str | None] = mapped_column(Text)
 
 
+class CompositionCheck(Base):
+    """Result of the crop-safety check for one master image (docs/video-pipeline.md)."""
+
+    __tablename__ = "composition_checks"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    image_ref: Mapped[str] = mapped_column(String(300))
+    image_sha256: Mapped[str] = mapped_column(String(64), index=True)
+    model: Mapped[str] = mapped_column(String(60))
+    expected_clues: Mapped[list[str]] = mapped_column(JSONB)
+    boxes: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    problems: Mapped[list[str]] = mapped_column(JSONB)
+    modes: Mapped[dict[str, str]] = mapped_column(JSONB)
+    outside: Mapped[dict[str, list[str]]] = mapped_column(JSONB)
+    reason: Mapped[str] = mapped_column(Text)
+    cost_ledger_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("cost_ledger.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ImageAsset(Base):
+    """A generated (or uploaded) master image."""
+
+    __tablename__ = "image_assets"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    provider: Mapped[str] = mapped_column(String(20))
+    model_id: Mapped[str] = mapped_column(String(80))
+    prompt: Mapped[str] = mapped_column(Text)
+    prompt_hash: Mapped[str] = mapped_column(String(64), index=True)
+    seed: Mapped[int | None] = mapped_column(Integer)
+    width: Mapped[int] = mapped_column(Integer)
+    height: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    storage_ref: Mapped[str] = mapped_column(String(300))  # relative to NHD_MEDIA_DIR
+    cost_ledger_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("cost_ledger.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class VideoAsset(Base):
     """A rendered video (one target, one mode), content-addressed by the hash of its render spec."""
 

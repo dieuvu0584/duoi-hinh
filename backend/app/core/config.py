@@ -25,6 +25,20 @@ class Settings(BaseSettings):
     x264_preset: str = "medium"
     font_path: str | None = None
 
+    # Claude (vision composition check). Prices are USD per million tokens for the default model
+    # (claude-opus-5-5 list price, 2026-10-06); they only drive the budget estimate/settlement.
+    anthropic_api_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("ANTHROPIC_API_KEY"))
+    claude_model: str = "claude-opus-5-5"
+    claude_usd_per_mtok_in: float = 4.0
+    claude_usd_per_mtok_out: float = 20.0
+
+    # Image generation through fal.ai. USD per megapixel comes from fal.ai/pricing (FLUX.2: 0.012).
+    fal_api_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("FAL_API_KEY"))
+    fal_model: str = "fal-ai/flux-2"
+    fal_usd_per_megapixel: float = 0.012
+
     # ElevenLabs (voiceover). The key is a SecretStr; USD per credit is an ASSUMPTION used for the
     # budget estimate (set it from your plan/invoice; the default is deliberately on the high side).
     elevenlabs_api_key: SecretStr | None = Field(

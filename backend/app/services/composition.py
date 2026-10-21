@@ -62,11 +62,16 @@ def overflow(box: Box, region: tuple[float, float, float, float]) -> float:
     return max(rx0 - box.x0, ry0 - box.y0, box.x1 - rx1, box.y1 - ry1, 0.0)
 
 
-def decide_modes(boxes: list[Box], *, margin: float = 0.01) -> Decision:
+def decide_modes(boxes: list[Box], *, margin: float = 0.01,
+                 expected: list[str] | None = None) -> Decision:
     """Per-target crop mode. `margin` shrinks the safe region so near-misses count as cut."""
     if not boxes:
         return Decision({t: "fit" for t in SAFE_REGIONS}, {},
                         "no clue boxes supplied: cannot verify, showing the whole square")
+    missing = sorted(set(expected or []) - {b.clue_id for b in boxes})
+    if missing:  # an unmeasured clue could be anywhere: never crop on partial information
+        return Decision({t: "fit" for t in SAFE_REGIONS}, {t: list(missing) for t in SAFE_REGIONS},
+                        f"clues not found by the measurement: {missing}; showing the whole square")
     modes: dict[str, Mode] = {}
     outside: dict[str, list[str]] = {}
     for target, (x0, y0, x1, y1) in SAFE_REGIONS.items():

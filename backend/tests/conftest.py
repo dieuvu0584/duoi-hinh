@@ -10,6 +10,8 @@ os.environ.setdefault("NHD_ENVIRONMENT", "development")
 os.environ["META_PAGE_ID"] = ""
 os.environ["META_ACCESS_TOKEN"] = ""
 os.environ["ELEVENLABS_API_KEY"] = ""
+os.environ["FAL_API_KEY"] = ""
+os.environ["ANTHROPIC_API_KEY"] = ""
 os.environ["ELEVENLABS_VOICE_ID"] = ""
 
 import pathlib  # noqa: E402
@@ -53,7 +55,8 @@ def db(engine):
             text(
                 "TRUNCATE login_attempts, devices, owner_account, audit_events, publishing_records,"
                 " approvals, safety_reviews, content_revisions, content_items, token_health,"
-                " cost_ledger, provider_budgets, audio_assets, video_assets CASCADE"
+                " cost_ledger, provider_budgets, audio_assets, video_assets, image_assets,"
+                " composition_checks CASCADE"
             )
         )
         conn.execute(

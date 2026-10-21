@@ -35,6 +35,23 @@ class ReconcileResult:
     permalink: str | None = None
 
 
+@dataclass(frozen=True)
+class VisionBoxes:
+    """What a vision model measured. The backend, not the model, decides what to do with it."""
+
+    clues: list[dict[str, Any]]  # {"clue_id", "description", "x0", "y0", "x1", "y1"} as returned
+    notes: str
+    refused: bool
+    input_tokens: int
+    output_tokens: int
+    model: str
+    request_id: str | None
+
+
+class VisionProvider(Protocol):
+    async def measure_boxes(self, *, image_png: bytes, clues: list[str]) -> VisionBoxes: ...
+
+
 class TextAnalysisProvider(Protocol):
     async def analyze(
         self, *, system_prompt: str, user_payload: dict[str, Any]
@@ -58,8 +75,25 @@ class SpeechProvider(Protocol):
     ) -> SpeechResult: ...
 
 
+@dataclass(frozen=True)
+class ImageResult:
+    image: bytes
+    mime_type: str
+    width: int  # the size the provider really returned (it may round the request up)
+    height: int
+    seed: int | None
+    flagged: bool  # the provider's own safety checker flagged the image
+    request_id: str | None
+
+
 class ImageProvider(Protocol):
-    async def generate(self, *, prompt: str, aspect_ratio: str = "9:16") -> ProviderResult: ...
+    """Text-to-image. Errors are typed: a failure BEFORE the provider accepted the job is
+    ProviderPermanent/Transient (known uncharged); a failure after it accepted is ProviderTimeout
+    (the charge is unknown)."""
+
+    async def generate(
+        self, *, prompt: str, width: int, height: int, seed: int | None = None
+    ) -> ImageResult: ...
 
 
 class ReelsPublishingProvider(Protocol):
