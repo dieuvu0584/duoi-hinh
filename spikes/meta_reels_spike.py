@@ -32,7 +32,9 @@ TERMINAL_BAD = {"upload_failed", "error", "expired"}
 
 
 class SpikeError(Exception):
-    pass
+    def __init__(self, message: str, steps: list | None = None) -> None:
+        super().__init__(message)
+        self.steps = steps or []
 
 
 def load_env(path: str = ".env") -> dict[str, str]:
@@ -71,6 +73,7 @@ class Recorder:
         if response is not None:
             status = response.status_code
             body = redact(response.text[:2000], self.secrets)
+        print(f"  [{name}] http={status} {note}", file=sys.stderr, flush=True)
         self.steps.append(
             {
                 "step": name,
@@ -128,7 +131,7 @@ def upload(client: httpx.Client, upload_url: str, token: str, video: Path, rec: 
 
 def poll_ready(
     client: httpx.Client, graph: str, video_id: str, token: str, rec: Recorder,
-    timeout_s: float, interval_s: float,
+    timeout_s: float, interval_s: float, soft: bool = False,
 ) -> str:
     """Poll until `ready`; record every observed status so processing time is measurable."""
     deadline = time.monotonic() + timeout_s
@@ -147,6 +150,8 @@ def poll_ready(
         if last in TERMINAL_BAD:
             raise SpikeError(f"video reached {last}")
         time.sleep(interval_s)
+    if soft:
+        return last
     raise SpikeError(f"timeout waiting for ready (last={last})")
 
 
@@ -242,15 +247,25 @@ def run(args: argparse.Namespace, env: dict[str, str]) -> dict[str, Any]:
 
     rec = Recorder([token, env.get("META_APP_SECRET", "")])
     with httpx.Client(timeout=60) as client:
-        video_id, upload_url = start(client, graph, page_id, token, rec)
-        upload(client, upload_url, token, video, rec)
-        poll_ready(client, graph, video_id, token, rec, args.timeout, args.interval)
-        cc = copyright_check(client, graph, video_id, token, rec, args.timeout, args.interval)
-        result = finish(client, graph, page_id, token, video_id, args.state, args.description,
-                        args.ai_generated, rec)
-        phase = publishing_phase(client, graph, video_id, token, rec)
-    return {"mode": "live", "video_id": video_id, "state": args.state, "finish": result,
-            "copyright": cc, "publishing_phase": phase, "steps": rec.steps}
+        try:
+            video_id, upload_url = start(client, graph, page_id, token, rec)
+            upload(client, upload_url, token, video, rec)
+            before = poll_ready(client, graph, video_id, token, rec, args.ready_wait,
+                                args.interval, soft=args.finish_anyway)
+            if before != "ready" and not args.finish_anyway:
+                raise SpikeError(f"video not ready before FINISH (last={before})")
+            cc = copyright_check(client, graph, video_id, token, rec, args.ready_wait, args.interval)
+            result = finish(client, graph, page_id, token, video_id, args.state, args.description,
+                            args.ai_generated, rec)
+            after = poll_ready(client, graph, video_id, token, rec, args.timeout, args.interval,
+                               soft=True)
+            phase = publishing_phase(client, graph, video_id, token, rec)
+        except SpikeError as exc:
+            exc.steps = rec.steps
+            raise
+    return {"mode": "live", "video_id": video_id, "state": args.state, "status_before_finish": before,
+            "status_after_finish": after, "finish": result, "copyright": cc,
+            "publishing_phase": phase, "steps": rec.steps}
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -263,7 +278,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--description", default="Package 0 test - Nhin Hinh Doan Chuyen #test")
     p.add_argument("--ai-generated", dest="ai_generated", action="store_true", default=True)
     p.add_argument("--base-url", default=DEFAULT_BASE, help="override for tests only")
-    p.add_argument("--timeout", type=float, default=600)
+    p.add_argument("--timeout", type=float, default=600, help="wait after FINISH (seconds)")
+    p.add_argument("--ready-wait", type=float, default=60, help="wait for ready before FINISH")
+    p.add_argument("--finish-anyway", action="store_true",
+                   help="call FINISH even if the video is not ready (experiment)")
     p.add_argument("--interval", type=float, default=5)
     p.add_argument("--out", default="spikes/output/meta_report.json")
     return p.parse_args(argv)
@@ -275,6 +293,12 @@ def main(argv: list[str] | None = None) -> int:
         report = run(args, load_env(args.env))
     except SpikeError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
+        if exc.steps:
+            out = Path(args.out)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(json.dumps({"error": str(exc), "steps": exc.steps}, indent=2,
+                                      ensure_ascii=False), encoding="utf-8")
+            print(f"partial report written to {out}", file=sys.stderr)
         return 1
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

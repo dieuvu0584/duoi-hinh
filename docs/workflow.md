@@ -40,7 +40,7 @@ Terminal until an authorized edit creates a new revision: REJECTED, BLOCKED, SUP
 |---|---|---|
 | NOT_SCHEDULED | SCHEDULED | slot assigned |
 | SCHEDULED | PREPARING | `T - prepare_lead`: START + UPLOAD begun |
-| PREPARING | READY_TO_PUBLISH | Meta `ready` + copyright check clean |
+| PREPARING | READY_TO_PUBLISH | Meta `upload_complete` (bytes match) + copyright check complete and clean (measured: `ready` only happens after FINISH) |
 | PREPARING | FAILED / EXPIRED | upload/processing error, or `expired` |
 | EXPIRED | PREPARING | re-prepare with new `video_id` (same intent key) |
 | READY_TO_PUBLISH | PUBLISHING | pre-publish gate passed at `T`; `PUBLISHING` and `video_id` persisted before FINISH |

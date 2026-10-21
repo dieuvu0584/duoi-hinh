@@ -26,6 +26,7 @@ class FakeMeta(BaseHTTPRequestHandler):
     calls: list[dict] = []
     status_polls = 0
     fail_start = False
+    never_ready = False
 
     def log_message(self, *args):  # silence
         pass
@@ -63,7 +64,7 @@ class FakeMeta(BaseHTTPRequestHandler):
         FakeMeta.calls.append({"op": f"get:{fields}"})
         if fields == "status":
             FakeMeta.status_polls += 1
-            state = "uploading" if FakeMeta.status_polls == 1 else "ready"
+            state = "uploading" if FakeMeta.status_polls == 1 or FakeMeta.never_ready else "ready"
             return self._send(200, {"status": {"video_status": state,
                                                "publishing_phase": {"publish_status": "draft"}}})
         return self._send(200, {"copyright_check_information": {"status": {"status": "complete"},
@@ -96,7 +97,8 @@ def env(**extra):
 
 
 def args(video, base, **kw):
-    argv = ["--video", str(video), "--base-url", base, "--interval", "0.01", "--timeout", "5"]
+    argv = ["--video", str(video), "--base-url", base, "--interval", "0.01", "--timeout", "2",
+            "--ready-wait", "2"]
     for k, v in kw.items():
         argv += [f"--{k.replace('_', '-')}"] + ([] if v is True else [str(v)])
     return spike.parse_args(argv)
@@ -126,7 +128,7 @@ def test_live_flow_order_state_and_redaction(server, video):
     report = spike.run(args(video, server, live=True, confirm_page_id=PAGE), env())
     ops = [c["op"] for c in FakeMeta.calls]
     assert ops == ["start", "upload", "get:status", "get:status",
-                   "get:copyright_check_information", "finish", "get:status"]
+                   "get:copyright_check_information", "finish", "get:status", "get:status"]
     upload = next(c for c in FakeMeta.calls if c["op"] == "upload")
     assert upload["headers"]["offset"] == "0"
     assert upload["headers"]["file_size"] == "2048" == str(upload["size"])
@@ -164,6 +166,22 @@ def test_api_version_defaults_when_not_set(server, video):
     report = spike.run(args(video, server), {"META_PAGE_ID": PAGE, "META_ACCESS_TOKEN": TOKEN})
     assert report["mode"] == "dry_run"
     assert any("/v26.0/" in step for step in report["plan"])
+
+
+def test_finish_anyway_calls_finish_even_when_never_ready(server, video):
+    FakeMeta.never_ready = True
+    try:
+        with pytest.raises(spike.SpikeError, match="ready") as exc:
+            spike.run(args(video, server, live=True, confirm_page_id=PAGE), env())
+        assert [c["op"] for c in FakeMeta.calls].count("finish") == 0
+        assert any(s["step"] == "UPLOAD" for s in exc.value.steps)  # partial steps are kept
+        FakeMeta.calls.clear()
+        report = spike.run(args(video, server, live=True, confirm_page_id=PAGE,
+                                finish_anyway=True), env())
+        assert [c["op"] for c in FakeMeta.calls].count("finish") == 1
+        assert report["status_before_finish"] == "uploading"
+    finally:
+        FakeMeta.never_ready = False
 
 
 def test_load_env_parses_without_exposing(tmp_path):

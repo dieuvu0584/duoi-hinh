@@ -14,17 +14,18 @@ Permissions: Page access token from a person with `CREATE_CONTENT` task; `pages_
 ## Design decisions
 ### D1. App-side scheduling, not Meta-side scheduling
 Using `video_state=SCHEDULED` hands control to Meta; our kill switch, pre-publish gate and cancellation could no longer act, and the `video_reels` edge documents no read/update/delete. Therefore:
-- Our backend owns the schedule. At `T - prepare_lead` (default 20 min) it renders/validates (already done), runs START + UPLOAD, polls until `ready` and copyright check `complete`.
+- Our backend owns the schedule. At `T - prepare_lead` (default 20 min) it runs START + UPLOAD, then waits until `video_status=upload_complete` (uploaded bytes equal the file size) **and** the copyright check is `complete` with no matches. **Measured (2026-10-22): processing does not start until FINISH** - before FINISH the status stays `upload_complete` (observed for 10 minutes), and only after FINISH does it go `processing` then `ready` (about 17 s for a 10 s, 3.8 MB video). So "prepared" means uploaded + copyright-clear, not `ready`.
 - At `T` it runs the **full pre-publish gate**, then calls FINISH with `video_state=PUBLISHED`.
 - If the upload `expired` or failed before `T`, restart from START (new `video_id`, new publishing attempt, same publish intent key).
-- VERIFY: how long a `ready` video stays valid before FINISH (`expired` semantics). Set `prepare_lead` from the measurement.
+- VERIFY: how long an `upload_complete` video stays valid before FINISH (`expired` semantics). Set `prepare_lead` from the measurement. Until measured, keep `prepare_lead` short (default 20 min) and handle `expired` by re-preparing.
+- After FINISH(PUBLISHED) the video still has to process; confirm success by polling until `video_status=ready` and `publishing_phase.publish_status=published`. A processing `error` after FINISH means nothing went public: mark `FAILED` (not `UNKNOWN_RESULT`).
 - DRAFT mode is not used for gating (VERIFY whether a draft can be promoted via API; if yes it may be a better stage).
 
 ### D2. `video_id` is the idempotency anchor
 `video_id` is created at START. Persist it **before** UPLOAD. FINISH must be called at most once per intent unless reconciliation proves it did not take effect:
 - On FINISH timeout/5xx/unknown: set `UNKNOWN_RESULT`, then `GET /{video-id}?fields=status` and read `publishing_phase.publish_status`:
   - `published` -> record `post_id`/permalink, `PUBLISHED`.
-  - `draft`/not finished and `video_status=ready` -> safe to retry FINISH (VERIFY FINISH is idempotent for the same `video_id`; otherwise require owner confirmation).
+  - `draft`/not finished and `video_status` still `upload_complete` or `ready` -> safe to retry FINISH (VERIFY FINISH is idempotent for the same `video_id`; otherwise require owner confirmation).
   - `error`/`expired` -> mark `FAILED`, owner decides new attempt.
   - Still ambiguous after bounded polling -> stay `UNKNOWN_RESULT`, alert owner, **no automatic retry**; also check the Page's recent Reels list as a second signal.
 - A blind retry of START creates a second video object; never do that for an in-flight intent.
@@ -36,7 +37,7 @@ Re-read from DB inside one transaction/critical path immediately before FINISH:
 3. Latest final-content safety review: `allow`, not expired, bound to the same `content_hash`; high-risk -> human review completed.
 4. Not already published; schedule due and not past `max_lateness` (default 30 min; if later -> `SKIPPED_LATE`, owner decides).
 5. Budget and rolling publish-count limits (local cap default 3/day; Meta hard cap 30/24 h).
-6. Token health (valid, has required scopes) and video `ready` + copyright check clean.
+6. Token health (valid, has required scopes) and video uploaded (`upload_complete`) + copyright check clean.
 Any failure -> `BLOCKED` with reason code, audit event, notification; never publish "best effort".
 
 ### D4. AI disclosure
@@ -64,3 +65,11 @@ Collect only metrics the API returns for the granted permissions (Reels video in
 | 1363040/127/128/129 media spec | permanent for that file | re-render after fixing, `INVALID` |
 | 6000 upload problem / `upload_failed` | transient | resume at `bytes_transfered`, bounded retries, else new START |
 | network timeout on FINISH | unknown | `UNKNOWN_RESULT` reconciliation (D2) |
+
+## Measured on the test Page (2026-10-22, Graph API v26.0) - see docs/spikes/package-0-report.md
+- A 10 s, 1080x1920, 30 fps H.264/AAC, 3.8 MB mp4 made by our ffmpeg recipe was **accepted and processed** by Meta.
+- START ~1 s; UPLOAD of 3.8 MB ~5 s; copyright check completed within ~55 s of START (no matches); FINISH ~3 s; processing after FINISH ~17 s.
+- `FINISH` with `video_state=DRAFT` returned `{success, message: "Video is Processing...", post_id}` and the video ended with `publish_status=draft`, `published=false`. The `post_id` is not readable as a normal object (`(#12) singular statuses API is deprecated`); use the **video id** for status and deletion.
+- `DELETE /{video-id}` returned `{"success": true}` and the video no longer exists: **API retraction works for a draft**; deleting a *published* Reel is still unverified.
+- Page access token: scopes `pages_show_list`, `pages_read_engagement`, `pages_manage_metadata`, `pages_read_user_content`, `pages_manage_posts`, `pages_manage_engagement`; `debug_token` reports `expires_at` about 2026-12-20 (roughly 60 days after creation), so the token-health job must warn well before that.
+- Still unverified: FINISH(PUBLISHED) on the live Page, FINISH idempotency, promoting a draft to public by API, `upload_complete` validity window, app mode / whether App Review is ever required for public posts.

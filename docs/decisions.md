@@ -31,5 +31,11 @@
 |---|---|---|
 | P-5 | Tạo tài khoản/app Meta, Page test, và (nếu cần) tài khoản nhà cung cấp ảnh để chạy Package 0. Chủ dự án đã đồng ý dùng Page test; cần làm khi bắt đầu Package 0. | Package 0 |
 
+## B2. Kết quả đo thật (Package 0)
+- **Meta chấp nhận mp4 do ffmpeg tạo**; xử lý sau FINISH mất khoảng 17 giây cho video 10 giây.
+- **Meta chỉ bắt đầu xử lý sau FINISH**, không phải sau upload. Thiết kế "chuẩn bị tới `ready` rồi mới FINISH" đã sửa thành "chuẩn bị = upload xong + kiểm tra bản quyền sạch" (`publishing-meta.md` D1).
+- **Xóa Reel nháp qua API được** (`DELETE /{video-id}`); xóa Reel đã đăng công khai chưa thử.
+- Token Page có thời hạn khoảng 60 ngày: cần cảnh báo trước khi hết hạn.
+
 ## C. Điều Package 0 phải xác nhận (VERIFY)
 Xem danh sách trong `docs/publishing-meta.md` và `docs/video-pipeline.md`: Standard access có đủ không (khỏi App Review), vòng đời token, thời gian `ready` còn hiệu lực trước FINISH, FINISH có idempotent không, DRAFT có đăng lại được không, quyền comment/ghim bình luận, safe zone thực tế, chính sách nhãn AI hiện hành của Meta, API có xóa được Reel không, thời gian render trên PC của chủ dự án.

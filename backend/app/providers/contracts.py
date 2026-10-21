@@ -16,7 +16,7 @@ class PreparedReel:
     """Result of START + UPLOAD + processing; nothing is public yet."""
 
     video_id: str
-    status: str  # provider status, e.g. ready / processing / expired
+    status: str  # provider status, e.g. upload_complete / processing / ready / expired
     copyright_clear: bool | None  # None while the check is still running
 
 
