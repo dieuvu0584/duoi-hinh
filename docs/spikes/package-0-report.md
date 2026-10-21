@@ -25,3 +25,17 @@ Findings:
 6. Token lifetime is roughly 60 days.
 
 Still open: FINISH(PUBLISHED) behaviour and latency on the live Page; whether FINISH is idempotent for the same `video_id`; whether a DRAFT can be promoted to public by API; how long `upload_complete` stays valid; deleting a *published* Reel; whether public posting needs App Review in the app's current mode; safe zones on real phones.
+
+## 2026-10-22 - Meta, public-publishing experiments on the test Page (`spikes/meta_publish_experiments.py`)
+Authorised by the owner for the test Page. Every video created was deleted afterwards (verified: no Package 0 videos left on the Page).
+
+| Experiment | Result |
+|---|---|
+| E1 FINISH with `PUBLISHED` | HTTP 200 "Video is Processing"; `upload_complete` -> `processing` -> `ready` with `publish_status=published` about 14-15 s after FINISH; `published: true`, `length: 10`. |
+| E2 second FINISH, same `video_id` | HTTP 400, code 6000 / subcode 1363130 "Video Upload Is Missing"; the Page still had exactly one video, so no duplicate. |
+| E3 DELETE a published Reel | `{"success": true}`; the object no longer exists. API retraction works. |
+| E4 promote a DRAFT | `POST /{video-id}` with `published=true` -> `{"success": true}`; `published: true` within seconds. |
+
+Consequence (decision D-23): the main publishing flow is now *prepare as draft, then promote at T*. This keeps the kill switch and cancellation effective until the last moment, removes processing latency at go-live, and a repeated FINISH cannot create a duplicate. `docs/publishing-meta.md` D1-D2, `docs/workflow.md`, `backend/app/providers/contracts.py` updated.
+
+Still open: how long a `ready` draft stays valid; whether promotion is idempotent; whether App Review is ever required (public posting worked in the app's current mode); safe zones on real phones; longer videos.

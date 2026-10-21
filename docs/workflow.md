@@ -40,10 +40,10 @@ Terminal until an authorized edit creates a new revision: REJECTED, BLOCKED, SUP
 |---|---|---|
 | NOT_SCHEDULED | SCHEDULED | slot assigned |
 | SCHEDULED | PREPARING | `T - prepare_lead`: START + UPLOAD begun |
-| PREPARING | READY_TO_PUBLISH | Meta `upload_complete` (bytes match) + copyright check complete and clean (measured: `ready` only happens after FINISH) |
+| PREPARING | READY_TO_PUBLISH | draft is `ready` (`publish_status=draft`) and the copyright check is complete and clean (START, UPLOAD, FINISH as DRAFT all done; nothing public) |
 | PREPARING | FAILED / EXPIRED | upload/processing error, or `expired` |
 | EXPIRED | PREPARING | re-prepare with new `video_id` (same intent key) |
-| READY_TO_PUBLISH | PUBLISHING | pre-publish gate passed at `T`; `PUBLISHING` and `video_id` persisted before FINISH |
+| READY_TO_PUBLISH | PUBLISHING | pre-publish gate passed at `T`; `PUBLISHING` persisted before the promotion call (`POST /{video-id} published=true`) |
 | PUBLISHING | PUBLISHED | FINISH success confirmed (post id / `publish_status=published`) |
 | PUBLISHING | UNKNOWN_RESULT | timeout/ambiguous response |
 | PUBLISHING | FAILED | definite provider rejection of FINISH (never for ambiguous results) |

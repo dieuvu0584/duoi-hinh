@@ -31,19 +31,24 @@ class ImageProvider(Protocol):
 
 
 class ReelsPublishingProvider(Protocol):
-    """Two-phase publishing so the app can gate and kill-switch right before going public.
+    """Draft-then-promote publishing (docs/publishing-meta.md D1, decision D-23).
 
-    See docs/publishing-meta.md. Implementations must persist the provider video id before
-    uploading, never log tokens, and classify errors as transient / permanent / unknown.
+    `prepare` uploads, waits for the copyright check, finishes as a DRAFT and waits until the
+    draft is ready; nothing is public. `publish` promotes that draft and is the only public
+    step, so the pre-publish gate and kill switch run right before it. Implementations must
+    persist the provider video id before uploading, never log tokens, and classify errors as
+    transient / permanent / unknown.
     """
 
-    async def prepare(self, *, video_path: Path, intent_key: str) -> PreparedReel: ...
+    async def prepare(
+        self, *, video_path: Path, description: str, is_ai_generated: bool, intent_key: str
+    ) -> PreparedReel: ...
 
     async def get_status(self, *, video_id: str) -> PreparedReel: ...
 
-    async def finish(
-        self, *, video_id: str, description: str, is_ai_generated: bool, intent_key: str
-    ) -> ProviderResult: ...
+    async def publish(self, *, video_id: str, intent_key: str) -> ProviderResult: ...
+
+    async def delete(self, *, video_id: str) -> ProviderResult: ...  # cancel a draft or retract
 
     async def reconcile(self, *, video_id: str) -> ProviderResult: ...
 

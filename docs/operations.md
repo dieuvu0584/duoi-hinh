@@ -5,7 +5,7 @@ Procedures to be written out and rehearsed in Package F. This file fixes the req
 ## 1. Retraction and correction (post already public)
 Required capability: the owner can retract a published Reel quickly and record why.
 - State: `PUBLISHED -> RETRACTION_REQUESTED -> RETRACTED | RETRACTION_FAILED` on the publishing record; audited.
-- Mechanism: **verified for a draft video on 2026-10-22**: `DELETE /{video-id}` with the Page token returned success and the object disappeared. Still **VERIFY** the same call on a *published* Reel before relying on it. Use the video id, not the post id. If not, the admin UI links to the post and instructs manual deletion in Facebook, and records the manual retraction.
+- Mechanism: **verified for a draft video on 2026-10-22**: `DELETE /{video-id}` with the Page token returned success and the object disappeared. It also works on a *published* Reel (verified the same day, object gone afterwards). Use the video id, not the post id. If not, the admin UI links to the post and instructs manual deletion in Facebook, and records the manual retraction.
 - Triggers: factual error, defamation or privacy complaint, copyright claim, platform warning, owner decision.
 - News corrections: prefer a correction comment/follow-up plus (if needed) retraction; keep the original record and evidence immutable.
 - Kill switch is **not** a recall: it stops future publishes only (see threat T-9 residual window). Alerts go to the owner when a publish succeeds after a recent kill-switch change.

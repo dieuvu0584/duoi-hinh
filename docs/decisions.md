@@ -34,7 +34,9 @@
 ## B2. Kết quả đo thật (Package 0)
 - **Meta chấp nhận mp4 do ffmpeg tạo**; xử lý sau FINISH mất khoảng 17 giây cho video 10 giây.
 - **Meta chỉ bắt đầu xử lý sau FINISH**, không phải sau upload. Thiết kế "chuẩn bị tới `ready` rồi mới FINISH" đã sửa thành "chuẩn bị = upload xong + kiểm tra bản quyền sạch" (`publishing-meta.md` D1).
-- **Xóa Reel nháp qua API được** (`DELETE /{video-id}`); xóa Reel đã đăng công khai chưa thử.
+- **Xóa Reel qua API được**, cả bản nháp lẫn bản đã công khai (`DELETE /{video-id}`).
+- **Chuyển nháp sang công khai bằng API được** (`POST /{video-id}` với `published=true`, công khai sau vài giây). FINISH lần hai trên cùng video bị từ chối (không tạo bài trùng).
+- **D-23: luồng đăng chính = chuẩn bị bản nháp (FINISH ở chế độ DRAFT, chờ `ready` và bản quyền sạch), đến giờ thì qua cổng kiểm tra rồi chuyển nháp sang công khai.** Cách này giữ được kill switch và quyền hủy tới phút cuối, và không có độ trễ xử lý khi lên sóng.
 - Token Page có thời hạn khoảng 60 ngày: cần cảnh báo trước khi hết hạn.
 
 ## C. Điều Package 0 phải xác nhận (VERIFY)
