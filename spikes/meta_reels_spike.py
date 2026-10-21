@@ -61,6 +61,10 @@ class Recorder:
         self.secrets = secrets
         self.steps: list[dict[str, Any]] = []
 
+    def brief(self, response: httpx.Response) -> str:
+        """Short redacted error text so a failed step explains itself."""
+        return redact(response.text[:300], self.secrets)
+
     def add(self, name: str, started: float, response: httpx.Response | None, note: str = "") -> None:
         body = ""
         status = None
@@ -97,7 +101,7 @@ def start(client: httpx.Client, graph: str, page_id: str, token: str, rec: Recor
     rec.add("START", t0, resp)
     data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
     if resp.status_code != 200 or "video_id" not in data or "upload_url" not in data:
-        raise SpikeError(f"START failed: HTTP {resp.status_code}")
+        raise SpikeError(f"START failed: HTTP {resp.status_code} {rec.brief(resp)}")
     return str(data["video_id"]), str(data["upload_url"])
 
 
@@ -119,7 +123,7 @@ def upload(client: httpx.Client, upload_url: str, token: str, video: Path, rec: 
     )
     rec.add("UPLOAD", t0, resp, note=f"bytes={len(payload)}")
     if resp.status_code != 200:
-        raise SpikeError(f"UPLOAD failed: HTTP {resp.status_code}")
+        raise SpikeError(f"UPLOAD failed: HTTP {resp.status_code} {rec.brief(resp)}")
 
 
 def poll_ready(
@@ -189,7 +193,7 @@ def finish(
     )
     rec.add("FINISH", t0, resp)
     if resp.status_code != 200:
-        raise SpikeError(f"FINISH failed: HTTP {resp.status_code}")
+        raise SpikeError(f"FINISH failed: HTTP {resp.status_code} {rec.brief(resp)}")
     return resp.json()
 
 
