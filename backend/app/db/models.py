@@ -237,6 +237,32 @@ class PublishingRecord(TimestampMixin, Base):
     reconcile_attempts: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class AudioAsset(Base):
+    """A synthesised narration, content-addressed by `text_hash` (the cache key)."""
+
+    __tablename__ = "audio_assets"
+    __table_args__ = (CheckConstraint("kind IN ('narration', 'music', 'mix')", name="kind_valid"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    kind: Mapped[str] = mapped_column(String(12), default="narration")
+    provider: Mapped[str] = mapped_column(String(20))
+    model_id: Mapped[str] = mapped_column(String(60))
+    voice_id: Mapped[str] = mapped_column(String(80))
+    synth_settings: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # sha256(normalizer version + normalised text + voice + model + settings): same key = same audio
+    text_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    normalized_text: Mapped[str] = mapped_column(Text)
+    normalizer_version: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    storage_ref: Mapped[str] = mapped_column(String(300))  # relative to NHD_MEDIA_DIR
+    duration_s: Mapped[Decimal | None] = mapped_column(Numeric(8, 3))
+    characters: Mapped[int] = mapped_column(Integer)
+    credits_charged: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+    cost_ledger_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("cost_ledger.id"))
+    license_note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class TokenHealth(Base):
     """Result of the latest provider token check. Absent or old = publishing is blocked."""
 

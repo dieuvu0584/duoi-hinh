@@ -21,6 +21,16 @@ class Settings(BaseSettings):
     # Rendered videos live under this directory; publishing refuses any path outside it.
     media_dir: str = "media"
 
+    # ElevenLabs (voiceover). The key is a SecretStr; USD per credit is an ASSUMPTION used for the
+    # budget estimate (set it from your plan/invoice; the default is deliberately on the high side).
+    elevenlabs_api_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("ELEVENLABS_API_KEY"))
+    elevenlabs_voice_id: str | None = Field(
+        default=None, validation_alias=AliasChoices("ELEVENLABS_VOICE_ID"))
+    elevenlabs_model_id: str = Field(
+        default="eleven_v3", validation_alias=AliasChoices("ELEVENLABS_MODEL_ID"))
+    elevenlabs_usd_per_credit: float = 0.0003
+
     # Meta (names come straight from .env: META_*). The token is a SecretStr and never printed.
     meta_page_id: str | None = Field(default=None, validation_alias=AliasChoices("META_PAGE_ID"))
     meta_access_token: SecretStr | None = Field(

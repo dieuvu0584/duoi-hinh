@@ -43,13 +43,13 @@ Each box must be backed by an automated test or a documented manual verification
 ## Narration (FR-12..14, D-24)
 - [x] Rebus answer cannot appear in caption, overlay or narration on create or edit (`test_content_api.py`, `test_content_hash_and_rules.py::test_leaks_answer_*`).
 - [x] Narration text and voice id are part of `content_hash`; editing either invalidates approval (`test_content_hash_and_rules.py`, `test_narration_is_stored_and_changes_the_hash`).
-- [ ] Vietnamese numerals/dates/units are expanded deterministically before synthesis (golden tests).
-- [ ] Identical (text, voice, model, settings) is served from cache and records no new cost.
+- [x] Vietnamese numerals/dates/times/units are expanded deterministically before synthesis (`backend/tests/test_vi_normalizer.py`, 72 tests; an invalid date is never turned into a date).
+- [x] Identical (text, voice, model, settings) - and any spelling that normalises alike - is served from cache and records no new cost (`backend/tests/test_narration.py`).
 - [ ] A synthesis failure sends the revision to NEEDS_REWORK; nothing is published un-narrated.
 - [ ] The rendered mix has an audio stream, is not silent, does not clip, ends before the hold period and is within loudness tolerance.
 - [ ] The pronunciation regression list (dates, "that no", tones, names) is re-synthesised and re-listened by the owner whenever model, voice, settings or lexicon change.
 - [ ] Narrated Reels always publish with `is_ai_generated=true`.
-- [ ] ElevenLabs spend is recorded before any retry and respects its own budget (default 0).
+- [x] ElevenLabs spend is reserved before the call, settled from the provider's `character-cost`, kept on timeout and released only for known-uncharged failures; no budget row means no request (`test_narration.py`).
 
 ## Safety/approval (FR-20..23)
 - [x] Missing, invalid, stale, blocked or hash-mismatched review prevents publishing. (`test_publish_gate.py`; wired to DB data, not yet to a scheduler)

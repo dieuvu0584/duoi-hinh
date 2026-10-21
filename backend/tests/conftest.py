@@ -9,6 +9,8 @@ os.environ.setdefault("NHD_ENVIRONMENT", "development")
 # Tests must never pick up the developer's real Meta credentials from a local .env file.
 os.environ["META_PAGE_ID"] = ""
 os.environ["META_ACCESS_TOKEN"] = ""
+os.environ["ELEVENLABS_API_KEY"] = ""
+os.environ["ELEVENLABS_VOICE_ID"] = ""
 
 import pathlib  # noqa: E402
 
@@ -51,7 +53,7 @@ def db(engine):
             text(
                 "TRUNCATE login_attempts, devices, owner_account, audit_events, publishing_records,"
                 " approvals, safety_reviews, content_revisions, content_items, token_health,"
-                " cost_ledger, provider_budgets CASCADE"
+                " cost_ledger, provider_budgets, audio_assets CASCADE"
             )
         )
         conn.execute(

@@ -41,13 +41,21 @@ class TextAnalysisProvider(Protocol):
     ) -> ProviderResult: ...
 
 
+@dataclass(frozen=True)
+class SpeechResult:
+    audio: bytes
+    mime_type: str
+    credits_charged: float | None  # what the provider billed (ElevenLabs: character-cost header)
+    request_id: str | None
+
+
 class SpeechProvider(Protocol):
     """Text-to-speech (ElevenLabs). Callers normalise the text first and look up the cache by
     sha256(text + voice_id + model_id + settings) before calling; every call is costed."""
 
     async def synthesize(
         self, *, text: str, voice_id: str, model_id: str, settings: dict[str, Any]
-    ) -> ProviderResult: ...
+    ) -> SpeechResult: ...
 
 
 class ImageProvider(Protocol):
