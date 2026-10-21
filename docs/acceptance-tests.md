@@ -93,7 +93,7 @@ Each box must be backed by an automated test or a documented manual verification
 ## Operations (NFR-5, FR-36, FR-37)
 - [ ] Closing the admin UI does not stop backend jobs.
 - [ ] Offline UI is explicit and never claims success before backend confirmation.
-- [ ] Budget and regeneration limits enforced server-side; cost recorded before any paid retry.
+- [x] Spend budgets enforced server-side and recorded before the call (`backend/tests/test_budget.py`, 21 tests); regeneration-count limits are still to do.
 - [ ] Backup/restore and token revocation drills documented and performed.
 
 ## Pilot metrics (targets are hypotheses)

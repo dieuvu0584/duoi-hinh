@@ -246,3 +246,42 @@ class TokenHealth(Base):
     scopes: Mapped[list[str] | None] = mapped_column(JSONB)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error: Mapped[str | None] = mapped_column(String(200))
+
+
+class ProviderBudget(TimestampMixin, Base):
+    """Per-provider spending caps in USD. No row, or a limit of 0, means it cannot spend (D-18)."""
+
+    __tablename__ = "provider_budgets"
+    __table_args__ = (
+        CheckConstraint("monthly_limit_usd >= 0", name="monthly_nonneg"),
+        CheckConstraint("daily_limit_usd IS NULL OR daily_limit_usd >= 0", name="daily_nonneg"),
+    )
+
+    provider: Mapped[str] = mapped_column(String(30), primary_key=True)
+    monthly_limit_usd: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("0"))
+    daily_limit_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+
+
+class CostLedger(Base):
+    """One row per paid provider call: reserved BEFORE the call, settled after it."""
+
+    __tablename__ = "cost_ledger"
+    __table_args__ = (
+        CheckConstraint("status IN ('reserved', 'settled', 'released')", name="status_valid"),
+        CheckConstraint("estimated_usd >= 0", name="estimate_nonneg"),
+        Index("ix_cost_ledger_provider_time", "provider", "reserved_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    provider: Mapped[str] = mapped_column(String(30))
+    operation: Mapped[str] = mapped_column(String(60))
+    entity_type: Mapped[str | None] = mapped_column(String(40))
+    entity_id: Mapped[str | None] = mapped_column(String(80))
+    idempotency_key: Mapped[str | None] = mapped_column(String(120), unique=True)
+    request_id: Mapped[str | None] = mapped_column(String(120))
+    estimated_usd: Mapped[Decimal] = mapped_column(Numeric(12, 6))
+    actual_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
+    status: Mapped[str] = mapped_column(String(10), default="reserved")
+    reserved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    note: Mapped[str | None] = mapped_column(Text)
