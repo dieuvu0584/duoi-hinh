@@ -1,53 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nhd/image_prompt/1",
+  "$id": "nhd/image_prompt/2",
   "title": "ImagePromptResult",
+  "description": "Lean (all fields required) so the structured-output endpoint accepts it. The model's own idea of where things sit is NOT trusted: clue boxes are measured later by a separate vision call and decided by backend code.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["status"],
+  "required": [
+    "status", "revision_reasons", "visual_blueprint", "flux_prompt", "negative_constraints",
+    "expected_viewer_interpretation", "visual_explanation"
+  ],
   "properties": {
     "status": { "enum": ["ok", "needs_revision"] },
     "revision_reasons": { "type": "array", "items": { "type": "string" } },
-    "visual_blueprint": { "type": "string" },
-    "composition": {
-      "type": "object",
-      "properties": {
-        "master_canvas": { "const": "1920x1920" },
-        "safe_square_norm": {
-          "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4,
-          "description": "[x0, y0, x1, y1] normalised; default [0.21875, 0.21875, 0.78125, 0.78125]"
-        },
-        "safe_zone_px": {
-          "type": "object",
-          "properties": { "top": { "type": "integer" }, "bottom": { "type": "integer" }, "side": { "type": "integer" } }
-        },
-        "clue_boxes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["clue_id", "box_norm"],
-            "properties": { "clue_id": { "type": "string" }, "box_norm": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 } }
-          }
-        }
-      }
-    },
-    "image_prompts": {
-      "type": "object",
-      "required": ["flux", "gemini"],
-      "properties": { "flux": { "type": "string" }, "gemini": { "type": "string" } }
-    },
-    "negative_constraints": { "type": "array", "items": { "type": "string" } },
-    "expected_viewer_interpretation": { "type": "string" },
-    "ambiguity_risks": { "type": "array", "items": { "type": "string" } },
-    "image_explanation_ticket": {
-      "type": "object",
-      "required": ["answer_or_message", "intended_meaning", "visual_explanation", "clue_mapping"],
-      "properties": {
-        "answer_or_message": { "type": "string" },
-        "intended_meaning": { "type": "string" },
-        "visual_explanation": { "type": "string" },
-        "clue_mapping": { "type": "array", "items": { "type": "object" } }
-      }
-    }
+    "visual_blueprint": { "type": "string", "maxLength": 1500 },
+    "flux_prompt": { "type": "string", "maxLength": 1800 },
+    "negative_constraints": { "type": "array", "items": { "type": "string" }, "maxItems": 12 },
+    "expected_viewer_interpretation": { "type": "string", "maxLength": 400 },
+    "visual_explanation": { "type": "string", "maxLength": 800 }
   }
 }

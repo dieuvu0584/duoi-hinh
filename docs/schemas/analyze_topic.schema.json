@@ -1,76 +1,42 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nhd/analyze_topic/1",
+  "$id": "nhd/analyze_topic/2",
   "title": "AnalyzeTopicResult",
+  "description": "Lean on purpose: every field is required and nothing is nested-optional, because the structured-output endpoint rejects complex schemas (verified 2026-10-22). Rebus syllables are derived by backend code from the owner-verified answer, not by the model.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["decision", "lane", "reasoning_summary"],
+  "required": [
+    "decision", "reasons", "answer_or_message", "intended_viewer_inference", "clue_mapping",
+    "ambiguity_risks", "risk_level", "sensitive_categories", "caption", "hashtags", "overlay_text",
+    "narration_text", "reasoning_summary"
+  ],
   "properties": {
     "decision": { "enum": ["proceed", "hold_for_human", "reject"] },
-    "reject_or_hold_reasons": { "type": "array", "items": { "type": "string" } },
-    "lane": { "enum": ["daily_life", "rebus", "news"] },
-    "content_type": { "enum": ["everyday_meme", "rebus", "news_meme"] },
-    "answer_or_message": { "type": "string", "description": "Frozen intended answer (rebus) or message (others)." },
-    "intended_viewer_inference": { "type": "string" },
+    "reasons": { "type": "array", "items": { "type": "string" }, "description": "Why hold or reject; empty when proceeding." },
+    "answer_or_message": { "type": "string", "maxLength": 300 },
+    "intended_viewer_inference": { "type": "string", "maxLength": 400 },
     "clue_mapping": {
       "type": "array",
+      "maxItems": 8,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["clue_id", "visual_clue", "maps_to"],
+        "required": ["clue_id", "visual_clue", "maps_to", "operation"],
         "properties": {
-          "clue_id": { "type": "string" },
-          "visual_clue": { "type": "string" },
-          "maps_to": { "type": "string" },
+          "clue_id": { "type": "string", "maxLength": 40 },
+          "visual_clue": { "type": "string", "maxLength": 200 },
+          "maps_to": { "type": "string", "maxLength": 200 },
           "operation": { "enum": ["literal", "homophone", "drop_tone", "add", "remove", "sound_alike", "position", "metaphor"] }
         }
       }
     },
-    "rebus_spec": {
-      "type": "object",
-      "description": "Required when lane=rebus. Must be human-verified before generation.",
-      "required": ["answer_text", "syllables"],
-      "properties": {
-        "answer_text": { "type": "string" },
-        "syllables": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["text", "clue_ids"],
-            "properties": { "text": { "type": "string" }, "tone": { "type": "string" }, "clue_ids": { "type": "array", "items": { "type": "string" } } }
-          }
-        },
-        "difficulty": { "type": "integer", "minimum": 1, "maximum": 5 },
-        "alternate_answers": { "type": "array", "items": { "type": "string" } }
-      }
-    },
-    "ambiguity_risks": { "type": "array", "items": { "type": "string" } },
-    "news": {
-      "type": "object",
-      "description": "Required when lane=news.",
-      "required": ["source_urls", "verified_facts", "unverified_claims", "opinion_seed"],
-      "properties": {
-        "source_urls": { "type": "array", "items": { "type": "string" } },
-        "publisher": { "type": "string" },
-        "published_at": { "type": ["string", "null"], "format": "date-time" },
-        "event_date": { "type": ["string", "null"], "format": "date" },
-        "verified_facts": { "type": "array", "items": { "type": "string" } },
-        "unverified_claims": { "type": "array", "items": { "type": "string" } },
-        "opinion_seed": { "type": "string" },
-        "independent_source_groups": { "type": "integer", "minimum": 0 }
-      }
-    },
+    "ambiguity_risks": { "type": "array", "items": { "type": "string" }, "maxItems": 6 },
     "risk_level": { "enum": ["low", "medium", "high", "critical"] },
-    "sensitive_categories": { "type": "array", "items": { "type": "string" } },
-    "novelty_score": { "type": "number", "minimum": 0, "maximum": 1 },
-    "visualizability_score": { "type": "number", "minimum": 0, "maximum": 1 },
-    "caption_draft": { "type": "string" },
-    "narration_text": {
-      "type": "string",
-      "maxLength": 600,
-      "description": "Vietnamese voiceover script. For rebus it must never contain the answer."
-    },
-    "hashtags": { "type": "array", "items": { "type": "string" } },
-    "reasoning_summary": { "type": "string" }
+    "sensitive_categories": { "type": "array", "items": { "type": "string" }, "maxItems": 10 },
+    "caption": { "type": "string", "maxLength": 300 },
+    "hashtags": { "type": "array", "items": { "type": "string", "maxLength": 40 }, "maxItems": 5 },
+    "overlay_text": { "type": "string", "maxLength": 200 },
+    "narration_text": { "type": "string", "maxLength": 600 },
+    "reasoning_summary": { "type": "string", "maxLength": 600 }
   }
 }

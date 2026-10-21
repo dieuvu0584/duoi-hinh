@@ -1,29 +1,29 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nhd/safety_review/1",
+  "$id": "nhd/safety_review/2",
   "title": "SafetyReviewResult",
+  "description": "Lean on purpose. The model only advises; the backend fills the content hash, timestamps, expiry and policy version, and derives whether a human must review (deterministic rules, never this output alone).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["decision", "risk_level", "categories", "human_review_required", "policy_version", "reviewed_at"],
+  "required": ["decision", "risk_level", "categories", "findings", "required_changes", "summary"],
   "properties": {
-    "gate": { "enum": ["intake", "final", "prepublish"] },
     "decision": { "enum": ["allow", "hold_for_human", "block"] },
     "risk_level": { "enum": ["low", "medium", "high", "critical"] },
-    "categories": { "type": "array", "items": { "type": "string" } },
+    "categories": { "type": "array", "items": { "type": "string", "maxLength": 60 }, "maxItems": 12 },
     "findings": {
       "type": "array",
+      "maxItems": 12,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["category", "description"],
-        "properties": { "category": { "type": "string" }, "description": { "type": "string" }, "evidence_ref": { "type": "string" } }
+        "properties": {
+          "category": { "type": "string", "maxLength": 60 },
+          "description": { "type": "string", "maxLength": 400 }
+        }
       }
     },
-    "required_changes": { "type": "array", "items": { "type": "string" } },
-    "human_review_required": { "type": "boolean" },
-    "evidence_refs": { "type": "array", "items": { "type": "string" } },
-    "policy_version": { "type": "string" },
-    "reviewed_at": { "type": "string", "format": "date-time" },
-    "expires_at": { "type": "string", "format": "date-time" },
-    "reviewed_content_hash": { "type": "string", "description": "Echoed by the backend, not trusted from the model." }
+    "required_changes": { "type": "array", "items": { "type": "string", "maxLength": 300 }, "maxItems": 8 },
+    "summary": { "type": "string", "maxLength": 600 }
   }
 }

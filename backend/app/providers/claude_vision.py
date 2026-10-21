@@ -2,25 +2,17 @@
 
 Uses the official Anthropic SDK with structured JSON output (`output_config.format`), as verified
 live on 2026-10-22 (docs/video-pipeline.md "Composition check measured"). The model only MEASURES;
-`app.services.composition` decides. A refusal is returned as data (it still bills tokens); transport
-and API errors are typed: errors known to precede any billing (auth, bad request, rate limit) are
-ProviderPermanent/Transient, timeouts and 5xx are ProviderTimeout (the charge is unknown).
+`app.services.composition` decides. A refusal is returned as data (it still bills tokens); API
+errors are typed by `claude_common.call_messages`.
 """
 
 import base64
 import json
 from typing import Any
 
-import anthropic
-
-from app.core.logging import redact_text
+from app.providers.claude_common import call_messages
 from app.providers.contracts import VisionBoxes
-from app.providers.errors import (
-    ProviderError,
-    ProviderPermanent,
-    ProviderTimeout,
-    ProviderTransient,
-)
+from app.providers.errors import ProviderError, ProviderPermanent
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -65,28 +57,14 @@ class ClaudeVision:
         if not clues or any(not c.strip() or len(c) > 80 for c in clues) or len(clues) > 12:
             raise ProviderPermanent("bad_clues", "between 1 and 12 short clue names are required")
         data = base64.standard_b64encode(image_png).decode("ascii")
-        try:
-            response = await self._client.messages.create(
-                model=self._model, max_tokens=self._max,
-                output_config={"format": {"type": "json_schema", "schema": SCHEMA}},
-                messages=[{"role": "user", "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": "image/png",
-                                                 "data": data}},
-                    {"type": "text", "text": PROMPT.format(clues=json.dumps(clues))},
-                ]}])
-        except anthropic.RateLimitError:
-            raise ProviderTransient("rate limited") from None
-        except (anthropic.AuthenticationError, anthropic.PermissionDeniedError,
-                anthropic.BadRequestError, anthropic.NotFoundError) as exc:
-            raise ProviderPermanent(type(exc).__name__, redact_text(str(exc))[:160]) from None
-        except (anthropic.APITimeoutError, anthropic.APIConnectionError,
-                anthropic.InternalServerError):
-            raise ProviderTimeout("the request may have been processed: charge unknown") from None
-        except anthropic.APIStatusError as exc:
-            if exc.status_code >= 500:
-                raise ProviderTimeout(f"HTTP {exc.status_code}: charge unknown") from None
-            raise ProviderPermanent(f"http_{exc.status_code}") from None
-
+        response = await call_messages(
+            self._client, model=self._model, max_tokens=self._max,
+            output_config={"format": {"type": "json_schema", "schema": SCHEMA}},
+            messages=[{"role": "user", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": "image/png",
+                                             "data": data}},
+                {"type": "text", "text": PROMPT.format(clues=json.dumps(clues))},
+            ]}])
         usage = response.usage
         base = dict(input_tokens=int(usage.input_tokens), output_tokens=int(usage.output_tokens),
                     model=str(getattr(response, "model", self._model)),

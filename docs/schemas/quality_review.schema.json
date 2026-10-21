@@ -1,14 +1,19 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "nhd/quality_review/1",
+  "$id": "nhd/quality_review/2",
   "title": "QualityReviewResult",
+  "description": "All fields required (lean). Score ranges are enforced locally because the structured-output endpoint cannot express them; the backend also enforces the pass thresholds and the hard-failure override itself.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["score_total", "scores", "hard_failures", "recommendation"],
+  "required": [
+    "score_total", "scores", "hard_failures", "missing_clues", "ambiguous_alternatives",
+    "crop_or_text_issues", "recommendation", "explanation"
+  ],
   "properties": {
     "score_total": { "type": "number", "minimum": 0, "maximum": 100 },
     "scores": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["clue_accuracy", "answer_inferability", "humor_surprise", "mobile_composition", "brand_fit"],
       "properties": {
         "clue_accuracy": { "type": "number", "minimum": 0, "maximum": 100 },
@@ -18,12 +23,11 @@
         "brand_fit": { "type": "number", "minimum": 0, "maximum": 100 }
       }
     },
-    "hard_failures": { "type": "array", "items": { "type": "string" } },
-    "missing_clues": { "type": "array", "items": { "type": "string" } },
-    "ambiguous_alternatives": { "type": "array", "items": { "type": "string" } },
-    "crop_or_text_issues": { "type": "array", "items": { "type": "string" } },
-    "keyframes_reviewed": { "type": "array", "items": { "type": "string" } },
+    "hard_failures": { "type": "array", "items": { "type": "string", "maxLength": 300 }, "maxItems": 12 },
+    "missing_clues": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "maxItems": 12 },
+    "ambiguous_alternatives": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "maxItems": 8 },
+    "crop_or_text_issues": { "type": "array", "items": { "type": "string", "maxLength": 300 }, "maxItems": 12 },
     "recommendation": { "enum": ["pass", "revise", "reject"] },
-    "explanation": { "type": "string" }
+    "explanation": { "type": "string", "maxLength": 800 }
   }
 }

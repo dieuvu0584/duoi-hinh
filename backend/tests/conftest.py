@@ -56,7 +56,7 @@ def db(engine):
                 "TRUNCATE login_attempts, devices, owner_account, audit_events, publishing_records,"
                 " approvals, safety_reviews, content_revisions, content_items, token_health,"
                 " cost_ledger, provider_budgets, audio_assets, video_assets, image_assets,"
-                " composition_checks CASCADE"
+                " composition_checks, llm_calls CASCADE"
             )
         )
         conn.execute(

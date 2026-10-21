@@ -52,6 +52,26 @@ class VisionProvider(Protocol):
     async def measure_boxes(self, *, image_png: bytes, clues: list[str]) -> VisionBoxes: ...
 
 
+@dataclass(frozen=True)
+class JsonResult:
+    payload: dict[str, Any] | None  # None when the model refused
+    refused: bool
+    input_tokens: int
+    output_tokens: int
+    model: str
+    request_id: str | None
+
+
+class JsonLLM(Protocol):
+    """One structured-output call. `schema` must already be in the endpoint-compatible (wire) form;
+    the caller validates the answer against the full schema."""
+
+    async def complete_json(
+        self, *, system: str, content: list[dict[str, Any]], schema: dict[str, Any],
+        max_tokens: int = 4000,
+    ) -> JsonResult: ...
+
+
 class TextAnalysisProvider(Protocol):
     async def analyze(
         self, *, system_prompt: str, user_payload: dict[str, Any]

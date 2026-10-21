@@ -125,6 +125,8 @@ class ContentItem(TimestampMixin, Base):
     current_revision_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("content_revisions.id", use_alter=True, name="fk_content_items_current_revision")
     )
+    # What the owner asked for (lane brief, rebus answer); the pipeline's only input.
+    pipeline_input: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
     revisions: Mapped[list["ContentRevision"]] = relationship(
         back_populates="item", foreign_keys="ContentRevision.content_item_id"
@@ -316,6 +318,28 @@ class CostLedger(Base):
     note: Mapped[str | None] = mapped_column(Text)
 
 
+class LlmCall(Base):
+    """One structured LLM call: prompt (by hash), model, tokens, cost and whether it validated."""
+
+    __tablename__ = "llm_calls"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    purpose: Mapped[str] = mapped_column(String(40), index=True)
+    model: Mapped[str] = mapped_column(String(60))
+    prompt_hash: Mapped[str] = mapped_column(String(64))
+    schema_name: Mapped[str] = mapped_column(String(40))
+    entity_type: Mapped[str | None] = mapped_column(String(40))
+    entity_id: Mapped[str | None] = mapped_column(String(80))
+    input_tokens: Mapped[int] = mapped_column(Integer)
+    output_tokens: Mapped[int] = mapped_column(Integer)
+    refused: Mapped[bool] = mapped_column(Boolean, default=False)
+    valid: Mapped[bool] = mapped_column(Boolean, default=False)
+    error: Mapped[str | None] = mapped_column(String(300))
+    request_id: Mapped[str | None] = mapped_column(String(120))
+    cost_ledger_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("cost_ledger.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class CompositionCheck(Base):
     """Result of the crop-safety check for one master image (docs/video-pipeline.md)."""
 
@@ -351,6 +375,9 @@ class ImageAsset(Base):
     sha256: Mapped[str] = mapped_column(String(64))
     storage_ref: Mapped[str] = mapped_column(String(300))  # relative to NHD_MEDIA_DIR
     cost_ledger_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("cost_ledger.id"))
+    # Which content item asked for it: the number of images per item bounds regeneration.
+    content_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("content_items.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -378,4 +405,6 @@ class VideoAsset(Base):
     status: Mapped[str] = mapped_column(String(8), default="valid")
     audio_asset_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("audio_assets.id"))
     master_ref: Mapped[str | None] = mapped_column(String(300))
+    revision_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("content_revisions.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
