@@ -12,7 +12,9 @@ services:
     volumes:
       - ../media:/app/media:ro  # review previews are served from here
     ports:
-      - "127.0.0.1:${NHD_API_PORT:-8000}:8000"
+      # Localhost by default. Set NHD_BIND_ADDR to this PC's Tailscale IP (tailscale ip -4) to reach the
+      # API from the phone; never 0.0.0.0 (that would expose it on the LAN/Internet).
+      - "${NHD_BIND_ADDR:-127.0.0.1}:${NHD_API_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
