@@ -44,7 +44,17 @@ def get_settings_row(session: Session, *, for_update: bool = False) -> SystemSet
     return row
 
 
-def snapshot(row: SystemSettings) -> dict:
+def env_defaults(cfg=None) -> dict:
+    """Identifiers (never secrets) that apply while the owner has not set their own value."""
+    if cfg is None:
+        from app.core.config import settings as cfg
+    return {"facebook_page_id": cfg.meta_page_id or None,
+            "youtube_channel_id": cfg.youtube_channel_id or None,
+            "elevenlabs_voice_id": cfg.elevenlabs_voice_id or None}
+
+
+def snapshot(row: SystemSettings, cfg=None) -> dict:
+    defaults = env_defaults(cfg)
     return {
         "automation_enabled": row.automation_enabled,
         "generation_paused": row.generation_paused,
@@ -60,6 +70,9 @@ def snapshot(row: SystemSettings) -> dict:
         "facebook_page_id": row.facebook_page_id,
         "youtube_channel_id": row.youtube_channel_id,
         "elevenlabs_voice_id": row.elevenlabs_voice_id,
+        # What is actually used: the owner's value, else the .env default.
+        "env_defaults": defaults,
+        "effective": {k: getattr(row, k) or defaults[k] for k in defaults},
         "updated_at": row.updated_at.isoformat(),
     }
 

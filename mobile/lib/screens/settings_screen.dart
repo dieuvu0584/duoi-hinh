@@ -52,9 +52,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _settings = s;
         _error = null;
-        _page.text = '${s['facebook_page_id'] ?? ''}';
-        _youtube.text = '${s['youtube_channel_id'] ?? ''}';
-        _voice.text = '${s['elevenlabs_voice_id'] ?? ''}';
+        // Show what is really used: the owner's own value, else the default from the server's .env.
+        _page.text = _effective(s, 'facebook_page_id');
+        _youtube.text = _effective(s, 'youtube_channel_id');
+        _voice.text = _effective(s, 'elevenlabs_voice_id');
         for (final e in _numbers.entries) {
           e.value.text = '${s[e.key]}';
         }
@@ -70,6 +71,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (mounted) setState(() => _error = friendlyError(e));
     }
+  }
+
+  static String _effective(Map<String, dynamic> s, String key) =>
+      '${(s['effective'] as Map?)?[key] ?? s[key] ?? ''}';
+
+  /// 'Mặc định từ .env' while the owner has not set their own value.
+  String _source(String key) {
+    final s = _settings!;
+    if (s[key] != null) return 'Đã đặt riêng. Xóa trống để dùng lại mặc định.';
+    final hasDefault = (s['env_defaults'] as Map?)?[key] != null;
+    return hasDefault ? 'Đang dùng giá trị mặc định từ .env.' : 'Chưa có giá trị.';
   }
 
   static String _trim(String v) {
@@ -96,7 +108,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final s = _settings!;
     final changes = <String, dynamic>{};
     void text(String key, TextEditingController c) {
-      if (c.text.trim() != '${s[key] ?? ''}') changes[key] = c.text.trim();
+      // Only a real edit is sent: showing the .env default must not copy it into the database.
+      if (c.text.trim() != _effective(s, key)) changes[key] = c.text.trim();
     }
 
     text('facebook_page_id', _page);
@@ -162,9 +175,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           Text('Nơi đăng và giọng đọc', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          _field(_page, 'Facebook Page ID', helper: 'Chỉ số. Đổi cần mật khẩu.'),
-          _field(_youtube, 'YouTube Channel ID', helper: 'Dạng UC… (đăng YouTube chưa bật).'),
-          _field(_voice, 'ElevenLabs Voice ID', helper: 'Chỉ áp dụng cho bài tạo mới. Để trống = dùng giá trị trong .env.'),
+          _field(_page, 'Facebook Page ID', helper: '${_source('facebook_page_id')} Đổi cần mật khẩu.'),
+          _field(_youtube, 'YouTube Channel ID', helper: '${_source('youtube_channel_id')} Dạng UC… (đăng YouTube chưa bật).'),
+          _field(_voice, 'ElevenLabs Voice ID', helper: '${_source('elevenlabs_voice_id')} Chỉ áp dụng cho bài tạo mới.'),
           const SizedBox(height: 8),
           Text('Giới hạn vận hành', style: Theme.of(context).textTheme.titleMedium),
           _field(_numbers['max_publishes_per_day']!, 'Số bài đăng tối đa mỗi ngày', number: true),

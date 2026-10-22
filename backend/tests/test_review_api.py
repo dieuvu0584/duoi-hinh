@@ -197,3 +197,19 @@ def test_the_publishing_provider_uses_the_admin_page(monkeypatch):
     assert get_reels_provider(no_env, "333333333333")._page_id == "333333333333"
     with pytest.raises(RuntimeError):
         get_reels_provider(no_env)
+
+
+def test_the_env_values_are_reported_as_defaults(client, owner, auth_headers, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "meta_page_id", "999999999999")
+    monkeypatch.setattr(settings, "elevenlabs_voice_id", "EnvVoice1")
+    s = client.get(SETTINGS_URL, headers=auth_headers).json()
+    assert s["facebook_page_id"] is None  # the owner has set nothing
+    assert s["env_defaults"]["facebook_page_id"] == "999999999999"
+    assert s["effective"]["facebook_page_id"] == "999999999999"
+    assert s["effective"]["elevenlabs_voice_id"] == "EnvVoice1"
+    put(client, auth_headers, {"elevenlabs_voice_id": "OwnVoice2"})
+    s = client.get(SETTINGS_URL, headers=auth_headers).json()
+    assert s["effective"]["elevenlabs_voice_id"] == "OwnVoice2"  # the owner's value wins
+    assert "meta_access_token" not in str(s)

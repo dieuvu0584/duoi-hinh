@@ -6,6 +6,7 @@ import 'package:nhd_admin/api/token_store.dart';
 import 'package:nhd_admin/screens/login_screen.dart';
 import 'package:nhd_admin/screens/queue_screen.dart';
 import 'package:nhd_admin/screens/review_screen.dart';
+import 'package:nhd_admin/screens/settings_screen.dart';
 import 'package:nhd_admin/screens/status_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -228,5 +229,62 @@ void main() {
     await tester.pumpAndSettle();
     expect(resumedWith, 'my password');
     expect(find.text('Đăng bài: đang cho phép'), findsOneWidget);
+  });
+
+  group('settings', () {
+    Map<String, Object?> settings() => {
+          'facebook_page_id': null,
+          'youtube_channel_id': null,
+          'elevenlabs_voice_id': 'OwnVoice',
+          'env_defaults': {
+            'facebook_page_id': '1514689985052394',
+            'youtube_channel_id': null,
+            'elevenlabs_voice_id': 'EnvVoice'
+          },
+          'effective': {
+            'facebook_page_id': '1514689985052394',
+            'youtube_channel_id': null,
+            'elevenlabs_voice_id': 'OwnVoice'
+          },
+          'daily_budget_limit': '3.0000',
+          'monthly_budget_limit': '3.0000',
+          'max_publishes_per_day': 3,
+          'max_image_regenerations': 3,
+          'max_lateness_minutes': 30,
+          'prepare_lead_minutes': 20,
+        };
+
+    FakeBackend backend(List<Call> puts) => FakeBackend({
+          'GET /api/system/settings': (_) => (200, settings()),
+          'GET /api/costs': (_) => (200, {
+                'global': {},
+                'providers': <String, Object?>{},
+              }),
+          'PUT /api/system/settings': (c) {
+            puts.add(c);
+            return (200, settings());
+          },
+        });
+
+    testWidgets('the .env default is shown as the starting value', (tester) async {
+      final api = await loggedIn(backend([]));
+      await tester.pumpWidget(host(api, const Scaffold(body: SettingsScreen())));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, '1514689985052394'), findsOneWidget);
+      expect(find.textContaining('Đang dùng giá trị mặc định từ .env'), findsOneWidget);
+      expect(find.textContaining('Đã đặt riêng'), findsOneWidget); // the voice
+    });
+
+    testWidgets('saving without editing never copies the default into the database', (tester) async {
+      final puts = <Call>[];
+      final api = await loggedIn(backend(puts));
+      await tester.pumpWidget(host(api, const Scaffold(body: SettingsScreen())));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Lưu'), 200, scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.text('Lưu'));
+      await tester.pumpAndSettle();
+      expect(puts, isEmpty);
+      expect(find.text('Không có thay đổi.'), findsOneWidget);
+    });
   });
 }
