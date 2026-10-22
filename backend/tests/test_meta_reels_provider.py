@@ -305,7 +305,7 @@ def test_dry_run_is_the_default_and_never_builds_the_live_adapter():
 def test_live_needs_an_explicit_mode_and_credentials():
     live = Settings(_env_file=None, publish_mode="live", meta_page_id=PAGE, meta_access_token=TOKEN)
     assert isinstance(get_reels_provider(live), MetaReelsProvider)
-    with pytest.raises(RuntimeError, match="needs META_PAGE_ID"):
+    with pytest.raises(RuntimeError, match="needs a Page ID"):
         get_reels_provider(Settings(_env_file=None, publish_mode="live"))
 
 

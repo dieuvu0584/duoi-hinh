@@ -46,6 +46,10 @@ class SettingsUpdate(BaseModel):
     max_publishes_per_day: int | None = Field(default=None, ge=0, le=30)
     max_lateness_minutes: int | None = Field(default=None, ge=1, le=1440)
     prepare_lead_minutes: int | None = Field(default=None, ge=5, le=240)
+    # "" clears the value (the environment default applies again).
+    facebook_page_id: str | None = Field(default=None, pattern=r"^(\d{5,30})?$")
+    youtube_channel_id: str | None = Field(default=None, pattern=r"^(UC[A-Za-z0-9_-]{22})?$")
+    elevenlabs_voice_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{0,80}$")
 
 
 class SettingsUpdateRequest(BaseModel):

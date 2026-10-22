@@ -64,7 +64,8 @@ def db(engine):
                 "UPDATE system_settings SET automation_enabled=false, generation_paused=false,"
                 " publishing_kill_switch=true, news_lane_enabled=false, daily_budget_limit=0,"
                 " monthly_budget_limit=0, budget_currency='USD', max_image_regenerations=3,"
-                " max_publishes_per_day=3, max_lateness_minutes=30, prepare_lead_minutes=20"
+                " max_publishes_per_day=3, max_lateness_minutes=30, prepare_lead_minutes=20,"
+                " facebook_page_id=NULL, youtube_channel_id=NULL, elevenlabs_voice_id=NULL"
             )
         )
     from app.db.session import session_factory

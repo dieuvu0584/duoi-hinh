@@ -90,6 +90,11 @@ class SystemSettings(TimestampMixin, Base):
     max_publishes_per_day: Mapped[int] = mapped_column(Integer, default=3)
     max_lateness_minutes: Mapped[int] = mapped_column(Integer, default=30)
     prepare_lead_minutes: Mapped[int] = mapped_column(Integer, default=20)
+    # Where and with which voice we publish. Owner-editable; the environment value is only the
+    # fallback while a column is empty. Tokens/keys are NOT here (they stay in the environment).
+    facebook_page_id: Mapped[str | None] = mapped_column(String(40))
+    youtube_channel_id: Mapped[str | None] = mapped_column(String(40))
+    elevenlabs_voice_id: Mapped[str | None] = mapped_column(String(80))
 
 
 class AuditEvent(Base):

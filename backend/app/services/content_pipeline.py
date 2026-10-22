@@ -55,7 +55,7 @@ from app.services import (
 from app.services.audit import record_audit
 from app.services.composition import Box
 from app.services.safety_rules import _fold, leaks_answer
-from app.services.settings_service import get_settings_row
+from app.services.settings_service import effective_voice_id, get_settings_row
 from app.services.state_machine import ContentState as CS
 
 log = logging.getLogger(__name__)
@@ -194,6 +194,10 @@ def start(
 # ----------------------------------------------------------------------------- stage: analyze
 async def _analyze(session: Session, deps: PipelineDeps, item: ContentItem) -> StageOutcome:
     cfg = deps.cfg
+    # No narration voice configured (admin setting or env): stop before paying for anything.
+    voice = effective_voice_id(get_settings_row(session), cfg)
+    if not voice:
+        return StageOutcome("analyze", item.status, "waiting: voice_not_configured")
     data = copy.deepcopy(item.pipeline_input or {})
     payload = {"lane": item.lane, "brief": data.get("brief"), "answer": data.get("answer")}
     try:
@@ -234,7 +238,7 @@ async def _analyze(session: Session, deps: PipelineDeps, item: ContentItem) -> S
         "answer_text": answer, "clue_mapping": analysis["clue_mapping"],
         "caption": analysis["caption"], "hashtags": analysis["hashtags"],
         "overlay_text": analysis["overlay_text"], "narration_text": analysis["narration_text"],
-        "voice_id": cfg.elevenlabs_voice_id, "is_ai_generated": True, "template_id": TEMPLATE_ID})
+        "voice_id": voice, "is_ai_generated": True, "template_id": TEMPLATE_ID})
     decision = {"proceed": "allow", "hold_for_human": "hold_for_human",
                 "reject": "block"}[analysis["decision"]]
     content_service.record_safety_review(
@@ -344,7 +348,7 @@ async def _generate(session: Session, deps: PipelineDeps, item: ContentItem) -> 
     # 4) narration (content-addressed: a repeat is free)
     audio = await narration_service.get_or_create_narration(
         session, deps.speech, cfg, text=revision.narration_text or "",
-        voice_id=cfg.elevenlabs_voice_id or "", model_id=cfg.elevenlabs_model_id,
+        voice_id=revision.voice_id or "", model_id=cfg.elevenlabs_model_id,
         license_note="owner-selected ElevenLabs voice (commercial plan)")
 
     # 5) a new revision that binds the media by hash (approval will name this hash)

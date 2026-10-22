@@ -16,14 +16,15 @@ from app.core.logging import configure_logging
 from app.db.session import session_factory
 from app.providers.factory import get_reels_provider
 from app.services.scheduler import tick
+from app.services.settings_service import effective_page_id, get_settings_row
 
 log = logging.getLogger("app.worker")
 
 
 async def run(*, once: bool, interval: float) -> None:
-    provider = get_reels_provider(settings)
-    log.warning("worker started; publish_mode=%s provider=%s", settings.publish_mode,
-                type(provider).__name__)
+    provider = None
+    provider_page: str | None = None
+    log.warning("worker started; publish_mode=%s", settings.publish_mode)
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -33,6 +34,11 @@ async def run(*, once: bool, interval: float) -> None:
             pass
     while not stop.is_set():
         with session_factory()() as session:
+            # The Page is an admin setting: rebuild the provider when the owner changes it.
+            page = effective_page_id(get_settings_row(session), settings)
+            if provider is None or page != provider_page:
+                provider, provider_page = get_reels_provider(settings, page), page
+                log.warning("publishing provider=%s page=%s", type(provider).__name__, page)
             report = await tick(session, provider, settings)
         log.info("tick: %s", report)
         if once:

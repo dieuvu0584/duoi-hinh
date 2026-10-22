@@ -17,10 +17,16 @@ EDITABLE_FIELDS = {
     "max_publishes_per_day": int,
     "max_lateness_minutes": int,
     "prepare_lead_minutes": int,
+    "facebook_page_id": str,
+    "youtube_channel_id": str,
+    "elevenlabs_voice_id": str,
 }
+# Text settings: "" clears the value (the environment value then applies again).
+TEXT_FIELDS = {"facebook_page_id", "youtube_channel_id", "elevenlabs_voice_id"}
 # Changes that widen what the system may do need password confirmation (re-auth).
+# Changing the publishing target is one of them: it decides which Page/channel receives posts.
 REAUTH_FIELDS = {"news_lane_enabled", "daily_budget_limit", "monthly_budget_limit",
-                 "automation_enabled"}
+                 "automation_enabled", "facebook_page_id", "youtube_channel_id"}
 
 
 def get_settings_row(session: Session, *, for_update: bool = False) -> SystemSettings:
@@ -51,6 +57,9 @@ def snapshot(row: SystemSettings) -> dict:
         "max_publishes_per_day": row.max_publishes_per_day,
         "max_lateness_minutes": row.max_lateness_minutes,
         "prepare_lead_minutes": row.prepare_lead_minutes,
+        "facebook_page_id": row.facebook_page_id,
+        "youtube_channel_id": row.youtube_channel_id,
+        "elevenlabs_voice_id": row.elevenlabs_voice_id,
         "updated_at": row.updated_at.isoformat(),
     }
 
@@ -84,10 +93,23 @@ def update_settings(session: Session, owner: OwnerAccount, changes: dict) -> Sys
     row = get_settings_row(session, for_update=True)
     before = {k: getattr(row, k) for k in changes}
     for key, value in changes.items():
-        setattr(row, key, EDITABLE_FIELDS[key](value) if value is not None else value)
+        if key in TEXT_FIELDS:
+            setattr(row, key, str(value).strip() or None)
+        else:
+            setattr(row, key, EDITABLE_FIELDS[key](value) if value is not None else value)
     record_audit(session, actor=f"owner:{owner.id}", action="settings.update",
                  entity_type="system_settings", entity_id="1",
                  metadata={"before": {k: str(v) for k, v in before.items()},
                            "after": {k: str(v) for k, v in changes.items()}})
     session.commit()
     return row
+
+
+def effective_voice_id(row: SystemSettings, cfg) -> str | None:
+    """The voice for NEW narration: the owner's setting, else the environment default."""
+    return row.elevenlabs_voice_id or cfg.elevenlabs_voice_id or None
+
+
+def effective_page_id(row: SystemSettings, cfg) -> str | None:
+    """The Facebook Page that receives posts: the owner's setting, else the environment default."""
+    return row.facebook_page_id or cfg.meta_page_id or None
