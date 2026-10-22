@@ -20,6 +20,8 @@ EDITABLE_FIELDS = {
     "facebook_page_id": str,
     "youtube_channel_id": str,
     "elevenlabs_voice_id": str,
+    "scan_enabled": bool,
+    "scan_times": list,
 }
 # Text settings: "" clears the value (the environment value then applies again).
 TEXT_FIELDS = {"facebook_page_id", "youtube_channel_id", "elevenlabs_voice_id"}
@@ -27,6 +29,23 @@ TEXT_FIELDS = {"facebook_page_id", "youtube_channel_id", "elevenlabs_voice_id"}
 # Changing the publishing target is one of them: it decides which Page/channel receives posts.
 REAUTH_FIELDS = {"news_lane_enabled", "daily_budget_limit", "monthly_budget_limit",
                  "automation_enabled", "facebook_page_id", "youtube_channel_id"}
+
+
+def normalise_scan_times(values: list[str]) -> list[str]:
+    """Valid, unique, sorted "HH:MM" strings (Vietnam time); at most 8 per day."""
+    out: set[str] = set()
+    for raw in values:
+        try:
+            hour, minute = (int(x) for x in str(raw).split(":"))
+        except ValueError:
+            hour = minute = -1
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            raise ApiError(422, "bad_scan_time", "Scan times must look like 10:00",
+                           fields=[{"field": "scan_times", "issue": "invalid_time"}])
+        out.add(f"{hour:02d}:{minute:02d}")
+    if len(out) > 8:
+        raise ApiError(422, "too_many_scan_times", "At most 8 scan times per day")
+    return sorted(out)
 
 
 def get_settings_row(session: Session, *, for_update: bool = False) -> SystemSettings:
@@ -70,6 +89,8 @@ def snapshot(row: SystemSettings, cfg=None) -> dict:
         "facebook_page_id": row.facebook_page_id,
         "youtube_channel_id": row.youtube_channel_id,
         "elevenlabs_voice_id": row.elevenlabs_voice_id,
+        "scan_enabled": row.scan_enabled,
+        "scan_times": list(row.scan_times or []),
         # What is actually used: the owner's value, else the .env default.
         "env_defaults": defaults,
         "effective": {k: getattr(row, k) or defaults[k] for k in defaults},
@@ -108,6 +129,8 @@ def update_settings(session: Session, owner: OwnerAccount, changes: dict) -> Sys
     for key, value in changes.items():
         if key in TEXT_FIELDS:
             setattr(row, key, str(value).strip() or None)
+        elif key == "scan_times":
+            setattr(row, key, normalise_scan_times(value))
         else:
             setattr(row, key, EDITABLE_FIELDS[key](value) if value is not None else value)
     record_audit(session, actor=f"owner:{owner.id}", action="settings.update",

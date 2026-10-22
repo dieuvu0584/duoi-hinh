@@ -39,6 +39,8 @@ dependencies:
   video_player: ^2.14.1
   provider: ^6.1.5+1
   intl: ^0.20.3
+  path_provider: ^2.1.6
+  gal: ^2.3.3
 
 dev_dependencies:
   flutter_test:

@@ -95,6 +95,11 @@ class SystemSettings(TimestampMixin, Base):
     facebook_page_id: Mapped[str | None] = mapped_column(String(40))
     youtube_channel_id: Mapped[str | None] = mapped_column(String(40))
     elevenlabs_voice_id: Mapped[str | None] = mapped_column(String(80))
+    # Idea scanning: owner-chosen times of day (Vietnam time, "HH:MM"). Off until the owner turns
+    # it on, because every scan spends a little on the LLM.
+    scan_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    scan_times: Mapped[list[str]] = mapped_column(
+        JSONB, default=lambda: ["10:00", "16:00", "20:00", "00:00"])
 
 
 class AuditEvent(Base):
@@ -412,4 +417,96 @@ class VideoAsset(Base):
     master_ref: Mapped[str | None] = mapped_column(String(300))
     revision_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("content_revisions.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class FeedSource(Base):
+    """An RSS/Atom feed the idea scan reads (owner-managed; URLs must be public https)."""
+
+    __tablename__ = "feed_sources"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String(80))
+    url: Mapped[str] = mapped_column(String(500), unique=True)
+    kind: Mapped[str] = mapped_column(String(12), default="rss")  # rss | google_news
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class FeedItem(Base):
+    """One headline from a feed. The text is UNTRUSTED external data (threat-model T-1)."""
+
+    __tablename__ = "feed_items"
+    __table_args__ = (Index("ix_feed_items_fetched", "fetched_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    source_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("feed_sources.id", ondelete="CASCADE"))
+    url_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    title: Mapped[str] = mapped_column(String(300))
+    summary: Mapped[str | None] = mapped_column(String(600))
+    url: Mapped[str] = mapped_column(String(500))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ScanRun(Base):
+    """One idea scan. `slot_key` makes a scheduled slot run at most once."""
+
+    __tablename__ = "scan_runs"
+    __table_args__ = (
+        CheckConstraint("status IN ('queued', 'running', 'done', 'failed')", name="status_valid"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    slot_key: Mapped[str | None] = mapped_column(String(20), unique=True)
+    trigger: Mapped[str] = mapped_column(String(10))  # schedule | manual
+    status: Mapped[str] = mapped_column(String(8), default="queued")
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    items_new: Mapped[int] = mapped_column(Integer, default=0)
+    candidates: Mapped[int] = mapped_column(Integer, default=0)
+    note: Mapped[str | None] = mapped_column(String(300))
+
+
+class IdeaCandidate(Base):
+    """A shortlisted idea waiting for the owner to pick it. Expires so old news does not linger."""
+
+    __tablename__ = "idea_candidates"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('new', 'proposed', 'created', 'dismissed', 'expired')",
+            name="status_valid"),
+        Index("ix_idea_candidates_status", "status", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    scan_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scan_runs.id"))
+    situation: Mapped[str] = mapped_column(Text)  # neutral one-liner in the model's own words
+    why: Mapped[str] = mapped_column(Text)
+    score: Mapped[int] = mapped_column(Integer)
+    suggested_lane: Mapped[str] = mapped_column(String(12))  # daily_life | rebus | either
+    risk_level: Mapped[str] = mapped_column(String(10))
+    categories: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    source_items: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    status: Mapped[str] = mapped_column(String(10), default="new")
+    lane: Mapped[str | None] = mapped_column(String(10))
+    proposals: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+    content_item_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("content_items.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Idiom(Base):
+    """The owner's bank of idioms/proverbs that rebus ideas can twist."""
+
+    __tablename__ = "idioms"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    text: Mapped[str] = mapped_column(String(120), unique=True)
+    meaning: Mapped[str] = mapped_column(String(300), default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

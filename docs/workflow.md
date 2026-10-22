@@ -68,3 +68,14 @@ See `docs/publishing-meta.md` D1-D3. Scheduled and publish-now share one service
 
 ## Reveal items (rebus)
 `answer_reveals` are optional (owner may choose not to reveal, D-19) and have their own schedule/state (`PENDING -> SCHEDULED -> POSTED | SKIPPED | FAILED`) and pass the same kill switch and safety checks.
+
+## Idea scan (D-28)
+
+```
+feed_sources (RSS) --fetch--> feed_items --Claude shortlist--> idea_candidates (new)
+   owner picks + lane --Claude propose--> idea_candidates (proposed, 3 options)
+   owner edits/verifies --create--> content_items (DRAFT) --> normal pipeline
+```
+- Scheduled by `system_settings.scan_times` (Vietnam time, `scan_enabled` default false). One `scan_runs` row per slot (unique `slot_key`), run within 3 h of the slot or skipped; manual scans via `POST /api/ideas/scan`.
+- Headlines are untrusted: parsed with defusedxml, cut to plain text, sent to Claude only as data. The backend drops candidates with any sensitive category, high/critical risk, blacklisted words, score < 50, invented ids, or items already on the list; keeps at most 10 per scan; candidates expire after 48 h and headlines are purged after 7 days.
+- Rebus proposals start from the owner's idiom bank; an option whose clues spell its own answer is dropped; the owner verifies the answer before creating.

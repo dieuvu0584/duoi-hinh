@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
-import 'create_screen.dart';
+import 'ideas_screen.dart';
 import 'queue_screen.dart';
 import 'settings_screen.dart';
 import 'status_screen.dart';
@@ -19,7 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _index = 0;
 
-  static const _titles = ['Bài viết', 'Tạo ý tưởng', 'Hệ thống', 'Cài đặt'];
+  static const _titles = ['Bài viết', 'Ý tưởng', 'Hệ thống', 'Cài đặt'];
 
   Future<void> _logout() async {
     await context.read<ApiClient>().logout();
@@ -30,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final pages = <Widget>[
       const QueueScreen(),
-      const CreateScreen(),
+      const IdeasScreen(),
       const StatusScreen(),
       const SettingsScreen(),
     ];
@@ -48,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.inbox_outlined), label: 'Bài viết'),
-          NavigationDestination(icon: Icon(Icons.add_circle_outline), label: 'Tạo mới'),
+          NavigationDestination(icon: Icon(Icons.lightbulb_outline), label: 'Ý tưởng'),
           NavigationDestination(icon: Icon(Icons.monitor_heart_outlined), label: 'Hệ thống'),
           NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Cài đặt'),
         ],

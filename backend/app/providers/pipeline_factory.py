@@ -20,6 +20,14 @@ def missing_pipeline_keys(cfg: Settings) -> list[str]:
     return [name for name, value in names.items() if not value]
 
 
+def build_llm(cfg: Settings) -> ClaudeJson:
+    """Just the JSON LLM (idea scan and proposals need no image/speech keys)."""
+    if not cfg.anthropic_api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY is not set")
+    client = anthropic.AsyncAnthropic(api_key=cfg.anthropic_api_key.get_secret_value())
+    return ClaudeJson(client=client, model=cfg.claude_model)
+
+
 def build_pipeline_deps(cfg: Settings) -> PipelineDeps:
     missing = missing_pipeline_keys(cfg)
     if missing:

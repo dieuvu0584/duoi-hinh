@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nhd/idea_filter/1",
+  "title": "IdeaFilterResult",
+  "description": "Shortlist of idea candidates from a batch of headlines. All fields required (lean, endpoint-compatible). The backend, not the model, decides what is kept.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["candidates"],
+  "properties": {
+    "candidates": {
+      "type": "array",
+      "maxItems": 15,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["item_ids", "situation", "why", "score", "suggested_lane", "risk_level", "sensitive_categories"],
+        "properties": {
+          "item_ids": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "type": "integer" } },
+          "situation": { "type": "string", "maxLength": 600 },
+          "why": { "type": "string", "maxLength": 500 },
+          "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "suggested_lane": { "enum": ["daily_life", "rebus", "either"] },
+          "risk_level": { "enum": ["low", "medium", "high", "critical"] },
+          "sensitive_categories": { "type": "array", "maxItems": 8, "items": { "type": "string", "maxLength": 60 } }
+        }
+      }
+    }
+  }
+}

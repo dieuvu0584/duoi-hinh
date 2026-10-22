@@ -20,6 +20,7 @@ dependencies = [
   "pillow>=10.0",
   "anthropic>=1.0",
   "jsonschema>=4.20",
+  "defusedxml>=0.7",
 ]
 
 [project.optional-dependencies]
@@ -44,4 +45,4 @@ select = ["E", "F", "I", "UP", "B"]
 ignore = ["B008"]  # FastAPI Depends() in argument defaults is the framework idiom
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["F811"]  # pytest fixtures imported from other test modules
+"tests/*" = ["F811", "E501"]  # imported pytest fixtures; long test data lines

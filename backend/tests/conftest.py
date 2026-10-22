@@ -56,7 +56,8 @@ def db(engine):
                 "TRUNCATE login_attempts, devices, owner_account, audit_events, publishing_records,"
                 " approvals, safety_reviews, content_revisions, content_items, token_health,"
                 " cost_ledger, provider_budgets, audio_assets, video_assets, image_assets,"
-                " composition_checks, llm_calls CASCADE"
+                " composition_checks, llm_calls, feed_items, idea_candidates, scan_runs,"
+                " feed_sources, idioms CASCADE"
             )
         )
         conn.execute(
@@ -65,7 +66,9 @@ def db(engine):
                 " publishing_kill_switch=true, news_lane_enabled=false, daily_budget_limit=0,"
                 " monthly_budget_limit=0, budget_currency='USD', max_image_regenerations=3,"
                 " max_publishes_per_day=3, max_lateness_minutes=30, prepare_lead_minutes=20,"
-                " facebook_page_id=NULL, youtube_channel_id=NULL, elevenlabs_voice_id=NULL"
+                " facebook_page_id=NULL, youtube_channel_id=NULL, elevenlabs_voice_id=NULL,"
+                " scan_enabled=false,"
+                " scan_times='[\"10:00\",\"16:00\",\"20:00\",\"00:00\"]'::jsonb"
             )
         )
     from app.db.session import session_factory

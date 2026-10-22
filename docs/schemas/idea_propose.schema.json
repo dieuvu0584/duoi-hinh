@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nhd/idea_propose/1",
+  "title": "IdeaProposeResult",
+  "description": "Two to three concrete options for one chosen idea. For daily_life the answer, idiom, twist and syllables are empty. For rebus the answer is only a proposal: the owner verifies it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["options"],
+  "properties": {
+    "options": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "brief", "answer", "idiom", "twist", "explanation", "syllables", "difficulty"],
+        "properties": {
+          "title": { "type": "string", "maxLength": 120 },
+          "brief": { "type": "string", "maxLength": 1500 },
+          "answer": { "type": "string", "maxLength": 200 },
+          "idiom": { "type": "string", "maxLength": 200 },
+          "twist": { "type": "string", "maxLength": 500 },
+          "explanation": { "type": "string", "maxLength": 800 },
+          "syllables": { "type": "array", "maxItems": 12, "items": { "type": "string", "maxLength": 30 } },
+          "difficulty": { "enum": ["easy", "medium", "hard"] }
+        }
+      }
+    }
+  }
+}

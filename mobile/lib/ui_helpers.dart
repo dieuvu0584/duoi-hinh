@@ -21,6 +21,27 @@ String friendlyError(Object e) {
         return 'Bản được duyệt chưa có video.';
       case 'review_blocked':
         return 'Bài đã bị chặn, không thể gỡ bằng tay.';
+      case 'scan_in_progress':
+        return 'Đang có một lượt quét chờ hoặc đang chạy.';
+      case 'no_idioms':
+        return 'Kho thành ngữ đang trống. Hãy thêm thành ngữ trước.';
+      case 'no_valid_options':
+        return 'Chưa có phương án dùng được, hãy thử lại.';
+      case 'llm_invalid_output':
+        return 'Claude trả kết quả không dùng được, hãy thử lại.';
+      case 'llm_not_configured':
+        return 'Máy chủ chưa có khóa Claude.';
+      case 'idea_closed':
+        return 'Ý tưởng này đã được xử lý hoặc đã hết hạn.';
+      case 'unsafe_url':
+        return 'Chỉ nhận địa chỉ https công khai.';
+      case 'source_exists':
+        return 'Nguồn này đã có trong danh sách.';
+      case 'idiom_exists':
+        return 'Thành ngữ này đã có trong kho.';
+    }
+    if (e.code.startsWith('budget_')) {
+      return 'Hết ngân sách cho việc này. Tăng hạn mức trong Cài đặt rồi thử lại.';
     }
     return e.message;
   }

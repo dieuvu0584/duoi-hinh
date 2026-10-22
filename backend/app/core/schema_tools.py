@@ -26,7 +26,14 @@ class InvalidModelOutput(ValueError):
 def wire_schema(schema: dict[str, Any]) -> dict[str, Any]:
     def walk(node: Any) -> Any:
         if isinstance(node, dict):
-            out = {k: walk(v) for k, v in node.items() if k not in _STRIP}
+            out = {}
+            for k, v in node.items():
+                if k in _STRIP:
+                    continue
+                # Under `properties` the keys are FIELD NAMES, not keywords: a field called
+                # "title" or "pattern" must survive (it was silently dropped before).
+                out[k] = ({name: walk(sub) for name, sub in v.items()}
+                          if k == "properties" and isinstance(v, dict) else walk(v))
             if "const" in out:
                 out["enum"] = [out.pop("const")]
             if out.get("type") == "object" or "properties" in out:

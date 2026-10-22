@@ -11,11 +11,15 @@ import asyncio
 import logging
 import signal
 
+from sqlalchemy import select
+
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.db.models import ScanRun
 from app.db.session import session_factory
 from app.providers.factory import get_reels_provider
-from app.providers.pipeline_factory import build_pipeline_deps, missing_pipeline_keys
+from app.providers.pipeline_factory import build_llm, build_pipeline_deps, missing_pipeline_keys
+from app.services import idea_service
 from app.services.pipeline_runner import run_pending
 from app.services.scheduler import tick
 from app.services.settings_service import effective_page_id, get_settings_row
@@ -47,6 +51,37 @@ async def pipeline_loop(*, once: bool, interval: float, stop: asyncio.Event) -> 
             pass
 
 
+async def idea_loop(*, once: bool, stop: asyncio.Event) -> None:
+    """Idea scans: runs queued scans (manual or at the owner's chosen times of day)."""
+    if not settings.anthropic_api_key:
+        log.warning("idea scan disabled, missing: ANTHROPIC_API_KEY")
+        return
+    llm = build_llm(settings)
+    while not stop.is_set():
+        try:
+            with session_factory()() as session:
+                row = get_settings_row(session)
+                if row.scan_enabled and not row.generation_paused:
+                    idea_service.queue_due_scans(session, list(row.scan_times or []))
+                session.rollback()
+                queued = list(session.scalars(
+                    select(ScanRun.id).where(ScanRun.status == "queued")
+                    .order_by(ScanRun.requested_at)))
+                for run_id in queued:
+                    run = await idea_service.run_scan(session, llm, settings, run_id)
+                    log.info("scan %s: %s candidates=%s note=%s", run.trigger, run.status,
+                             run.candidates, run.note)
+                idea_service.expire_and_purge(session)
+        except Exception:  # noqa: BLE001 - the loop must survive (db restart, feed oddities)
+            log.exception("idea loop error")
+        if once:
+            return
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=60)
+        except TimeoutError:
+            pass
+
+
 async def run(*, once: bool, interval: float) -> None:
     provider = None
     provider_page: str | None = None
@@ -59,13 +94,14 @@ async def run(*, once: bool, interval: float) -> None:
         except NotImplementedError:  # Windows event loops
             pass
     pipeline = asyncio.create_task(pipeline_loop(once=once, interval=interval, stop=stop))
+    ideas = asyncio.create_task(idea_loop(once=once, stop=stop))
     try:
         await publish_loop(once=once, interval=interval, stop=stop, provider=provider,
                            provider_page=provider_page)
     finally:
         if not once:
             stop.set()
-        await pipeline
+        await asyncio.gather(pipeline, ideas)
 
 
 async def publish_loop(*, once, interval, stop, provider, provider_page) -> None:

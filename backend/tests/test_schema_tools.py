@@ -96,3 +96,12 @@ def test_every_schema_file_is_valid_json_schema():
 
     for name in NAMES:
         jsonschema.Draft202012Validator.check_schema(load(name))
+
+
+def test_a_field_named_like_a_schema_keyword_survives_the_wire_conversion():
+    schema = {"type": "object", "required": ["title", "pattern"], "properties": {
+        "title": {"type": "string", "maxLength": 5}, "pattern": {"type": "string"}}}
+    wire = wire_schema(schema)
+    assert set(wire["properties"]) == {"title", "pattern"}
+    assert "maxLength" not in wire["properties"]["title"]  # real keywords are still removed
+    assert wire["required"] == ["title", "pattern"]

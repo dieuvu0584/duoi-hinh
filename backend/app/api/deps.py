@@ -38,3 +38,13 @@ def current_owner(
 ) -> OwnerAccount:
     """Every admin route depends on this. A test asserts no /api route lacks it (except public)."""
     return ctx[1]
+
+
+def get_llm(cfg: Settings = Depends(get_settings)):
+    """The JSON LLM for owner-triggered calls (tests override this dependency with a fake)."""
+    from app.providers.pipeline_factory import build_llm
+
+    try:
+        return build_llm(cfg)
+    except RuntimeError as exc:
+        raise ApiError(503, "llm_not_configured", "ANTHROPIC_API_KEY is not set") from exc

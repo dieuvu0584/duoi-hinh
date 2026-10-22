@@ -50,6 +50,9 @@ class SettingsUpdate(BaseModel):
     facebook_page_id: str | None = Field(default=None, pattern=r"^(\d{5,30})?$")
     youtube_channel_id: str | None = Field(default=None, pattern=r"^(UC[A-Za-z0-9_-]{22})?$")
     elevenlabs_voice_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{0,80}$")
+    scan_enabled: bool | None = None
+    # Times of day in Vietnam time, e.g. ["10:00", "16:00"]; validated and sorted by the service.
+    scan_times: list[str] | None = Field(default=None, max_length=8)
 
 
 class SettingsUpdateRequest(BaseModel):

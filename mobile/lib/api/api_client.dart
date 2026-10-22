@@ -228,4 +228,53 @@ class ApiClient {
         'daily_limit_usd': ?daily,
         'password': ?password,
       });
+
+  // ------------------------------------------------------------------ idea inbox
+  Future<Map<String, dynamic>> ideaCandidates() async =>
+      Map<String, dynamic>.from(await _request('GET', '/api/ideas/candidates') as Map);
+
+  Future<Map<String, dynamic>> ideaCandidate(String id) async =>
+      Map<String, dynamic>.from(await _request('GET', '/api/ideas/candidates/$id') as Map);
+
+  Future<Map<String, dynamic>> proposeIdea(String id, String lane) async =>
+      Map<String, dynamic>.from(
+          await _request('POST', '/api/ideas/candidates/$id/propose', data: {'lane': lane}) as Map);
+
+  Future<Map<String, dynamic>> createFromIdea(
+          {required String id,
+          required String lane,
+          required String brief,
+          String? answer}) async =>
+      Map<String, dynamic>.from(await _request('POST', '/api/ideas/candidates/$id/create', data: {
+        'lane': lane,
+        'brief': brief,
+        'answer': ?(answer == null || answer.trim().isEmpty ? null : answer.trim()),
+      }) as Map);
+
+  Future<void> dismissIdea(String id) => _request('POST', '/api/ideas/candidates/$id/dismiss');
+
+  Future<void> scanNow() => _request('POST', '/api/ideas/scan');
+
+  Future<List<Map<String, dynamic>>> feedSources() async {
+    final body = await _request('GET', '/api/ideas/sources');
+    return List<Map<String, dynamic>>.from((body as Map)['items'] as List);
+  }
+
+  Future<void> addFeedSource(String name, String url) =>
+      _request('POST', '/api/ideas/sources', data: {'name': name, 'url': url});
+
+  Future<void> setFeedSourceEnabled(String id, bool enabled) =>
+      _request('PATCH', '/api/ideas/sources/$id', data: {'enabled': enabled});
+
+  Future<void> deleteFeedSource(String id) => _request('DELETE', '/api/ideas/sources/$id');
+
+  Future<List<Map<String, dynamic>>> idioms() async {
+    final body = await _request('GET', '/api/ideas/idioms');
+    return List<Map<String, dynamic>>.from((body as Map)['items'] as List);
+  }
+
+  Future<void> addIdiom(String text, String meaning) =>
+      _request('POST', '/api/ideas/idioms', data: {'text': text, 'meaning': meaning});
+
+  Future<void> deleteIdiom(String id) => _request('DELETE', '/api/ideas/idioms/$id');
 }
