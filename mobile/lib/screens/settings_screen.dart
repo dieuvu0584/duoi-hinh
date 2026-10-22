@@ -33,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _daily = {for (final p in _budgetProviders.keys) p: TextEditingController()};
 
   Map<String, dynamic>? _settings;
+  Map<String, dynamic> _costs = {};
   String? _error;
   bool _busy = false;
 
@@ -61,6 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         }
         _globalDaily.text = _trim('${s['daily_budget_limit']}');
         _globalMonthly.text = _trim('${s['monthly_budget_limit']}');
+        _costs = c;
         final providers = Map<String, dynamic>.from(c['providers'] as Map);
         for (final p in _budgetProviders.keys) {
           final row = providers[p] as Map?;
@@ -187,24 +189,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
           FilledButton(onPressed: _busy ? null : _saveGeneral, child: const Text('Lưu')),
           const Divider(height: 40),
           Text('Ngân sách (USD)', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text('0 = không cho phép tiêu tiền. Tăng ngân sách cần mật khẩu.',
-              style: Theme.of(context).textTheme.bodySmall),
-          _field(_globalDaily, 'Tổng mỗi ngày', number: true, decimal: true),
-          _field(_globalMonthly, 'Tổng mỗi tháng', number: true, decimal: true),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                'Mỗi lần hệ thống gọi một dịch vụ trả phí, nó phải qua đủ các hạn mức bên dưới. '
+                'Chỉ cần một hạn mức hết là lệnh bị chặn và bài chờ (không mất gì).\n\n'
+                '• Tổng: giới hạn chung cho tất cả dịch vụ cộng lại.\n'
+                '• Từng dịch vụ: giới hạn riêng. Các dịch vụ này tính tiền theo tháng (gói/credit), nên hạn mức chính là "mỗi tháng".\n'
+                '• "Mỗi ngày" là phanh phụ để một ngày lỗi không tiêu hết cả tháng. Có thể bỏ trống ở từng dịch vụ.\n\n'
+                '0 = không cho phép tiêu tiền. Tăng hạn mức cần mật khẩu.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('Tổng cho tất cả dịch vụ', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          _field(_globalDaily, 'Tối đa mỗi ngày (USD)',
+              number: true, decimal: true, helper: _used('global', 'spent_today', 'hôm nay')),
+          _field(_globalMonthly, 'Tối đa mỗi tháng (USD)',
+              number: true, decimal: true, helper: _used('global', 'spent_month', 'tháng này')),
           for (final e in _budgetProviders.entries) ...[
+            const SizedBox(height: 12),
+            Text(e.value, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
-            Text(e.value, style: Theme.of(context).textTheme.labelLarge),
-            Row(children: [
-              Expanded(child: _field(_monthly[e.key]!, 'Tháng', number: true, decimal: true)),
-              const SizedBox(width: 12),
-              Expanded(child: _field(_daily[e.key]!, 'Ngày (tùy chọn)', number: true, decimal: true)),
-            ]),
+            _field(_monthly[e.key]!, 'Tối đa mỗi tháng (USD)',
+                number: true, decimal: true, helper: _used(e.key, 'spent_month_usd', 'tháng này')),
+            _field(_daily[e.key]!, 'Tối đa mỗi ngày (USD), bỏ trống = không giới hạn riêng',
+                number: true, decimal: true, helper: _used(e.key, 'spent_today_usd', 'hôm nay')),
           ],
           FilledButton(onPressed: _busy ? null : _saveBudgets, child: const Text('Lưu ngân sách')),
         ],
       ),
     );
+  }
+
+  /// 'Đã dùng hôm nay: $0.31' from the last /costs reading.
+  String _used(String scope, String key, String when) {
+    final Map<dynamic, dynamic>? row = scope == 'global'
+        ? _costs['global'] as Map?
+        : (_costs['providers'] as Map?)?[scope] as Map?;
+    final v = double.tryParse('${row?[key]}') ?? 0;
+    return 'Đã dùng $when: \$${v.toStringAsFixed(2)}';
   }
 
   Widget _field(TextEditingController c, String label,
