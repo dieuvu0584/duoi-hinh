@@ -1,0 +1,133 @@
+import 'package:flutter/material.dart';
+
+import 'api/api_client.dart';
+
+/// Vietnamese text for an error, without leaking request details.
+String friendlyError(Object e) {
+  if (e is ApiException) {
+    if (e.isNetwork) return 'Không kết nối được máy chủ. Kiểm tra Tailscale/mạng.';
+    switch (e.code) {
+      case 'reauth_failed':
+        return 'Sai mật khẩu.';
+      case 'rate_limited':
+        return 'Thử quá nhiều lần, hãy chờ một lát.';
+      case 'invalid_credentials':
+        return 'Sai tên đăng nhập hoặc mật khẩu.';
+      case 'answer_required':
+        return 'Câu đố cần có đáp án do bạn cung cấp.';
+      case 'news_lane_disabled':
+        return 'Mảng tin tức đang tắt (quyết định D-16).';
+      case 'no_video':
+        return 'Bản được duyệt chưa có video.';
+      case 'review_blocked':
+        return 'Bài đã bị chặn, không thể gỡ bằng tay.';
+    }
+    return e.message;
+  }
+  return 'Có lỗi không mong muốn.';
+}
+
+void showMessage(BuildContext context, String text) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(text)));
+}
+
+Future<String?> askPassword(BuildContext context, {String reason = 'Xác nhận bằng mật khẩu'}) {
+  final controller = TextEditingController();
+  return showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(reason),
+      content: TextField(
+        controller: controller,
+        obscureText: true,
+        autofocus: true,
+        decoration: const InputDecoration(labelText: 'Mật khẩu chủ'),
+        onSubmitted: (v) => Navigator.pop(ctx, v),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Xác nhận')),
+      ],
+    ),
+  );
+}
+
+Future<String?> askNote(BuildContext context, String title) {
+  final controller = TextEditingController();
+  return showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(title),
+      content: TextField(
+        controller: controller,
+        maxLength: 500,
+        maxLines: 3,
+        decoration: const InputDecoration(labelText: 'Ghi chú (không bắt buộc)'),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text), child: const Text('Đồng ý')),
+      ],
+    ),
+  );
+}
+
+/// Runs [call] without a password; if the server asks for re-authentication, asks the owner for
+/// the password once and runs it again with it. Returns false when the owner cancelled.
+Future<bool> withReauth(
+  BuildContext context,
+  Future<void> Function(String? password) call, {
+  String reason = 'Thay đổi này cần mật khẩu',
+}) async {
+  try {
+    await call(null);
+    return true;
+  } on ApiException catch (e) {
+    if (!e.needsReauth) rethrow;
+  }
+  if (!context.mounted) return false;
+  final password = await askPassword(context, reason: reason);
+  if (password == null || password.isEmpty) return false;
+  await call(password);
+  return true;
+}
+
+String laneLabel(String lane) => switch (lane) {
+      'daily_life' => 'Đời sống',
+      'rebus' => 'Đố hình',
+      'news' => 'Tin tức',
+      _ => lane,
+    };
+
+String statusLabel(String status) => switch (status) {
+      'DRAFT' => 'Mới tạo',
+      'ANALYZING' => 'Đang phân tích',
+      'READY_FOR_GENERATION' => 'Sẵn sàng tạo',
+      'GENERATING' => 'Đang tạo ảnh/giọng',
+      'RENDERING' => 'Đang dựng video',
+      'QA_PENDING' => 'Đang kiểm tra chất lượng',
+      'FINAL_SAFETY_PENDING' => 'Đang kiểm tra an toàn',
+      'NEEDS_REWORK' => 'Cần làm lại',
+      'HELD_FOR_HUMAN' => 'Cần bạn xem xét',
+      'PENDING_APPROVAL' => 'Chờ bạn duyệt',
+      'APPROVED' => 'Đã duyệt',
+      'SCHEDULED' => 'Đã lên lịch',
+      'PUBLISHED' => 'Đã đăng',
+      'REJECTED' => 'Đã từ chối',
+      'BLOCKED' => 'Bị chặn',
+      _ => status,
+    };
+
+Color statusColor(BuildContext context, String status) {
+  final scheme = Theme.of(context).colorScheme;
+  return switch (status) {
+    'PENDING_APPROVAL' || 'HELD_FOR_HUMAN' => scheme.tertiary,
+    'APPROVED' || 'SCHEDULED' || 'PUBLISHED' => scheme.primary,
+    'REJECTED' || 'BLOCKED' => scheme.error,
+    _ => scheme.outline,
+  };
+}

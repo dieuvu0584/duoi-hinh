@@ -44,6 +44,9 @@ def test_the_queue_lists_what_needs_the_owner(served, client, auth_headers):
     assert [r["id"] for r in rows] == [str(item.id)]
     assert client.get("/api/content?status=APPROVED", headers=auth_headers).json()["items"] == []
     assert client.get("/api/content?status=NOPE", headers=auth_headers).status_code == 422
+    both = client.get("/api/content?status=APPROVED,PENDING_APPROVAL", headers=auth_headers)
+    assert [r["id"] for r in both.json()["items"]] == [str(item.id)]
+    assert client.get("/api/content?status=APPROVED,NOPE", headers=auth_headers).status_code == 422
 
 
 def test_the_ticket_has_everything_needed_to_decide(served, client, auth_headers):

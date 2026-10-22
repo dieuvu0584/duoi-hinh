@@ -83,6 +83,14 @@ def spec_hash(spec: dict[str, Any]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+_UNRENDERABLE = re.compile(r"[\U0001F000-\U0001FAFF\u2190-\u2BFF\uFE00-\uFE0F\u200D]")
+
+
+def strip_unrenderable(text: str) -> str:
+    """Emoji and symbols are not in the caption font (they would show as empty boxes)."""
+    return re.sub(r"\s+", " ", _UNRENDERABLE.sub("", text)).strip()
+
+
 def _caption_png(path: Path, text: str, size: tuple[int, int], box: tuple[int, int, int, int],
                  font_px: int, font_path: str) -> None:
     from PIL import Image, ImageDraw, ImageFont
@@ -166,6 +174,7 @@ def render_rendition(
         raise ApiError(422, "unknown_target", "Unknown render target")
     if mode not in {"fill", "fit"}:
         raise ApiError(422, "unknown_mode", "Mode must be fill or fit")
+    caption = strip_unrenderable(caption)
     if len(caption) > MAX_CAPTION_CHARS:
         raise ApiError(422, "caption_too_long", "Caption is too long for the video")
     try:

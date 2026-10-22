@@ -1,0 +1,232 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nhd_admin/api/api_client.dart';
+import 'package:nhd_admin/api/token_store.dart';
+import 'package:nhd_admin/screens/login_screen.dart';
+import 'package:nhd_admin/screens/queue_screen.dart';
+import 'package:nhd_admin/screens/review_screen.dart';
+import 'package:nhd_admin/screens/status_screen.dart';
+import 'package:provider/provider.dart';
+
+import 'fake_backend.dart';
+
+Future<ApiClient> loggedIn(FakeBackend backend) async {
+  final store = MemoryTokenStore()
+    ..value = StoredAuth(
+        baseUrl: 'http://h',
+        accessToken: 'tok',
+        accessExpiresAt: DateTime.now().toUtc().add(const Duration(minutes: 10)),
+        refreshToken: 'refreshrefreshrefreshrefresh');
+  final api = ApiClient(store: store, dio: Dio()..httpClientAdapter = backend);
+  await api.restore();
+  return api;
+}
+
+Widget host(ApiClient api, Widget child) =>
+    Provider<ApiClient>.value(value: api, child: MaterialApp(home: child));
+
+Map<String, Object?> ticket({
+  String status = 'PENDING_APPROVAL',
+  bool canApprove = true,
+  bool needsHuman = false,
+  String? answer,
+}) =>
+    {
+      'id': 'abc',
+      'lane': 'rebus',
+      'status': status,
+      'revision': {
+        'id': 'r1',
+        'revision_no': 2,
+        'content_hash': 'a' * 64,
+        'answer_text': answer,
+        'clue_mapping': [
+          {'clue_id': 'c1', 'visual_clue': 'đầu voi', 'maps_to': 'đầu'}
+        ],
+        'caption': 'Đoán xem đây là gì?',
+        'hashtags': ['#doanhinh'],
+        'overlay_text': 'Câu đố hôm nay',
+        'narration_text': 'Đây là gì nhỉ?',
+        'voice_id': 'v',
+        'is_ai_generated': true,
+      },
+      'explanation': {
+        'visual_explanation': 'Hình voi và chuột',
+        'analysis': {
+          'intended_viewer_inference': 'đầu voi đuôi chuột',
+          'ambiguity_risks': ['có thể hiểu thành con voi']
+        },
+        'last_qa_issues': null,
+        'notes': null,
+      },
+      'safety': {
+        'intake': null,
+        'final': {
+          'decision': 'allow',
+          'risk_level': 'low',
+          'categories': <String>[],
+          'findings': [],
+          'human_review_required': needsHuman,
+          'human_review_complete': false,
+        }
+      },
+      'videos': <Object>[],
+      'audio_url': null,
+      'can_approve': canApprove,
+      'needs_human_review_completion': needsHuman,
+    };
+
+void main() {
+  testWidgets('login shows a friendly message for a wrong password', (tester) async {
+    final backend = FakeBackend({
+      'POST /api/auth/login': (_) =>
+          (403, {'error': {'code': 'invalid_credentials', 'message': 'x'}}),
+    });
+    final api = ApiClient(store: MemoryTokenStore(), dio: Dio()..httpClientAdapter = backend);
+    var done = false;
+    await tester.pumpWidget(host(api, LoginScreen(onLoggedIn: () => done = true)));
+    await tester.enterText(find.widgetWithText(TextField, 'Mật khẩu'), 'wrong');
+    await tester.tap(find.text('Đăng nhập'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sai tên đăng nhập hoặc mật khẩu.'), findsOneWidget);
+    expect(done, isFalse);
+  });
+
+  testWidgets('the queue lists what needs the owner and renders text as plain text', (tester) async {
+    final backend = FakeBackend({
+      'GET /api/content': (_) => (200, {
+            'items': [
+              {
+                'id': '1',
+                'lane': 'daily_life',
+                'status': 'PENDING_APPROVAL',
+                'overlay_text': '<b>Mèo</b> lười',
+                'caption': 'c',
+              }
+            ]
+          }),
+    });
+    final api = await loggedIn(backend);
+    await tester.pumpWidget(host(api, const Scaffold(body: QueueScreen())));
+    await tester.pumpAndSettle();
+    expect(find.text('<b>Mèo</b> lười'), findsOneWidget); // shown literally, never as markup
+    expect(find.textContaining('Chờ bạn duyệt'), findsOneWidget);
+  });
+
+  testWidgets('an empty queue says so', (tester) async {
+    final api = await loggedIn(FakeBackend({'GET /api/content': (_) => (200, {'items': []})}));
+    await tester.pumpWidget(host(api, const Scaffold(body: QueueScreen())));
+    await tester.pumpAndSettle();
+    expect(find.text('Không có bài nào.'), findsOneWidget);
+  });
+
+  testWidgets('approve is disabled until the server says the item can be approved', (tester) async {
+    var t = ticket(canApprove: false, needsHuman: true);
+    final backend = FakeBackend({'GET /api/content/abc/review': (_) => (200, t)});
+    final api = await loggedIn(backend);
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    final approve = find.widgetWithText(FilledButton, 'Duyệt');
+    expect(tester.widget<FilledButton>(approve).onPressed, isNull);
+    expect(find.text('Tôi đã xem xét kỹ'), findsOneWidget);
+    await tester.scrollUntilVisible(find.textContaining('Bắt buộc bạn tự xem xét'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.textContaining('Bắt buộc bạn tự xem xét'), findsOneWidget);
+
+    t = ticket(canApprove: true);
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 1500)); // back to the top
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 400)); // pull to refresh
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Duyệt')).onPressed, isNotNull);
+  });
+
+  testWidgets('the rebus answer and the explanation are shown to the owner', (tester) async {
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, ticket(answer: 'Đầu voi đuôi chuột')),
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.text('Đầu voi đuôi chuột'), findsOneWidget);
+    expect(find.textContaining('chỉ bạn thấy, không đăng'), findsOneWidget);
+    expect(find.text('Hình voi và chuột'), findsOneWidget);
+    expect(find.textContaining('có thể hiểu thành con voi'), findsOneWidget);
+  });
+
+  testWidgets('approving asks for confirmation and then calls the API once', (tester) async {
+    var approvals = 0;
+    final backend = FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, ticket()),
+      'POST /api/content/abc/approve': (_) {
+        approvals++;
+        return (200, {});
+      },
+    });
+    final api = await loggedIn(backend);
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Duyệt'));
+    await tester.pumpAndSettle();
+    expect(approvals, 0); // nothing happens before the owner confirms
+    await tester.tap(find.widgetWithText(FilledButton, 'Duyệt').last);
+    await tester.pumpAndSettle();
+    expect(approvals, 1);
+  });
+
+  testWidgets('an approved item offers scheduling, not approval', (tester) async {
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, ticket(status: 'APPROVED')),
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.text('Lên lịch đăng Facebook'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Duyệt'), findsNothing);
+  });
+
+  testWidgets('the stop button works without a password and resume asks for one', (tester) async {
+    var stopped = false;
+    var resumedWith = '';
+    final backend = FakeBackend({
+      'GET /api/system/settings': (_) => (200, {
+            'publishing_kill_switch': stopped,
+            'automation_enabled': false,
+            'generation_paused': false,
+          }),
+      'GET /api/costs': (_) => (200, {
+            'global': {
+              'daily_limit': '3',
+              'monthly_limit': '3',
+              'spent_today': '0.3',
+              'spent_month': '0.3'
+            },
+            'providers': {
+              'fal': {'monthly_limit_usd': '4', 'spent_month_usd': '0.04', 'daily_limit_usd': null}
+            },
+          }),
+      'POST /api/system/publishing-stop': (_) {
+        stopped = true;
+        return (200, {});
+      },
+      'POST /api/system/publishing-resume': (c) {
+        resumedWith = (c.body as Map)['password'] as String;
+        stopped = false;
+        return (200, {});
+      },
+    });
+    final api = await loggedIn(backend);
+    await tester.pumpWidget(host(api, const Scaffold(body: StatusScreen())));
+    await tester.pumpAndSettle();
+    expect(find.text('Đăng bài: đang cho phép'), findsOneWidget);
+    await tester.tap(find.text('DỪNG ĐĂNG NGAY'));
+    await tester.pumpAndSettle();
+    expect(find.text('ĐĂNG BÀI: ĐANG DỪNG'), findsOneWidget);
+
+    await tester.tap(find.text('Bật lại đăng bài'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'my password');
+    await tester.tap(find.text('Xác nhận'));
+    await tester.pumpAndSettle();
+    expect(resumedWith, 'my password');
+    expect(find.text('Đăng bài: đang cho phép'), findsOneWidget);
+  });
+}

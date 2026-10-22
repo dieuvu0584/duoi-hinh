@@ -195,3 +195,22 @@ def test_an_edit_after_approval_cannot_be_scheduled_without_media(
     r = client.post(f"/api/content/{item.id}/schedule", headers=auth_headers,
                     json={"scheduled_for": (utcnow() + timedelta(hours=2)).isoformat()})
     assert r.status_code == 409 and r.json()["error"]["code"] == "no_video"
+
+
+# ------------------------------------------------- findings from the first live run (2026-10-22)
+def test_emoji_never_reach_the_on_screen_text(world, db):
+    from tests.test_content_pipeline import concept
+
+    world.llm.script("analyze", concept(overlay_text="Hộp nhỏ 📦 | Mèo ❤️ vừa khít"))
+    item = start_draft(world)
+    run(cp.run_until_wait(db, world.deps, item.id))
+    overlay = content_service.current_revision(db, reload(db, item)).overlay_text
+    assert overlay == "Hộp nhỏ | Mèo vừa khít"
+
+
+def test_the_renderer_strips_what_the_font_cannot_draw():
+    from app.services.render_service import strip_unrenderable
+
+    assert strip_unrenderable("Xin chào 😼📦  bạn ❤️!") == "Xin chào bạn !"
+    plain = "Đường Lê Lợi, “ngày” 25/10 – hết"
+    assert strip_unrenderable(plain) == plain

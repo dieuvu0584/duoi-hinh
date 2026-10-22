@@ -237,7 +237,8 @@ async def _analyze(session: Session, deps: PipelineDeps, item: ContentItem) -> S
     revision = content_service.add_revision(session, None, item, {
         "answer_text": answer, "clue_mapping": analysis["clue_mapping"],
         "caption": analysis["caption"], "hashtags": analysis["hashtags"],
-        "overlay_text": analysis["overlay_text"], "narration_text": analysis["narration_text"],
+        "overlay_text": render_service.strip_unrenderable(analysis["overlay_text"]),
+        "narration_text": analysis["narration_text"],
         "voice_id": voice, "is_ai_generated": True, "template_id": TEMPLATE_ID})
     decision = {"proceed": "allow", "hold_for_human": "hold_for_human",
                 "reject": "block"}[analysis["decision"]]

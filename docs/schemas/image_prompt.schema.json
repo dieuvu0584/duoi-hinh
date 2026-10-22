@@ -12,10 +12,10 @@
   "properties": {
     "status": { "enum": ["ok", "needs_revision"] },
     "revision_reasons": { "type": "array", "items": { "type": "string" } },
-    "visual_blueprint": { "type": "string", "maxLength": 1500 },
-    "flux_prompt": { "type": "string", "maxLength": 1800 },
+    "visual_blueprint": { "type": "string", "maxLength": 3000 },
+    "flux_prompt": { "type": "string", "maxLength": 3000 },
     "negative_constraints": { "type": "array", "items": { "type": "string" }, "maxItems": 12 },
-    "expected_viewer_interpretation": { "type": "string", "maxLength": 400 },
-    "visual_explanation": { "type": "string", "maxLength": 800 }
+    "expected_viewer_interpretation": { "type": "string", "maxLength": 1000 },
+    "visual_explanation": { "type": "string", "maxLength": 1500 }
   }
 }

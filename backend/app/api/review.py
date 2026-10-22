@@ -58,13 +58,14 @@ def _review_out(review: SafetyReview | None) -> dict[str, Any] | None:
 
 @router.get("")
 def list_content(
-    status: str | None = Query(default=None, max_length=30),
+    status: str | None = Query(default=None, max_length=300),
     limit: int = Query(default=50, ge=1, le=200),
     owner: OwnerAccount = Depends(current_owner),
     session: Session = Depends(get_session),
 ):
-    """Newest first. Without `status`: everything that needs the owner (approval or a hold)."""
-    states = {status} if status else QUEUE_STATES
+    """Newest first. `status` may list several states, comma-separated. Without it: everything
+    that needs the owner (approval or a hold)."""
+    states = {s.strip() for s in status.split(",") if s.strip()} if status else QUEUE_STATES
     if not states <= {s.value for s in ContentState}:
         raise ApiError(422, "unknown_status", "Unknown status")
     items = session.scalars(
