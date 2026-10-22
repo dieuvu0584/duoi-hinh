@@ -5,10 +5,13 @@ WORKDIR /app
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core \
  && rm -rf /var/lib/apt/lists/*
-COPY pyproject.toml ./
-COPY app ./app
-COPY alembic.ini ./
-COPY migrations ./migrations
+# Build context is the repository root (deploy/compose.yaml) so prompts and schemas ship too.
+COPY backend/pyproject.toml ./
+COPY backend/app ./app
+COPY backend/alembic.ini ./
+COPY backend/migrations ./migrations
+COPY prompts ./prompts
+COPY docs/schemas ./docs/schemas
 RUN pip install --no-cache-dir .
 RUN useradd --create-home --uid 10001 appuser
 USER appuser

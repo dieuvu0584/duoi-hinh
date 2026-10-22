@@ -15,10 +15,36 @@ from app.core.config import settings
 from app.core.logging import configure_logging
 from app.db.session import session_factory
 from app.providers.factory import get_reels_provider
+from app.providers.pipeline_factory import build_pipeline_deps, missing_pipeline_keys
+from app.services.pipeline_runner import run_pending
 from app.services.scheduler import tick
 from app.services.settings_service import effective_page_id, get_settings_row
 
 log = logging.getLogger("app.worker")
+
+
+async def pipeline_loop(*, once: bool, interval: float, stop: asyncio.Event) -> None:
+    """Content generation runs beside publishing so a long render never delays a publish."""
+    missing = missing_pipeline_keys(settings)
+    if missing:
+        log.warning("content pipeline disabled, missing: %s", ", ".join(missing))
+        return
+    deps = build_pipeline_deps(settings)
+    while not stop.is_set():
+        try:
+            with session_factory()() as session:
+                notes = await run_pending(session, deps)
+        except Exception:  # noqa: BLE001 - the loop must survive (db restart, etc.)
+            log.exception("pipeline loop error")
+            notes = []
+        if notes:
+            log.info("pipeline: %s", notes)
+        if once:
+            return
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=interval)
+        except TimeoutError:
+            pass
 
 
 async def run(*, once: bool, interval: float) -> None:
@@ -32,6 +58,17 @@ async def run(*, once: bool, interval: float) -> None:
             loop.add_signal_handler(sig, stop.set)
         except NotImplementedError:  # Windows event loops
             pass
+    pipeline = asyncio.create_task(pipeline_loop(once=once, interval=interval, stop=stop))
+    try:
+        await publish_loop(once=once, interval=interval, stop=stop, provider=provider,
+                           provider_page=provider_page)
+    finally:
+        if not once:
+            stop.set()
+        await pipeline
+
+
+async def publish_loop(*, once, interval, stop, provider, provider_page) -> None:
     while not stop.is_set():
         with session_factory()() as session:
             # The Page is an admin setting: rebuild the provider when the owner changes it.

@@ -3,8 +3,14 @@
 #   docker compose --env-file ../.env up -d --build                          (from deploy/)
 services:
   api:
-    build: ../backend
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
     env_file: ../.env
+    environment:
+      NHD_MEDIA_DIR: /app/media
+    volumes:
+      - ../media:/app/media:ro  # review previews are served from here
     ports:
       - "127.0.0.1:${NHD_API_PORT:-8000}:8000"
     depends_on:
@@ -15,13 +21,15 @@ services:
     restart: unless-stopped
   worker:
     # Runs the scheduler tick (docs/workflow.md). Dry-run unless NHD_PUBLISH_MODE=live.
-    build: ../backend
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
     command: ["python", "-m", "app.worker"]
     env_file: ../.env
     environment:
       NHD_MEDIA_DIR: /app/media
     volumes:
-      - ../media:/app/media:ro
+      - ../media:/app/media  # the worker writes generated media here
     depends_on:
       postgres:
         condition: service_healthy
