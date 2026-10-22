@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhd_admin/api/api_client.dart';
@@ -112,5 +114,39 @@ void main() {
 
   test('a re-auth request is recognised', () {
     expect(ApiException(403, 'reauth_required', 'm').needsReauth, isTrue);
+  });
+
+  test('a media download sends the token and writes the file', () async {
+    final backend = FakeBackend({
+      'GET /api/content/abc/media/reel_9x16': (_) => (200, {'fake': 'video bytes'}),
+    });
+    final store = MemoryTokenStore()..value = saved(expiresIn: const Duration(minutes: 10));
+    final api = clientWith(backend, store);
+    await api.restore();
+    final dir = await Directory.systemTemp.createTemp('nhd_dl');
+    final target = '${dir.path}/v.mp4';
+    try {
+      var last = -1.0;
+      await api.downloadMedia('/api/content/abc/media/reel_9x16', target, onProgress: (p) => last = p);
+      expect(File(target).existsSync(), isTrue);
+      expect(backend.calls.last.auth, 'Bearer old');
+      expect(last, anyOf(-1.0, 1.0));
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
+
+  test('a download of a missing file fails with an ApiException', () async {
+    final backend = FakeBackend({});
+    final store = MemoryTokenStore()..value = saved(expiresIn: const Duration(minutes: 10));
+    final api = clientWith(backend, store);
+    await api.restore();
+    final dir = await Directory.systemTemp.createTemp('nhd_dl');
+    try {
+      await expectLater(api.downloadMedia('/api/content/x/media/reel_9x16', '${dir.path}/v.mp4'),
+          throwsA(isA<ApiException>()));
+    } finally {
+      await dir.delete(recursive: true);
+    }
   });
 }

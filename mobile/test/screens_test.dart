@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhd_admin/api/api_client.dart';
 import 'package:nhd_admin/api/token_store.dart';
+import 'package:nhd_admin/media_saver.dart';
 import 'package:nhd_admin/screens/login_screen.dart';
 import 'package:nhd_admin/screens/queue_screen.dart';
 import 'package:nhd_admin/screens/review_screen.dart';
@@ -287,4 +288,70 @@ void main() {
       expect(find.text('Không có thay đổi.'), findsOneWidget);
     });
   });
+
+  group('video download', () {
+    Map<String, Object?> withVideos() => {
+          ...ticket(),
+          'videos': [
+            {'target': 'reel_9x16', 'mode': 'fill', 'width': 1080, 'height': 1920, 'duration_s': '12.0',
+             'url': '/api/content/abcdef12/media/reel_9x16'},
+            {'target': 'youtube_16x9', 'mode': 'fit', 'width': 1920, 'height': 1080, 'duration_s': '12.0',
+             'url': '/api/content/abcdef12/media/youtube_16x9'},
+          ],
+        };
+
+    testWidgets('the owner can save the selected video to the phone before approving', (tester) async {
+      final saver = _FakeSaver();
+      final api = await loggedIn(FakeBackend({'GET /api/content/abcdef12/review': (_) => (200, withVideos())}));
+      await tester.pumpWidget(MultiProvider(
+        providers: [Provider<ApiClient>.value(value: api), Provider<MediaSaver>.value(value: saver)],
+        child: const MaterialApp(home: ReviewScreen(id: 'abcdef12')),
+      ));
+      await tester.pumpAndSettle();
+      final button = find.text('Tải video này về máy');
+      await tester.scrollUntilVisible(button, 200, scrollable: find.byType(Scrollable).first);
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(saver.saved, ['/api/content/abcdef12/media/reel_9x16 -> nhd_abcdef12_reel_9x16.mp4']);
+      expect(find.textContaining('Đã lưu vào thư viện ảnh'), findsOneWidget);
+    });
+
+    testWidgets('a failed download is reported, not swallowed', (tester) async {
+      final saver = _FakeSaver(fail: true);
+      final api = await loggedIn(FakeBackend({'GET /api/content/abcdef12/review': (_) => (200, withVideos())}));
+      await tester.pumpWidget(MultiProvider(
+        providers: [Provider<ApiClient>.value(value: api), Provider<MediaSaver>.value(value: saver)],
+        child: const MaterialApp(home: ReviewScreen(id: 'abcdef12')),
+      ));
+      await tester.pumpAndSettle();
+      final button = find.text('Tải video này về máy');
+      await tester.scrollUntilVisible(button, 200, scrollable: find.byType(Scrollable).first);
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Không kết nối được máy chủ'), findsOneWidget);
+      expect(find.text('Tải video này về máy'), findsOneWidget); // the button is usable again
+    });
+  });
+}
+
+class _FakeSaver implements MediaSaver {
+  _FakeSaver({this.fail = false});
+
+  final bool fail;
+  final saved = <String>[];
+
+  @override
+  Future<void> saveVideo({
+    required ApiClient api,
+    required String path,
+    required String name,
+    void Function(double progress)? onProgress,
+  }) async {
+    if (fail) throw ApiException(0, 'network', 'x');
+    saved.add('$path -> $name');
+  }
 }

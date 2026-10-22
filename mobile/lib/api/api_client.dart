@@ -116,6 +116,30 @@ class ApiClient {
 
   String mediaUrl(String path) => '${_auth!.baseUrl}$path';
 
+  /// Downloads a media file (with the owner's token) to [savePath].
+  Future<void> downloadMedia(String path, String savePath,
+      {void Function(double progress)? onProgress}) async {
+    await _ensureFresh();
+    try {
+      final res = await _dio.download(
+        mediaUrl(path),
+        savePath,
+        options: Options(
+          headers: {'Authorization': 'Bearer ${_auth!.accessToken}'},
+          receiveTimeout: const Duration(minutes: 5),
+        ),
+        onReceiveProgress: (received, total) {
+          if (total > 0) onProgress?.call(received / total);
+        },
+      );
+      if (res.statusCode != 200) {
+        throw ApiException(res.statusCode ?? 0, 'download_failed', 'Không tải được video');
+      }
+    } on DioException {
+      throw ApiException(0, 'network', 'Không kết nối được máy chủ');
+    }
+  }
+
   Future<void> _ensureFresh() async {
     final a = _auth;
     if (a == null) throw ApiException(401, 'not_authenticated', 'Chưa đăng nhập');

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import '../api/api_client.dart';
+import '../media_saver.dart';
 import '../ui_helpers.dart';
 
 class ReviewScreen extends StatefulWidget {
@@ -135,7 +136,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Text('Chưa có video cho bản hiện tại.'))
         else
-          _VideoPreview(videos: videos),
+          _VideoPreview(videos: videos, contentId: widget.id),
         const SizedBox(height: 16),
         _section('Chữ trên video', '${rev['overlay_text'] ?? ''}'),
         _section('Chú thích đăng kèm',
@@ -274,9 +275,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
 /// Plays one of the rendered videos (9:16 Reel or 16:9 YouTube) with the owner's token.
 class _VideoPreview extends StatefulWidget {
-  const _VideoPreview({required this.videos});
+  const _VideoPreview({required this.videos, required this.contentId});
 
   final List<Map<String, dynamic>> videos;
+  final String contentId;
 
   @override
   State<_VideoPreview> createState() => _VideoPreviewState();
@@ -286,6 +288,7 @@ class _VideoPreviewState extends State<_VideoPreview> {
   late String _target = '${widget.videos.first['target']}';
   VideoPlayerController? _controller;
   String? _error;
+  double? _downloading; // 0..1 while a download runs
 
   @override
   void initState() {
@@ -316,6 +319,29 @@ class _VideoPreviewState extends State<_VideoPreview> {
       setState(() => _controller = controller);
     } catch (_) {
       if (mounted) setState(() => _error = 'Không mở được video.');
+    }
+  }
+
+  Future<void> _download() async {
+    final video = widget.videos.firstWhere((v) => v['target'] == _target);
+    final api = context.read<ApiClient>();
+    final saver = context.read<MediaSaver>();
+    final name = 'nhd_${widget.contentId.substring(0, 8)}_$_target.mp4';
+    setState(() => _downloading = 0);
+    try {
+      await saver.saveVideo(
+        api: api,
+        path: '${video['url']}',
+        name: name,
+        onProgress: (p) {
+          if (mounted) setState(() => _downloading = p);
+        },
+      );
+      if (mounted) showMessage(context, 'Đã lưu vào thư viện ảnh ($name).');
+    } catch (e) {
+      if (mounted) showMessage(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _downloading = null);
     }
   }
 
@@ -368,6 +394,19 @@ class _VideoPreviewState extends State<_VideoPreview> {
       ),
       Text('Chế độ: ${current['mode'] == 'fill' ? 'cắt giữa' : 'toàn ảnh + nền mờ'} · '
           '${current['duration_s'] ?? '?'} giây'),
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        onPressed: _downloading == null ? _download : null,
+        icon: _downloading == null
+            ? const Icon(Icons.download_outlined)
+            : SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, value: _downloading == 0 ? null : _downloading)),
+        label: Text(_downloading == null
+            ? 'Tải video này về máy'
+            : 'Đang tải… ${(100 * (_downloading ?? 0)).round()}%'),
+      ),
     ]);
   }
 }

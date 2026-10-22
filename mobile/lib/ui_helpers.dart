@@ -21,6 +21,8 @@ String friendlyError(Object e) {
         return 'Bản được duyệt chưa có video.';
       case 'review_blocked':
         return 'Bài đã bị chặn, không thể gỡ bằng tay.';
+      case 'download_failed':
+        return 'Không tải được video, hãy thử lại.';
       case 'scan_in_progress':
         return 'Đang có một lượt quét chờ hoặc đang chạy.';
       case 'no_idioms':

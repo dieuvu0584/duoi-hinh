@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'api/api_client.dart';
 import 'api/token_store.dart';
+import 'media_saver.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 
@@ -36,8 +37,11 @@ class _NhdAppState extends State<NhdApp> {
 
   @override
   Widget build(BuildContext context) {
-    return Provider<ApiClient>.value(
-      value: widget.client,
+    return MultiProvider(
+      providers: [
+        Provider<ApiClient>.value(value: widget.client),
+        Provider<MediaSaver>.value(value: const GalleryMediaSaver()),
+      ],
       child: MaterialApp(
         title: 'Nhìn Hình Đoán Chuyện',
         debugShowCheckedModeBanner: false,
