@@ -82,6 +82,7 @@ Map<String, Object?> ticket({
 void main() {
   scheduleTests();
   holdTests();
+  rejectedTests();
   testWidgets('login shows a friendly message for a wrong password', (tester) async {
     final backend = FakeBackend({
       'POST /api/auth/login': (_) =>
@@ -389,6 +390,7 @@ void holdTests() {
   Map<String, Object?> held({String stage = 'render', bool canResume = true}) => {
         ...ticket(status: 'HELD_FOR_HUMAN', canApprove: false),
         'hold': {
+          'kind': 'held',
           'stage': stage,
           'reason': 'render_failed: ffmpeg could not run: TimeoutExpired',
           'can_resume': canResume,
@@ -451,6 +453,46 @@ void holdTests() {
     expect(created!['lane'], 'rebus');
     expect(created!['brief'], contains('đơn giản'));
     expect(created!['answer'], 'Ôm quạt đợi khuya');
+  });
+}
+
+
+void rejectedTests() {
+  testWidgets('an automatically rejected item says why and offers to correct and recreate it',
+      (tester) async {
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, {
+            ...ticket(status: 'REJECTED', canApprove: false),
+            'hold': {
+              'kind': 'rejected',
+              'stage': 'qa',
+              'reason': 'qa_rejected: score 58.75',
+              'can_resume': false,
+            },
+            'source': {'brief': 'Cô giáo hỏi cả lớp', 'answer': null},
+          }),
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.text('Vì sao bài bị loại'), findsOneWidget);
+    expect(find.textContaining('chấm 58.75 điểm (dưới 65)'), findsOneWidget);
+    expect(find.textContaining('không cần bạn bấm gì'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Sửa và tạo lại'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Thử lại'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Duyệt'), findsNothing);
+  });
+
+  testWidgets('a paused item explains the budget wait', (tester) async {
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, {
+            ...ticket(status: 'QA_PENDING', canApprove: false),
+            'waiting': {'reason': 'waiting: budget_global_daily', 'retry_after': 'x'},
+          }),
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('hết ngân sách (trong ngày)'), findsOneWidget);
+    expect(find.textContaining('Chạy lại ngay'), findsWidgets);
   });
 }
 

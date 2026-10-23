@@ -36,15 +36,19 @@ RESUMABLE_STAGES = {"generate", "render"}
 
 
 def hold_info(item: ContentItem) -> dict[str, Any] | None:
-    """Why the pipeline put the item on hold, in the owner's terms (None when it is not held)."""
-    if item.status != ContentState.HELD_FOR_HUMAN.value:
+    """Why the pipeline stopped on this item: a hold, or an automatic rejection/block (None when
+    the item is neither). `kind` tells the app which words to use."""
+    kinds = {ContentState.HELD_FOR_HUMAN.value: "held", ContentState.REJECTED.value: "rejected",
+             ContentState.BLOCKED.value: "blocked"}
+    kind = kinds.get(item.status)
+    if kind is None:
         return None
     notes = (item.pipeline_input or {}).get("notes") or []
     last = notes[-1] if notes else {}
     stage = last.get("stage") if isinstance(last, dict) else None
     reason = last.get("reason") if isinstance(last, dict) else None
-    return {"stage": stage, "reason": str(reason)[:600] if reason else None,
-            "can_resume": stage in RESUMABLE_STAGES}
+    return {"kind": kind, "stage": stage, "reason": str(reason)[:600] if reason else None,
+            "can_resume": kind == "held" and stage in RESUMABLE_STAGES}
 
 QUEUE_STATES = {
     ContentState.PENDING_APPROVAL.value,

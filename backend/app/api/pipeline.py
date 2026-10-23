@@ -84,7 +84,7 @@ def resume_held(
     resumable: the owner corrects the idea and creates it again, or rejects it."""
     item = _load(session, content_id)
     hold = hold_info(item)
-    if hold is None:
+    if hold is None or hold["kind"] != "held":
         raise ApiError(409, "not_held", "This item is not on hold")
     if not hold["can_resume"]:
         raise ApiError(409, "not_resumable",

@@ -221,7 +221,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
   /// Why the pipeline stopped, in plain words, and what the owner can do about it.
   Widget _holdCard(Map<String, dynamic> hold) {
     final stage = '${hold['stage']}';
+    final kind = '${hold['kind']}';
     final reason = hold['reason'] == null ? '' : '${hold['reason']}';
+    if (kind != 'held') return _rejectedCard(kind, stage, reason);
     final advice = switch (stage) {
       'render' =>
         'Dựng video bị lỗi (thường do máy quá chậm). Bấm "Thử lại" để dựng lại; ảnh và giọng đọc đã có nên không tốn thêm tiền.',
@@ -261,6 +263,38 @@ class _ReviewScreenState extends State<ReviewScreen> {
       color: Theme.of(context).colorScheme.errorContainer,
       margin: const EdgeInsets.only(top: 12),
       child: Padding(padding: const EdgeInsets.all(12), child: Text(text)),
+    );
+  }
+
+  /// The system itself turned the item down (quality check, safety, regeneration limit).
+  Widget _rejectedCard(String kind, String stage, String reason) {
+    final score = RegExp(r'score ([0-9.]+)').firstMatch(reason)?.group(1);
+    final advice = reason.startsWith('qa_rejected')
+        ? 'Kiểm tra chất lượng tự động chấm ${score ?? '?'} điểm (dưới 65) nên hệ thống tự loại bài này, '
+            'không cần bạn bấm gì. Ảnh không thể hiện đúng ý tưởng; chi tiết ở mục "Lỗi kiểm tra chất lượng" bên dưới.'
+        : reason == 'regeneration_limit'
+            ? 'Hệ thống đã tạo lại ảnh đủ số lần cho phép nhưng vẫn chưa đạt, nên loại bài này.'
+            : kind == 'blocked'
+                ? 'Bài bị chặn vì không qua kiểm tra an toàn.'
+                : reason.isEmpty
+                    ? 'Bài đã bị từ chối.'
+                    : 'Hệ thống loại bài này.';
+    return Card(
+      color: Theme.of(context).colorScheme.errorContainer,
+      margin: const EdgeInsets.only(top: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(kind == 'blocked' ? 'Vì sao bài bị chặn' : 'Vì sao bài bị loại',
+              style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(advice),
+          if (reason.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            SelectableText('Chi tiết: $reason', style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ]),
+      ),
     );
   }
 
@@ -371,6 +405,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
       ));
     }
     if (status == 'HELD_FOR_HUMAN' && source['brief'] != null) {
+      buttons.add(Expanded(
+        child: FilledButton.tonal(
+          onPressed: _busy ? null : () => _editAndRecreate(t),
+          child: const Text('Sửa và tạo lại'),
+        ),
+      ));
+    }
+    if ((status == 'REJECTED' || status == 'BLOCKED') && source['brief'] != null) {
       buttons.add(Expanded(
         child: FilledButton.tonal(
           onPressed: _busy ? null : () => _editAndRecreate(t),

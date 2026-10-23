@@ -340,3 +340,18 @@ def test_a_budget_wait_is_explained_on_the_ticket_and_cleared_when_it_moves(
     run(pipeline_runner.run_pending(db, world.deps))
     t = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
     assert t["waiting"] is None and t["status"] == "PENDING_APPROVAL"
+
+
+def test_an_automatic_qa_rejection_is_explained_on_the_ticket(world, client, auth_headers, db):
+    from tests.test_content_pipeline import qa
+
+    world.llm.script("qa", qa(40, "reject", issues=["c1: nobody whispers"]))
+    item = start_draft(world)
+    run(cp.run_until_wait(db, world.deps, item.id))
+    t = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
+    assert t["status"] == "REJECTED"
+    assert t["hold"]["kind"] == "rejected" and t["hold"]["can_resume"] is False
+    assert t["hold"]["reason"].startswith("qa_rejected")
+    assert t["source"]["brief"]  # so the owner can correct it and create it again
+    r = client.post(f"/api/content/{item.id}/resume", headers=auth_headers)
+    assert r.status_code == 409 and r.json()["error"]["code"] == "not_held"
