@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import '../api/api_client.dart';
 import '../media_saver.dart';
 import '../ui_helpers.dart';
+import 'create_screen.dart';
 
 class ReviewScreen extends StatefulWidget {
   const ReviewScreen({super.key, required this.id});
@@ -180,6 +181,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
           const SizedBox(width: 8),
           Text(laneLabel('${t['lane']}')),
         ]),
+        if (t['hold'] != null) _holdCard(Map<String, dynamic>.from(t['hold'] as Map)),
         if (_inPipeline.contains(status))
           Card(
             color: Theme.of(context).colorScheme.secondaryContainer,
@@ -213,6 +215,52 @@ class _ReviewScreenState extends State<ReviewScreen> {
         const SizedBox(height: 80),
       ],
     );
+  }
+
+  /// Why the pipeline stopped, in plain words, and what the owner can do about it.
+  Widget _holdCard(Map<String, dynamic> hold) {
+    final stage = '${hold['stage']}';
+    final reason = hold['reason'] == null ? '' : '${hold['reason']}';
+    final advice = switch (stage) {
+      'render' =>
+        'Dựng video bị lỗi (thường do máy quá chậm). Bấm "Thử lại" để dựng lại; ảnh và giọng đọc đã có nên không tốn thêm tiền.',
+      'generate' =>
+        'Claude thấy ý tưởng này khó vẽ rõ ràng. Bạn có thể bấm "Thử lại" (tốn khoảng \$0,05) hoặc "Sửa và tạo lại" để đơn giản hóa mô tả.',
+      _ =>
+        'Hệ thống giữ lại bài này để bạn xem xét. Bạn có thể sửa ý tưởng rồi tạo lại, hoặc từ chối.',
+    };
+    return Card(
+      color: Theme.of(context).colorScheme.tertiaryContainer,
+      margin: const EdgeInsets.only(top: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Vì sao bài bị giữ lại', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(advice),
+          if (reason.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            SelectableText('Chi tiết: $reason', style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ]),
+      ),
+    );
+  }
+
+  Future<void> _editAndRecreate(Map<String, dynamic> t) async {
+    final source = Map<String, dynamic>.from(t['source'] as Map? ?? {});
+    final created = await Navigator.of(context).push<void>(MaterialPageRoute<void>(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: const Text('Sửa và tạo lại')),
+        body: CreateScreen(
+          initialLane: '${t['lane']}',
+          initialBrief: source['brief'] == null ? '' : '${source['brief']}',
+          initialAnswer: source['answer'] == null ? '' : '${source['answer']}',
+        ),
+      ),
+    ));
+    if (mounted) await _load();
+    return created;
   }
 
   Widget _section(String title, String text) => Padding(
@@ -293,6 +341,26 @@ class _ReviewScreenState extends State<ReviewScreen> {
         ),
       ));
     }
+    final hold = t['hold'] == null ? null : Map<String, dynamic>.from(t['hold'] as Map);
+    final source = Map<String, dynamic>.from(t['source'] as Map? ?? {});
+    if (status == 'HELD_FOR_HUMAN' && hold?['can_resume'] == true) {
+      buttons.add(Expanded(
+        child: FilledButton(
+          onPressed: _busy
+              ? null
+              : () => _act(() => _api.resumeHeld(widget.id), done: 'Đã cho chạy lại'),
+          child: const Text('Thử lại'),
+        ),
+      ));
+    }
+    if (status == 'HELD_FOR_HUMAN' && source['brief'] != null) {
+      buttons.add(Expanded(
+        child: FilledButton.tonal(
+          onPressed: _busy ? null : () => _editAndRecreate(t),
+          child: const Text('Sửa và tạo lại'),
+        ),
+      ));
+    }
     if (status == 'PENDING_APPROVAL' || status == 'HELD_FOR_HUMAN') {
       buttons.add(Expanded(
         child: OutlinedButton(onPressed: _busy ? null : _reject, child: const Text('Từ chối')),
@@ -323,13 +391,21 @@ class _ReviewScreenState extends State<ReviewScreen> {
       ));
     }
     if (buttons.isEmpty) return null;
-    final spaced = <Widget>[];
-    for (final b in buttons) {
-      if (spaced.isNotEmpty) spaced.add(const SizedBox(width: 8));
-      spaced.add(b);
+    // At most two buttons per row so labels stay readable on a phone.
+    final rows = <Widget>[];
+    for (var i = 0; i < buttons.length; i += 2) {
+      final pair = buttons.skip(i).take(2).toList();
+      rows.add(Padding(
+        padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+        child: Row(children: [
+          pair[0],
+          if (pair.length > 1) ...[const SizedBox(width: 8), pair[1]],
+        ]),
+      ));
     }
     return SafeArea(
-      child: Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 12), child: Row(children: spaced)),
+      child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12), child: Column(mainAxisSize: MainAxisSize.min, children: rows)),
     );
   }
 }

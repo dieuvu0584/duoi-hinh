@@ -237,6 +237,8 @@ class ApiClient {
   Future<void> completeHumanReview(String id) =>
       _request('POST', '/api/content/$id/human-review/complete');
 
+  Future<void> resumeHeld(String id) => _request('POST', '/api/content/$id/resume');
+
   Future<void> retryNow(String id) => _request('POST', '/api/content/$id/retry');
 
   Future<void> schedule(String id, DateTime when, {List<String> platforms = const ['facebook']}) =>

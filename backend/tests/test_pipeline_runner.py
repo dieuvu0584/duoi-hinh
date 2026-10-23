@@ -263,3 +263,62 @@ def test_switching_youtube_on_needs_the_password(client, owner, auth_headers):
     ok = client.put(url, headers=auth_headers,
                     json={"changes": {"youtube_enabled": True}, "password": OWNER_PASSWORD})
     assert ok.status_code == 200 and ok.json()["youtube_enabled"] is True
+
+
+# ------------------------------------------------------------------------- resume a held item
+def held_by_render_failure(world, db):
+    from app.services.render_service import RenderError
+    from tests.test_content_pipeline import fake_render
+
+    good = fake_render(world.media)
+    state = {"fail": True}
+
+    def flaky(*args, **kwargs):
+        if state["fail"]:
+            raise RenderError("ffmpeg could not run: TimeoutExpired")
+        return good(*args, **kwargs)
+
+    world.deps.render_both = flaky
+    item = start_draft(world)
+    run(cp.run_until_wait(db, world.deps, item.id))
+    assert reload(db, item).status == "HELD_FOR_HUMAN"
+    state["fail"] = False
+    return item
+
+
+def test_the_ticket_says_why_an_item_is_held_and_what_was_asked(world, client, auth_headers, db):
+    item = held_by_render_failure(world, db)
+    t = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
+    assert t["hold"]["stage"] == "render" and t["hold"]["can_resume"] is True
+    assert "ffmpeg" in t["hold"]["reason"]
+    assert t["source"]["brief"] == "Một con mèo lười"
+
+
+def test_a_failed_render_can_be_resumed_by_the_owner(world, client, auth_headers, db):
+    item = held_by_render_failure(world, db)
+    r = client.post(f"/api/content/{item.id}/resume", headers=auth_headers)
+    assert r.status_code == 200 and r.json()["status"] == "RENDERING"
+    calls_before = len(world.images.calls)
+    run(cp.run_until_wait(db, world.deps, item.id))
+    assert reload(db, item).status == "PENDING_APPROVAL"
+    assert len(world.images.calls) == calls_before  # the image already bought is not bought again
+
+
+def test_a_hold_from_a_review_finding_cannot_be_resumed(world, client, auth_headers, db):
+    from tests.test_content_pipeline import concept
+
+    world.llm.script("analyze", concept("rebus", answer_or_message="Bánh tét"))
+    item = start_draft(world, lane="rebus", answer="Bánh chưng")
+    run(cp.run_until_wait(db, world.deps, item.id))
+    assert reload(db, item).status == "HELD_FOR_HUMAN"  # the model changed the frozen answer
+    r = client.post(f"/api/content/{item.id}/resume", headers=auth_headers)
+    assert r.status_code == 409 and r.json()["error"]["code"] == "not_resumable"
+    assert client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()[
+        "hold"]["can_resume"] is False
+
+
+def test_only_held_items_can_be_resumed(world, client, auth_headers, db):
+    item = start_draft(world)
+    r = client.post(f"/api/content/{item.id}/resume", headers=auth_headers)
+    assert r.status_code == 409 and r.json()["error"]["code"] == "not_held"
+    assert client.post("/api/content/00000000-0000-0000-0000-000000000000/resume").status_code == 401

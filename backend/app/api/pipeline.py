@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_owner
+from app.api.review import hold_info
 from app.core.errors import ApiError
 from app.db.base import utcnow
 from app.db.models import ContentItem, OwnerAccount, VideoAsset
@@ -17,6 +18,7 @@ from app.db.session import get_session
 from app.services import content_pipeline, content_service, pipeline_runner
 from app.services import publishing_service as ps
 from app.services.settings_service import get_settings_row
+from app.services.state_machine import ContentState
 
 router = APIRouter(prefix="/content", tags=["pipeline"])
 
@@ -66,6 +68,33 @@ def retry_now(
     item = _load(session, content_id)
     if item.status not in {s.value for s in pipeline_runner.ACTIVE}:
         raise ApiError(409, "not_in_pipeline", "This item is not being generated")
+    pipeline_runner.clear_retry(session, item)
+    return {"id": str(item.id), "status": item.status}
+
+
+@router.post("/{content_id}/resume")
+def resume_held(
+    content_id: uuid.UUID,
+    owner: OwnerAccount = Depends(current_owner),
+    session: Session = Depends(get_session),
+):
+    """Retry an item held because the WORK failed (render timeout, image prompt could not be made).
+
+    Holds that come from a safety or answer finding (analysis, QA, final review) are not
+    resumable: the owner corrects the idea and creates it again, or rejects it."""
+    item = _load(session, content_id)
+    hold = hold_info(item)
+    if hold is None:
+        raise ApiError(409, "not_held", "This item is not on hold")
+    if not hold["can_resume"]:
+        raise ApiError(409, "not_resumable",
+                       "This hold came from a review finding; correct the idea or reject it")
+    # A render that failed restarts at rendering (the image and narration already exist and are
+    # not bought again); a failed generation starts the generation stage over.
+    target = (ContentState.RENDERING if hold["stage"] == "render"
+              else ContentState.READY_FOR_GENERATION)
+    content_service.transition_content(session, item, target, actor=f"owner:{owner.id}",
+                                       reason="owner_resume")
     pipeline_runner.clear_retry(session, item)
     return {"id": str(item.id), "status": item.status}
 

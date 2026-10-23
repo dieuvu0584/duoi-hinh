@@ -81,6 +81,7 @@ Map<String, Object?> ticket({
 
 void main() {
   scheduleTests();
+  holdTests();
   testWidgets('login shows a friendly message for a wrong password', (tester) async {
     final backend = FakeBackend({
       'POST /api/auth/login': (_) =>
@@ -380,6 +381,76 @@ void scheduleTests() {
     await tester.pumpAndSettle();
     final next = find.widgetWithText(FilledButton, 'Tiếp tục');
     expect(tester.widget<FilledButton>(next).onPressed, isNull);
+  });
+}
+
+
+void holdTests() {
+  Map<String, Object?> held({String stage = 'render', bool canResume = true}) => {
+        ...ticket(status: 'HELD_FOR_HUMAN', canApprove: false),
+        'hold': {
+          'stage': stage,
+          'reason': 'render_failed: ffmpeg could not run: TimeoutExpired',
+          'can_resume': canResume,
+        },
+        'source': {'brief': 'Một con mèo lười dậy sớm', 'answer': 'Ôm quạt đợi khuya'},
+      };
+
+  testWidgets('a held item explains why and offers retry, edit and reject', (tester) async {
+    var resumed = 0;
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, held()),
+      'POST /api/content/abc/resume': (_) {
+        resumed++;
+        return (200, {});
+      },
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.text('Vì sao bài bị giữ lại'), findsOneWidget);
+    expect(find.textContaining('Dựng video bị lỗi'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Thử lại'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Sửa và tạo lại'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Từ chối'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Duyệt'), findsNothing); // nothing to approve yet
+    await tester.tap(find.widgetWithText(FilledButton, 'Thử lại'));
+    await tester.pumpAndSettle();
+    expect(resumed, 1);
+  });
+
+  testWidgets('a hold from a review finding cannot be retried, only corrected or rejected',
+      (tester) async {
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, held(stage: 'analyze', canResume: false)),
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(FilledButton, 'Thử lại'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Sửa và tạo lại'), findsOneWidget);
+  });
+
+  testWidgets('edit and recreate opens the form with the old idea filled in', (tester) async {
+    Map<String, dynamic>? created;
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, held(stage: 'generate')),
+      'POST /api/content/ideas': (c) {
+        created = Map<String, dynamic>.from(c.body as Map);
+        return (201, {'id': 'n', 'lane': 'rebus', 'status': 'DRAFT'});
+      },
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Sửa và tạo lại'));
+    await tester.pumpAndSettle();
+    expect(find.text('Một con mèo lười dậy sớm'), findsOneWidget);
+    expect(find.text('Ôm quạt đợi khuya'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Một con mèo lười dậy sớm'),
+        'Một con mèo lười dậy sớm, vẽ thật đơn giản');
+    await tester.tap(find.widgetWithText(FilledButton, 'Tạo bài'));
+    await tester.pumpAndSettle();
+    expect(created!['lane'], 'rebus');
+    expect(created!['brief'], contains('đơn giản'));
+    expect(created!['answer'], 'Ôm quạt đợi khuya');
   });
 }
 

@@ -74,7 +74,9 @@ CONTENT_TRANSITIONS: dict[ContentState, frozenset[ContentState]] = {
     C.ANALYZING: frozenset({C.READY_FOR_GENERATION, C.HELD_FOR_HUMAN, C.REJECTED}),
     # A hold can come from the intake gate or the final gate; the service must check which one
     # before choosing READY_FOR_GENERATION (intake) or PENDING_APPROVAL (final).
-    C.HELD_FOR_HUMAN: frozenset({C.READY_FOR_GENERATION, C.PENDING_APPROVAL, C.REJECTED}),
+    # RENDERING: the owner retries a render that failed (the assets already exist).
+    C.HELD_FOR_HUMAN: frozenset(
+        {C.READY_FOR_GENERATION, C.RENDERING, C.PENDING_APPROVAL, C.REJECTED}),
     C.READY_FOR_GENERATION: frozenset({C.GENERATING}),
     # Mid-pipeline stops that need a person (e.g. the image prompt cannot represent the idea).
     C.GENERATING: frozenset({C.RENDERING, C.NEEDS_REWORK, C.HELD_FOR_HUMAN}),

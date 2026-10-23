@@ -30,6 +30,22 @@ from app.services.state_machine import ContentState
 
 router = APIRouter(prefix="/content", tags=["review"])
 
+# A hold at one of these stages came from a failure of the work itself (a render that timed out,
+# an image prompt the model could not make), not from a safety finding, so the owner may retry it.
+RESUMABLE_STAGES = {"generate", "render"}
+
+
+def hold_info(item: ContentItem) -> dict[str, Any] | None:
+    """Why the pipeline put the item on hold, in the owner's terms (None when it is not held)."""
+    if item.status != ContentState.HELD_FOR_HUMAN.value:
+        return None
+    notes = (item.pipeline_input or {}).get("notes") or []
+    last = notes[-1] if notes else {}
+    stage = last.get("stage") if isinstance(last, dict) else None
+    reason = last.get("reason") if isinstance(last, dict) else None
+    return {"stage": stage, "reason": str(reason)[:600] if reason else None,
+            "can_resume": stage in RESUMABLE_STAGES}
+
 QUEUE_STATES = {
     ContentState.PENDING_APPROVAL.value,
     ContentState.HELD_FOR_HUMAN.value,
@@ -129,6 +145,9 @@ def review_ticket(
             "notes": data.get("notes"),
         },
         "safety": {"intake": _review_out(intake), "final": _review_out(final)},
+        # What the owner originally asked for, so a held idea can be corrected and created again.
+        "source": {"brief": data.get("brief"), "answer": data.get("answer")},
+        "hold": hold_info(item),
         "videos": [
             {"target": v.target, "mode": v.mode, "width": v.width, "height": v.height,
              "duration_s": str(v.duration_s) if v.duration_s is not None else None,

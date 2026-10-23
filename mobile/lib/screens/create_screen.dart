@@ -5,7 +5,12 @@ import '../api/api_client.dart';
 import '../ui_helpers.dart';
 
 class CreateScreen extends StatefulWidget {
-  const CreateScreen({super.key});
+  const CreateScreen({super.key, this.initialLane, this.initialBrief, this.initialAnswer});
+
+  /// Used to correct a held idea and create it again: the old text is already filled in.
+  final String? initialLane;
+  final String? initialBrief;
+  final String? initialAnswer;
 
   @override
   State<CreateScreen> createState() => _CreateScreenState();
@@ -16,6 +21,16 @@ class _CreateScreenState extends State<CreateScreen> {
   final _brief = TextEditingController();
   final _answer = TextEditingController();
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialLane == 'daily_life' || widget.initialLane == 'rebus') {
+      _lane = widget.initialLane!;
+    }
+    _brief.text = widget.initialBrief ?? '';
+    _answer.text = widget.initialAnswer ?? '';
+  }
 
   Future<void> _submit() async {
     final brief = _brief.text.trim();
@@ -32,6 +47,11 @@ class _CreateScreenState extends State<CreateScreen> {
           );
       _brief.clear();
       _answer.clear();
+      if (widget.initialBrief != null && mounted) {
+        showMessage(context, 'Đã xếp hàng tạo lại. Xem ở mục Bài viết (Đang tạo).');
+        Navigator.of(context).pop();
+        return;
+      }
       if (mounted) {
         showMessage(context, 'Đã xếp hàng. Hệ thống sẽ tạo và báo ở mục Bài viết khi chờ bạn duyệt.');
       }
