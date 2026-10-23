@@ -113,6 +113,16 @@ class MetaReelsProvider:
         return data if isinstance(data, dict) else {}
 
     # ------------------------------------------------------------------ contract
+    async def check_token(self) -> bool:
+        """True when the Page token can read the Page (a cheap, side-effect-free call)."""
+        try:
+            resp = await self._client.get(
+                f"{self._graph}/{self._page_id}", params={"fields": "id"},
+                headers=self._headers())
+        except httpx.HTTPError:
+            return False
+        return resp.status_code == 200 and resp.json().get("id") == self._page_id
+
     async def prepare(
         self, *, video_path: Path, description: str, is_ai_generated: bool, intent_key: str,
         on_video_id: Callable[[str], None],

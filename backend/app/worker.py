@@ -3,7 +3,8 @@
     python -m app.worker            # loop until Ctrl+C / SIGTERM
     python -m app.worker --once     # a single tick, then exit
 
-The provider comes from `get_reels_provider(settings)`: dry-run unless NHD_PUBLISH_MODE=live.
+Providers (Facebook, YouTube) come from `get_providers(settings)`: dry-run unless
+NHD_PUBLISH_MODE=live.
 """
 
 import argparse
@@ -17,9 +18,9 @@ from app.core.config import settings
 from app.core.logging import configure_logging
 from app.db.models import ScanRun
 from app.db.session import session_factory
-from app.providers.factory import get_reels_provider
+from app.providers.factory import get_providers
 from app.providers.pipeline_factory import build_llm, build_pipeline_deps, missing_pipeline_keys
-from app.services import idea_service
+from app.services import idea_service, token_health_service
 from app.services.pipeline_runner import run_pending
 from app.services.scheduler import tick
 from app.services.settings_service import effective_page_id, get_settings_row
@@ -110,8 +111,11 @@ async def publish_loop(*, once, interval, stop, provider, provider_page) -> None
             # The Page is an admin setting: rebuild the provider when the owner changes it.
             page = effective_page_id(get_settings_row(session), settings)
             if provider is None or page != provider_page:
-                provider, provider_page = get_reels_provider(settings, page), page
-                log.warning("publishing provider=%s page=%s", type(provider).__name__, page)
+                provider, provider_page = get_providers(settings, page), page
+                log.warning("publishing providers=%s page=%s",
+                            {k: type(v).__name__ for k, v in provider.items()}, page)
+            # The gate refuses to publish without a recent, valid token check.
+            await token_health_service.refresh_if_due(session, provider)
             report = await tick(session, provider, settings)
         log.info("tick: %s", report)
         if once:

@@ -27,8 +27,15 @@ class _NhdAppState extends State<NhdApp> {
   @override
   void initState() {
     super.initState();
-    widget.client.onLoggedOut = () => _setLoggedIn(false);
-    _restored = widget.client.restore().then((ok) => _loggedIn = ok);
+    // A session that was revoked or expired signs in again by itself when the owner chose to
+    // remember the login; otherwise the login page appears.
+    widget.client.onLoggedOut = () async {
+      _setLoggedIn(await widget.client.loginWithSaved());
+    };
+    _restored = widget.client.restore().then((ok) async {
+      if (!ok) ok = await widget.client.loginWithSaved();
+      return _loggedIn = ok;
+    });
   }
 
   void _setLoggedIn(bool value) {

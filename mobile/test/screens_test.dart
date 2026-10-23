@@ -80,6 +80,7 @@ Map<String, Object?> ticket({
     };
 
 void main() {
+  scheduleTests();
   testWidgets('login shows a friendly message for a wrong password', (tester) async {
     final backend = FakeBackend({
       'POST /api/auth/login': (_) =>
@@ -181,7 +182,7 @@ void main() {
     }));
     await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
     await tester.pumpAndSettle();
-    expect(find.text('Lên lịch đăng Facebook'), findsOneWidget);
+    expect(find.text('Lên lịch đăng'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Duyệt'), findsNothing);
   });
 
@@ -335,6 +336,50 @@ void main() {
       expect(find.textContaining('Không kết nối được máy chủ'), findsOneWidget);
       expect(find.text('Tải video này về máy'), findsOneWidget); // the button is usable again
     });
+  });
+}
+
+
+void scheduleTests() {
+  testWidgets('scheduling asks for the platforms; YouTube is locked while switched off', (tester) async {
+    Map<String, dynamic>? sent;
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, ticket(status: 'APPROVED')),
+      'GET /api/system/settings': (_) => (200, {'youtube_enabled': false}),
+      'POST /api/content/abc/schedule': (c) {
+        sent = Map<String, dynamic>.from(c.body as Map);
+        return (201, {'records': []});
+      },
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lên lịch đăng'));
+    await tester.pumpAndSettle();
+    expect(find.text('Facebook Reels (9:16)'), findsOneWidget);
+    final youtube = find.widgetWithText(CheckboxListTile, 'YouTube (16:9)');
+    expect(tester.widget<CheckboxListTile>(youtube).onChanged, isNull); // switched off
+    expect(find.textContaining('Đang tắt. Bật ở Cài đặt'), findsOneWidget);
+    expect(sent, isNull); // nothing is sent before a time is chosen
+  });
+
+  testWidgets('with YouTube on, both platforms are preselected and sent', (tester) async {
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, ticket(status: 'APPROVED')),
+      'GET /api/system/settings': (_) => (200, {'youtube_enabled': true}),
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lên lịch đăng'));
+    await tester.pumpAndSettle();
+    final youtube = find.widgetWithText(CheckboxListTile, 'YouTube (16:9)');
+    expect(tester.widget<CheckboxListTile>(youtube).value, isTrue);
+    expect(tester.widget<CheckboxListTile>(youtube).onChanged, isNotNull);
+    // at least one platform must stay chosen
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Facebook Reels (9:16)'));
+    await tester.tap(youtube);
+    await tester.pumpAndSettle();
+    final next = find.widgetWithText(FilledButton, 'Tiếp tục');
+    expect(tester.widget<FilledButton>(next).onPressed, isNull);
   });
 }
 

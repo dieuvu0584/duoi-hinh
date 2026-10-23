@@ -149,4 +149,70 @@ void main() {
       await dir.delete(recursive: true);
     }
   });
+
+  group('remember login', () {
+    FakeBackend backend() => FakeBackend({
+          'POST /api/auth/login': (c) => (c.body as Map)['password'] == 'right-password'
+              ? (200, tokens('acc1', refreshOne))
+              : (403, {'error': {'code': 'invalid_credentials', 'message': 'no'}}),
+          'POST /api/auth/logout': (_) => (204, null),
+        });
+
+    test('the server and user are always remembered, the password only when asked', () async {
+      final store = MemoryTokenStore();
+      final api = clientWith(backend(), store);
+      await api.login(baseUrl: 'http://h:8000', username: 'owner', password: 'right-password');
+      expect(store.login!.username, 'owner');
+      expect(store.login!.baseUrl, 'http://h:8000');
+      expect(store.login!.password, isNull);
+      await api.login(
+          baseUrl: 'http://h:8000', username: 'owner', password: 'right-password', remember: true);
+      expect(store.login!.password, 'right-password');
+    });
+
+    test('a failed login does not overwrite what was remembered', () async {
+      final store = MemoryTokenStore()
+        ..login = SavedLogin(baseUrl: 'http://good', username: 'owner', password: 'right-password');
+      final api = clientWith(backend(), store);
+      await expectLater(
+          api.login(baseUrl: 'http://typo:8080', username: 'x', password: 'wrong', remember: true),
+          throwsA(isA<ApiException>()));
+      expect(store.login!.baseUrl, 'http://good');
+    });
+
+    test('the remembered password signs in again by itself', () async {
+      final store = MemoryTokenStore()
+        ..login = SavedLogin(baseUrl: 'http://h', username: 'owner', password: 'right-password');
+      final api = clientWith(backend(), store);
+      expect(await api.loginWithSaved(), isTrue);
+      expect(api.isLoggedIn, isTrue);
+    });
+
+    test('without a remembered password nothing is attempted', () async {
+      final backendNone = backend();
+      final store = MemoryTokenStore()..login = SavedLogin(baseUrl: 'http://h', username: 'owner');
+      final api = clientWith(backendNone, store);
+      expect(await api.loginWithSaved(), isFalse);
+      expect(backendNone.calls, isEmpty);
+    });
+
+    test('a wrong remembered password just falls back to the login page', () async {
+      final store = MemoryTokenStore()
+        ..login = SavedLogin(baseUrl: 'http://h', username: 'owner', password: 'stale');
+      final api = clientWith(backend(), store);
+      expect(await api.loginWithSaved(), isFalse);
+    });
+
+    test('logging out forgets the password but keeps the server and user', () async {
+      final store = MemoryTokenStore();
+      final api = clientWith(backend(), store);
+      await api.login(
+          baseUrl: 'http://h', username: 'owner', password: 'right-password', remember: true);
+      await api.logout();
+      expect(store.login!.password, isNull);
+      expect(store.login!.username, 'owner');
+      expect(store.value, isNull);
+      expect(await api.loginWithSaved(), isFalse);
+    });
+  });
 }

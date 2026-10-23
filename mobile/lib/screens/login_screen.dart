@@ -18,7 +18,26 @@ class _LoginScreenState extends State<LoginScreen> {
   final _user = TextEditingController(text: 'owner');
   final _password = TextEditingController();
   bool _busy = false;
+  bool _remember = true;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefill();
+  }
+
+  /// Server and user name (and the password, if the owner chose to keep it) from last time.
+  Future<void> _prefill() async {
+    final saved = await context.read<ApiClient>().savedLogin();
+    if (saved == null || !mounted) return;
+    setState(() {
+      _server.text = saved.baseUrl;
+      _user.text = saved.username;
+      _password.text = saved.password ?? '';
+      _remember = saved.password != null;
+    });
+  }
 
   Future<void> _submit() async {
     setState(() {
@@ -30,6 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
             baseUrl: _server.text,
             username: _user.text.trim(),
             password: _password.text,
+            remember: _remember,
           );
       _password.clear();
       widget.onLoggedIn();
@@ -74,6 +94,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: true,
                   decoration: const InputDecoration(labelText: 'Mật khẩu'),
                   onSubmitted: (_) => _busy ? null : _submit(),
+                ),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: _remember,
+                  onChanged: (v) => setState(() => _remember = v ?? false),
+                  title: const Text('Ghi nhớ đăng nhập'),
+                  subtitle: const Text(
+                      'Lưu mật khẩu trong kho bảo mật của điện thoại để tự đăng nhập lại. '
+                      'Đăng xuất sẽ xóa mật khẩu đã lưu.'),
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),

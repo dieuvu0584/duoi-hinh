@@ -97,6 +97,7 @@ class SystemSettings(TimestampMixin, Base):
     elevenlabs_voice_id: Mapped[str | None] = mapped_column(String(80))
     # Idea scanning: owner-chosen times of day (Vietnam time, "HH:MM"). Off until the owner turns
     # it on, because every scan spends a little on the LLM.
+    youtube_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     scan_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     scan_times: Mapped[list[str]] = mapped_column(
         JSONB, default=lambda: ["10:00", "16:00", "20:00", "00:00"])
@@ -221,10 +222,13 @@ class Approval(Base):
 class PublishingRecord(TimestampMixin, Base):
     __tablename__ = "publishing_records"
     __table_args__ = (
-        # At most one non-terminal publishing record per revision (no double scheduling).
+        CheckConstraint("platform IN ('facebook', 'youtube')", name="platform_valid"),
+        # At most one non-terminal publishing record per revision AND platform (no double
+        # scheduling; one Facebook Reel and one YouTube video of the same revision may coexist).
         Index(
             "uq_publishing_records_one_active",
             "revision_id",
+            "platform",
             unique=True,
             postgresql_where=text(
                 "status NOT IN ('FAILED', 'CANCELLED', 'SKIPPED_LATE', 'RETRACTED')"
@@ -234,10 +238,13 @@ class PublishingRecord(TimestampMixin, Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
     revision_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("content_revisions.id"))
+    platform: Mapped[str] = mapped_column(String(10), default="facebook")  # facebook | youtube
     content_hash: Mapped[str] = mapped_column(String(64))
     intent_key: Mapped[str] = mapped_column(String(80), unique=True)
     status: Mapped[str] = mapped_column(String(30), default="NOT_SCHEDULED", index=True)
     scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Provider video id and public reference. The `meta_` prefix is historical: on YouTube these
+    # hold the YouTube videoId and the watch URL.
     meta_video_id: Mapped[str | None] = mapped_column(String(64))
     meta_post_id: Mapped[str | None] = mapped_column(String(64))
     media_ready: Mapped[bool] = mapped_column(Boolean, default=False)

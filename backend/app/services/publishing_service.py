@@ -78,24 +78,40 @@ def _load(session: Session, record_id: uuid.UUID) -> PublishingRecord:
     return record
 
 
+PLATFORM_TARGET = {"facebook": "reel_9x16", "youtube": "youtube_16x9"}
+_ENDED = ("FAILED", "CANCELLED", "SKIPPED_LATE", "RETRACTED")
+
+
 def schedule(
     session: Session, *, item: ContentItem, scheduled_for: datetime, actor: str = "system",
-    video_ref: str | None = None,
+    video_ref: str | None = None, platform: str = "facebook",
 ) -> PublishingRecord:
-    """Create the publishing record for the item's CURRENT revision (item must be APPROVED)."""
+    """Create the publishing record for the item's CURRENT revision on one platform.
+
+    The item must be APPROVED; a second platform may be added while it is already SCHEDULED
+    (or PUBLISHED on the other platform)."""
+    if platform not in PLATFORM_TARGET:
+        raise ApiError(422, "bad_platform", "Unknown platform")
     if scheduled_for.tzinfo is None:
         raise ApiError(422, "naive_datetime", "scheduled_for must include a timezone")
     revision = session.get(ContentRevision, item.current_revision_id)
     if revision is None:
         raise ApiError(409, "no_revision", "Content has no revision")
-    _set_item(session, item, ContentState.SCHEDULED, actor)  # 409 unless APPROVED
+    already = session.scalar(select(func.count()).select_from(PublishingRecord).where(
+        PublishingRecord.revision_id == revision.id, PublishingRecord.platform == platform,
+        PublishingRecord.status.notin_(_ENDED)))
+    if already:  # one active record per revision and platform (also enforced by an index)
+        raise ApiError(409, "already_scheduled", "This content is already scheduled there")
+    if item.status not in {ContentState.SCHEDULED.value, ContentState.PUBLISHED.value}:
+        _set_item(session, item, ContentState.SCHEDULED, actor)  # 409 unless APPROVED
     # One intent per scheduling attempt: a cancelled/failed record is terminal and a new
     # schedule is a new intent (the unique active-record index still forbids two at once).
     attempt = (session.scalar(select(func.count()).select_from(PublishingRecord).where(
-        PublishingRecord.revision_id == revision.id)) or 0) + 1
+        PublishingRecord.revision_id == revision.id,
+        PublishingRecord.platform == platform)) or 0) + 1
     record = PublishingRecord(
-        revision_id=revision.id, content_hash=revision.content_hash,
-        intent_key=f"{revision.id}:facebook:reel_9x16:{attempt}",
+        revision_id=revision.id, platform=platform, content_hash=revision.content_hash,
+        intent_key=f"{revision.id}:{platform}:{PLATFORM_TARGET[platform]}:{attempt}",
         status=PublishState.NOT_SCHEDULED.value, scheduled_for=scheduled_for,
         video_ref=video_ref)
     session.add(record)
@@ -272,7 +288,10 @@ async def cancel(
     record = _load(session, record_id)
     _move(session, record, PublishState.CANCELLED, actor=actor)  # 409 unless cancellable
     item = _item_of(session, record)
-    if item.status == ContentState.SCHEDULED.value:
+    other_active = session.scalar(select(func.count()).select_from(PublishingRecord).where(
+        PublishingRecord.revision_id == record.revision_id, PublishingRecord.id != record.id,
+        PublishingRecord.status.notin_(_ENDED)))
+    if item.status == ContentState.SCHEDULED.value and not other_active:
         _set_item(session, item, ContentState.APPROVED, actor)
     session.commit()
     await _discard_draft(session, provider, record)

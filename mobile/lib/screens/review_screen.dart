@@ -15,6 +15,11 @@ class ReviewScreen extends StatefulWidget {
   State<ReviewScreen> createState() => _ReviewScreenState();
 }
 
+const _inPipeline = {
+  'DRAFT', 'ANALYZING', 'READY_FOR_GENERATION', 'NEEDS_REWORK', 'GENERATING',
+  'RENDERING', 'QA_PENDING', 'FINAL_SAFETY_PENDING'
+};
+
 class _ReviewScreenState extends State<ReviewScreen> {
   Map<String, dynamic>? _ticket;
   String? _error;
@@ -84,6 +89,49 @@ class _ReviewScreenState extends State<ReviewScreen> {
   }
 
   Future<void> _schedule() async {
+    // Which platforms: Facebook always; YouTube only when it is switched on in Settings.
+    var youtubeOn = false;
+    try {
+      youtubeOn = (await _api.settings())['youtube_enabled'] == true;
+    } catch (_) {
+      youtubeOn = false;
+    }
+    if (!mounted) return;
+    final platforms = await showDialog<List<String>>(
+      context: context,
+      builder: (ctx) {
+        var facebook = true;
+        var youtube = youtubeOn;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => AlertDialog(
+            title: const Text('Đăng lên đâu?'),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              CheckboxListTile(
+                value: facebook,
+                onChanged: (v) => setLocal(() => facebook = v ?? false),
+                title: const Text('Facebook Reels (9:16)'),
+              ),
+              CheckboxListTile(
+                value: youtube,
+                onChanged: youtubeOn ? (v) => setLocal(() => youtube = v ?? false) : null,
+                title: const Text('YouTube (16:9)'),
+                subtitle: youtubeOn ? null : const Text('Đang tắt. Bật ở Cài đặt, mục Đăng bài.'),
+              ),
+            ]),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+              FilledButton(
+                onPressed: !facebook && !youtube
+                    ? null
+                    : () => Navigator.pop(ctx, [if (facebook) 'facebook', if (youtube) 'youtube']),
+                child: const Text('Tiếp tục'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (platforms == null || !mounted) return;
     final now = DateTime.now();
     final date = await showDatePicker(
       context: context,
@@ -96,7 +144,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
         context: context, initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))));
     if (time == null) return;
     final when = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    await _act(() => _api.schedule(widget.id, when), done: 'Đã lên lịch đăng');
+    await _act(() => _api.schedule(widget.id, when, platforms: platforms),
+        done: 'Đã lên lịch đăng (${platforms.map((p) => p == 'youtube' ? 'YouTube' : 'Facebook').join(' + ')})');
   }
 
   @override
@@ -131,6 +180,18 @@ class _ReviewScreenState extends State<ReviewScreen> {
           const SizedBox(width: 8),
           Text(laneLabel('${t['lane']}')),
         ]),
+        if (_inPipeline.contains(status))
+          Card(
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            margin: const EdgeInsets.only(top: 12),
+            child: const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text(
+                  'Bài đang được tạo nên chưa thể duyệt. Dựng video có thể mất vài phút; '
+                  'kéo xuống để cập nhật. Khi xong, trạng thái chuyển thành "Chờ bạn duyệt" '
+                  'và nút Duyệt sẽ xuất hiện ở cuối màn hình.'),
+            ),
+          ),
         if (videos.isEmpty)
           const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
@@ -248,7 +309,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     if (status == 'APPROVED') {
       buttons.add(Expanded(
         child: FilledButton(
-            onPressed: _busy ? null : _schedule, child: const Text('Lên lịch đăng Facebook')),
+            onPressed: _busy ? null : _schedule, child: const Text('Lên lịch đăng')),
       ));
     }
     if (const {

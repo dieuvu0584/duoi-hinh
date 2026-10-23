@@ -50,11 +50,30 @@ class ApiClient {
     return url;
   }
 
+  Future<SavedLogin?> savedLogin() => store.readLogin();
+
+  /// Tries the remembered login (only when a password was kept); true when it worked.
+  Future<bool> loginWithSaved() async {
+    final saved = await store.readLogin();
+    if (saved == null || saved.password == null || saved.password!.isEmpty) return false;
+    try {
+      await login(
+          baseUrl: saved.baseUrl,
+          username: saved.username,
+          password: saved.password!,
+          remember: true);
+      return true;
+    } on ApiException {
+      return false;
+    }
+  }
+
   Future<void> login({
     required String baseUrl,
     required String username,
     required String password,
     String deviceLabel = 'Điện thoại của chủ',
+    bool remember = false,
   }) async {
     final url = normaliseBaseUrl(baseUrl);
     final body = await _send('POST', '$url/api/auth/login',
@@ -62,13 +81,23 @@ class ApiClient {
         authenticated: false);
     _auth = _fromTokens(url, body as Map<String, dynamic>);
     await store.write(_auth!);
+    // Server and user name are always remembered for the next sign-in; the password only when
+    // the owner asked for it.
+    await store.writeLogin(
+        SavedLogin(baseUrl: url, username: username, password: remember ? password : null));
   }
 
+  /// Explicit log out: the tokens and any remembered password are wiped (server and user name stay
+  /// so the next sign-in is quick).
   Future<void> logout() async {
     try {
       if (_auth != null) await _request('POST', '/api/auth/logout');
     } on ApiException {
       // The device is forgotten locally either way.
+    }
+    final saved = await store.readLogin();
+    if (saved != null) {
+      await store.writeLogin(SavedLogin(baseUrl: saved.baseUrl, username: saved.username));
     }
     await _forget();
   }
@@ -210,8 +239,9 @@ class ApiClient {
 
   Future<void> retryNow(String id) => _request('POST', '/api/content/$id/retry');
 
-  Future<void> schedule(String id, DateTime when) => _request('POST', '/api/content/$id/schedule',
-      data: {'scheduled_for': when.toUtc().toIso8601String()});
+  Future<void> schedule(String id, DateTime when, {List<String> platforms = const ['facebook']}) =>
+      _request('POST', '/api/content/$id/schedule',
+          data: {'scheduled_for': when.toUtc().toIso8601String(), 'platforms': platforms});
 
   Future<Map<String, dynamic>> createIdea(
           {required String lane, required String brief, String? answer}) async =>

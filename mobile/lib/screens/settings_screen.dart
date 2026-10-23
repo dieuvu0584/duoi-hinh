@@ -124,6 +124,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return changes;
   }
 
+  Future<void> _toggleYoutube(bool value) async {
+    await _save(() async {
+      await withReauth(
+          context, (pw) async => _api.putSettings({'youtube_enabled': value}, password: pw),
+          reason: 'Bật/tắt đăng YouTube cần mật khẩu');
+    }, value ? 'Đã bật đăng YouTube' : 'Đã tắt đăng YouTube');
+  }
+
   Future<void> _saveGeneral() async {
     final changes = _changedTargets();
     if (changes.isEmpty) {
@@ -177,6 +185,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           Text('Nơi đăng và giọng đọc', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Đăng lên YouTube'),
+            subtitle: const Text(
+                'Khi bật, bài đã duyệt có thể lên lịch đăng cả kênh YouTube (video 16:9). Cần mật khẩu.'),
+            value: _settings!['youtube_enabled'] == true,
+            onChanged: _busy ? null : _toggleYoutube,
+          ),
           _field(_page, 'Facebook Page ID', helper: '${_source('facebook_page_id')} Đổi cần mật khẩu.'),
           _field(_youtube, 'YouTube Channel ID', helper: '${_source('youtube_channel_id')} Dạng UC… (đăng YouTube chưa bật).'),
           _field(_voice, 'ElevenLabs Voice ID', helper: '${_source('elevenlabs_voice_id')} Chỉ áp dụng cho bài tạo mới.'),

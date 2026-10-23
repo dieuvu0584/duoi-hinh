@@ -214,3 +214,52 @@ def test_the_renderer_strips_what_the_font_cannot_draw():
     assert strip_unrenderable("Xin chào 😼📦  bạn ❤️!") == "Xin chào bạn !"
     plain = "Đường Lê Lợi, “ngày” 25/10 – hết"
     assert strip_unrenderable(plain) == plain
+
+
+# ------------------------------------------------------------------------- YouTube scheduling
+def test_scheduling_on_both_platforms_creates_two_records(world, client, auth_headers, db):
+    item = approved(world, client, auth_headers)
+    db.execute(text("UPDATE system_settings SET youtube_enabled = true"))
+    db.commit()
+    when = (utcnow() + timedelta(hours=2)).isoformat()
+    r = client.post(f"/api/content/{item.id}/schedule", headers=auth_headers,
+                    json={"scheduled_for": when, "platforms": ["facebook", "youtube"]})
+    assert r.status_code == 201
+    assert [x["platform"] for x in r.json()["records"]] == ["facebook", "youtube"]
+    records = {x.platform: x for x in db.scalars(select(PublishingRecord))}
+    assert records["facebook"].video_ref.startswith("video/reel_9x16")
+    assert records["youtube"].video_ref.startswith("video/youtube_16x9")  # the 16:9 render
+    assert ":youtube:" in records["youtube"].intent_key
+
+
+def test_youtube_cannot_be_scheduled_while_it_is_switched_off(world, client, auth_headers, db):
+    item = approved(world, client, auth_headers)
+    when = (utcnow() + timedelta(hours=2)).isoformat()
+    r = client.post(f"/api/content/{item.id}/schedule", headers=auth_headers,
+                    json={"scheduled_for": when, "platforms": ["youtube"]})
+    assert r.status_code == 409 and r.json()["error"]["code"] == "youtube_disabled"
+    assert db.scalar(select(PublishingRecord)) is None  # nothing half-scheduled
+
+
+def test_the_default_is_facebook_only_and_unknown_platforms_are_refused(
+    world, client, auth_headers, db
+):
+    item = approved(world, client, auth_headers)
+    when = (utcnow() + timedelta(hours=2)).isoformat()
+    bad = client.post(f"/api/content/{item.id}/schedule", headers=auth_headers,
+                      json={"scheduled_for": when, "platforms": ["tiktok"]})
+    assert bad.status_code == 422
+    ok = client.post(f"/api/content/{item.id}/schedule", headers=auth_headers,
+                     json={"scheduled_for": when})
+    assert ok.status_code == 201 and [x["platform"] for x in ok.json()["records"]] == ["facebook"]
+
+
+def test_switching_youtube_on_needs_the_password(client, owner, auth_headers):
+    url = "/api/system/settings"
+    denied = client.put(url, headers=auth_headers, json={"changes": {"youtube_enabled": True}})
+    assert denied.status_code == 403
+    from tests.conftest import OWNER_PASSWORD
+
+    ok = client.put(url, headers=auth_headers,
+                    json={"changes": {"youtube_enabled": True}, "password": OWNER_PASSWORD})
+    assert ok.status_code == 200 and ok.json()["youtube_enabled"] is True

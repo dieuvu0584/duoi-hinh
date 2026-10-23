@@ -21,6 +21,9 @@ class DryRunReels:
         self._ids = itertools.count(1)
         self._state: dict[str, str] = {}
 
+    async def check_token(self) -> bool:
+        return True  # nothing real to check in dry-run
+
     async def prepare(self, *, video_path: Path, description: str, is_ai_generated: bool,
                       intent_key: str, on_video_id: Callable[[str], None]) -> PreparedReel:
         video_id = f"dryrun-{next(self._ids)}"

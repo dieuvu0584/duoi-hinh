@@ -25,6 +25,7 @@ from app.services.publishing_policy import PublishFacts, can_publish
 from app.services.settings_service import get_settings_row
 
 TOKEN_MAX_AGE_SECONDS = 3600
+TOKEN_PROVIDER = {"facebook": "meta", "youtube": "youtube"}
 
 
 def _budget_ok(session: Session) -> bool:
@@ -58,14 +59,19 @@ def build_facts(
 
     approved = approval is not None and approval.decision == "approved"
     token = session.scalar(
-        select(TokenHealth).where(TokenHealth.provider == "meta")
+        select(TokenHealth).where(
+            TokenHealth.provider == TOKEN_PROVIDER.get(record.platform, record.platform))
         .order_by(TokenHealth.checked_at.desc()).limit(1)
         .execution_options(populate_existing=True)
     )
     window_start = now - timedelta(hours=24)
     published_recently = session.scalar(
-        select(func.count()).select_from(PublishingRecord).where(
-            PublishingRecord.published_at.is_not(None), PublishingRecord.published_at > window_start
+        # One piece of content posted to two platforms counts once toward the daily limit.
+        select(func.count(func.distinct(PublishingRecord.revision_id))).where(
+            PublishingRecord.published_at.is_not(None),
+            PublishingRecord.published_at > window_start,
+            # the same content on another platform is the same post, not an extra one
+            PublishingRecord.revision_id != record.revision_id,
         )
     ) or 0
     already_published = record.status == "PUBLISHED" or record.meta_post_id is not None

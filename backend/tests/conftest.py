@@ -67,7 +67,7 @@ def db(engine):
                 " monthly_budget_limit=0, budget_currency='USD', max_image_regenerations=3,"
                 " max_publishes_per_day=3, max_lateness_minutes=30, prepare_lead_minutes=20,"
                 " facebook_page_id=NULL, youtube_channel_id=NULL, elevenlabs_voice_id=NULL,"
-                " scan_enabled=false,"
+                " scan_enabled=false, youtube_enabled=false,"
                 " scan_times='[\"10:00\",\"16:00\",\"20:00\",\"00:00\"]'::jsonb"
             )
         )

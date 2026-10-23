@@ -56,9 +56,15 @@ class Settings(BaseSettings):
         default="eleven_v3", validation_alias=AliasChoices("ELEVENLABS_MODEL_ID"))
     elevenlabs_usd_per_credit: float = 0.0003
 
-    # YouTube channel (identifier only; the OAuth secrets are not used yet).
+    # YouTube: channel id (identifier) and the OAuth client + the channel owner's refresh token.
     youtube_channel_id: str | None = Field(
         default=None, validation_alias=AliasChoices("YOUTUBE_CHANNEL_ID"))
+    youtube_client_id: str | None = Field(
+        default=None, validation_alias=AliasChoices("YOUTUBE_CLIENT_ID"))
+    youtube_client_secret: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("YOUTUBE_CLIENT_SECRET"))
+    youtube_refresh_token: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("YOUTUBE_REFRESH_TOKEN"))
 
     # Meta (names come straight from .env: META_*). The token is a SecretStr and never printed.
     meta_page_id: str | None = Field(default=None, validation_alias=AliasChoices("META_PAGE_ID"))

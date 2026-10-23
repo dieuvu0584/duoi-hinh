@@ -11,6 +11,7 @@ stop the others, and no exception escapes the tick. The kill switch is enforced 
 """
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -28,6 +29,7 @@ from app.services.audit import record_audit
 from app.services.media_paths import UnsafeMediaPath, resolve_media_path
 from app.services.settings_service import get_settings_row
 from app.services.state_machine import PublishState
+from app.services.token_health_service import has_valid_token
 
 log = logging.getLogger(__name__)
 MAX_RECONCILE_ATTEMPTS = 5
@@ -52,8 +54,15 @@ def build_description(caption: str | None, hashtags: list[str] | None) -> str:
     return "\n\n".join(parts)
 
 
+def _resolve(providers, platform: str):
+    """One provider serves every platform (tests), or a {platform: provider} mapping."""
+    if isinstance(providers, Mapping):
+        return providers.get(platform)
+    return providers
+
+
 async def tick(
-    session: Session, provider: ReelsPublishingProvider, cfg: Settings, *,
+    session: Session, provider: ReelsPublishingProvider | Mapping[str, object], cfg: Settings, *,
     now: datetime | None = None,
 ) -> TickReport:
     now = now or utcnow()
@@ -63,6 +72,7 @@ async def tick(
         session.rollback()
         report.skipped = "automation_disabled"
         return report
+    youtube_on = settings_row.youtube_enabled
     lead = timedelta(minutes=settings_row.prepare_lead_minutes)
     lateness = timedelta(minutes=settings_row.max_lateness_minutes)
     session.rollback()
@@ -71,30 +81,52 @@ async def tick(
     if any(recovered.values()):
         report.notes.append(f"recovered:{recovered}")
 
-    to_prepare = session.scalars(
-        select(PublishingRecord.id).where(
+    to_prepare = session.execute(
+        select(PublishingRecord.id, PublishingRecord.platform).where(
             PublishingRecord.status == PublishState.SCHEDULED.value,
             PublishingRecord.scheduled_for <= now + lead,
         ).order_by(PublishingRecord.scheduled_for).limit(BATCH)).all()
-    for record_id in to_prepare:
-        await _guard(report, _prepare_one(session, provider, cfg, record_id, now, lateness))
+    for record_id, platform in to_prepare:
+        chosen = _resolve(provider, platform)
+        if chosen is None or (platform == "youtube" and not youtube_on):
+            # No usable provider / the owner switched the platform off: never prepare it.
+            reason = "youtube_disabled" if chosen is not None else "provider_unavailable"
+            await _guard(report, _block_one(session, record_id, reason))
+            continue
+        if not has_valid_token(session, platform, now=now):
+            # Never upload a draft that could not be published or removed afterwards.
+            report.notes.append(f"token_not_valid:{platform}")
+            session.rollback()
+            continue
+        await _guard(report, _prepare_one(session, chosen, cfg, record_id, now, lateness))
 
-    to_publish = session.scalars(
-        select(PublishingRecord.id).where(
+    to_publish = session.execute(
+        select(PublishingRecord.id, PublishingRecord.platform).where(
             PublishingRecord.status == PublishState.READY_TO_PUBLISH.value,
             PublishingRecord.scheduled_for <= now,
         ).order_by(PublishingRecord.scheduled_for).limit(BATCH)).all()
-    for record_id in to_publish:
-        await _guard(report, _publish_one(session, provider, record_id, now))
+    for record_id, platform in to_publish:
+        chosen = _resolve(provider, platform)
+        if chosen is None or (platform == "youtube" and not youtube_on):
+            continue  # left as it is; the gate/owner decides when the platform is back
+        await _guard(report, _publish_one(session, chosen, record_id, now))
 
-    unknown = session.scalars(
-        select(PublishingRecord.id).where(
+    unknown = session.execute(
+        select(PublishingRecord.id, PublishingRecord.platform).where(
             PublishingRecord.status == PublishState.UNKNOWN_RESULT.value,
             PublishingRecord.reconcile_attempts < MAX_RECONCILE_ATTEMPTS,
         ).limit(BATCH)).all()
-    for record_id in unknown:
-        await _guard(report, _reconcile_one(session, provider, record_id))
+    for record_id, platform in unknown:
+        chosen = _resolve(provider, platform)
+        if chosen is None:
+            continue
+        await _guard(report, _reconcile_one(session, chosen, record_id))
     return report
+
+
+async def _block_one(session: Session, record_id, reason: str) -> str:
+    await ps.block(session, record_id, reason=reason)
+    return "blocked"
 
 
 async def _guard(report: TickReport, work) -> None:

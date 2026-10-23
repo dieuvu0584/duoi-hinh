@@ -16,6 +16,7 @@ from app.db.models import ContentItem, OwnerAccount, VideoAsset
 from app.db.session import get_session
 from app.services import content_pipeline, content_service, pipeline_runner
 from app.services import publishing_service as ps
+from app.services.settings_service import get_settings_row
 
 router = APIRouter(prefix="/content", tags=["pipeline"])
 
@@ -31,6 +32,9 @@ class IdeaRequest(BaseModel):
 class ScheduleRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scheduled_for: datetime
+    # Where to publish. Facebook gets the 9:16 Reel, YouTube the 16:9 video of the same revision.
+    platforms: list[Literal["facebook", "youtube"]] = Field(
+        default_factory=lambda: ["facebook"], min_length=1, max_length=2)
 
 
 def _load(session: Session, content_id: uuid.UUID) -> ContentItem:
@@ -73,19 +77,29 @@ def schedule(
     owner: OwnerAccount = Depends(current_owner),
     session: Session = Depends(get_session),
 ):
-    """Schedule an APPROVED item. The Facebook Reel (9:16) of the approved revision is published."""
+    """Schedule an APPROVED item on one or both platforms (each gets its own record and gate)."""
     if body.scheduled_for.tzinfo is None:
         raise ApiError(422, "naive_datetime", "scheduled_for must include a timezone")
     if body.scheduled_for <= utcnow():
         raise ApiError(422, "in_the_past", "scheduled_for must be in the future")
     item = _load(session, content_id)
     revision = content_service.current_revision(session, item)
-    video = session.scalar(select(VideoAsset).where(
-        VideoAsset.revision_id == revision.id, VideoAsset.target == "reel_9x16",
-        VideoAsset.status == "valid"))
-    if video is None:
-        raise ApiError(409, "no_video", "There is no rendered Reel for the approved revision")
-    record = ps.schedule(session, item=item, scheduled_for=body.scheduled_for,
-                         actor=f"owner:{owner.id}", video_ref=video.storage_ref)
-    return {"record_id": str(record.id), "status": record.status,
-            "scheduled_for": record.scheduled_for.isoformat()}
+    platforms = list(dict.fromkeys(body.platforms))
+    if "youtube" in platforms and not get_settings_row(session).youtube_enabled:
+        raise ApiError(409, "youtube_disabled", "YouTube publishing is switched off in Settings")
+    videos = {}
+    for platform in platforms:  # check everything first so nothing is half-scheduled
+        video = session.scalar(select(VideoAsset).where(
+            VideoAsset.revision_id == revision.id,
+            VideoAsset.target == ps.PLATFORM_TARGET[platform], VideoAsset.status == "valid"))
+        if video is None:
+            raise ApiError(409, "no_video", "There is no rendered video for the approved revision")
+        videos[platform] = video
+    records = [ps.schedule(session, item=item, scheduled_for=body.scheduled_for,
+                           actor=f"owner:{owner.id}", video_ref=videos[p].storage_ref, platform=p)
+               for p in platforms]
+    first = records[0]
+    return {"record_id": str(first.id), "status": first.status,
+            "scheduled_for": first.scheduled_for.isoformat(),
+            "records": [{"record_id": str(r.id), "platform": r.platform, "status": r.status,
+                         "scheduled_for": r.scheduled_for.isoformat()} for r in records]}

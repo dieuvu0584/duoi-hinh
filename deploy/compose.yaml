@@ -30,6 +30,8 @@ services:
     env_file: ../.env
     environment:
       NHD_MEDIA_DIR: /app/media
+      # Rendering runs on the PC's CPU: veryfast keeps a render to about a minute instead of ~8.
+      NHD_X264_PRESET: veryfast
     volumes:
       - ../media:/app/media  # the worker writes generated media here
     depends_on:

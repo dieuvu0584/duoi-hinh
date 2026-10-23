@@ -1,4 +1,4 @@
-# Publishing to YouTube (design, not yet verified by a live run)
+# Publishing to YouTube (implemented 2026-10-23; promotion not yet verified live)
 
 Source: YouTube Data API reference for `videos.insert` and the quota/compliance page (read 2026-10-22). **Items marked VERIFY must be tested with a real upload before relying on them.**
 
@@ -20,3 +20,11 @@ Source: YouTube Data API reference for `videos.insert` and the quota/compliance 
 
 ## Open items (Package 0 YouTube spike, needs owner inputs P-7)
 Test upload to a **test channel**: resumable upload, processing time, private -> public promotion, `publishAt`, `containsSyntheticMedia`, delete, error codes and quota behaviour, whether an unaudited API project can publish publicly.
+
+
+## Implementation and live findings (2026-10-23)
+- `app/providers/youtube_videos.py` (`YouTubeProvider`): resumable upload as **private**, polling until processed, `publish` = read the status part, set `privacyStatus=public` and send the WHOLE part back (videos.update replaces it, so `containsSyntheticMedia` etc. must be kept), then read back and refuse to report success if the video is not public (`stayed_private`, e.g. an unaudited API project). `delete` is idempotent, `reconcile` reads the real state. Tested against a scripted fake of Google (21 tests).
+- Per-platform records: `publishing_records.platform` (`facebook` | `youtube`), one active record per revision AND platform, each with its own provider, token check and gate; one post on two platforms counts once toward the daily limit. `youtube_enabled` (Settings, password to change) defaults to false.
+- **Token scope matters (found live):** the refresh token in use had only `youtube.readonly` + `youtube.upload`. Upload and reads work; `videos.update` (publish) and `videos.delete` return 403 `insufficientPermissions`. A token can only be used when it also has `https://www.googleapis.com/auth/youtube` (or `youtube.force-ssl`). `check_token` verifies this through `oauth2.googleapis.com/tokeninfo` and a token without it is recorded as not valid (`missing_scope_youtube`), which keeps YouTube publishing blocked and prevents uploading drafts that could never be published or removed.
+- The Google Cloud project's OAuth consent screen in *Testing* mode expires refresh tokens after 7 days; publish the app (or accept re-authorising weekly).
+- Still to VERIFY with the correct scope: private -> public promotion, and whether an unaudited API project may publish publicly.
