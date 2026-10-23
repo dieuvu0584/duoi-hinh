@@ -322,3 +322,21 @@ def test_only_held_items_can_be_resumed(world, client, auth_headers, db):
     r = client.post(f"/api/content/{item.id}/resume", headers=auth_headers)
     assert r.status_code == 409 and r.json()["error"]["code"] == "not_held"
     assert client.post("/api/content/00000000-0000-0000-0000-000000000000/resume").status_code == 401
+
+
+def test_a_budget_wait_is_explained_on_the_ticket_and_cleared_when_it_moves(
+    world, client, auth_headers, db
+):
+    item = start_draft(world)
+    db.execute(text("UPDATE system_settings SET daily_budget_limit = 0"))
+    db.commit()
+    run(pipeline_runner.run_pending(db, world.deps))
+    t = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
+    assert "budget_" in t["waiting"]["reason"] and t["waiting"]["retry_after"]
+
+    db.execute(text("UPDATE system_settings SET daily_budget_limit = 50"))
+    db.commit()
+    client.post(f"/api/content/{item.id}/retry", headers=auth_headers)  # the owner presses retry
+    run(pipeline_runner.run_pending(db, world.deps))
+    t = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
+    assert t["waiting"] is None and t["status"] == "PENDING_APPROVAL"

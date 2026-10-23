@@ -182,6 +182,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
           Text(laneLabel('${t['lane']}')),
         ]),
         if (t['hold'] != null) _holdCard(Map<String, dynamic>.from(t['hold'] as Map)),
+        if (t['waiting'] != null) _waitingCard(Map<String, dynamic>.from(t['waiting'] as Map)),
         if (_inPipeline.contains(status))
           Card(
             color: Theme.of(context).colorScheme.secondaryContainer,
@@ -244,6 +245,22 @@ class _ReviewScreenState extends State<ReviewScreen> {
           ],
         ]),
       ),
+    );
+  }
+
+  /// The pipeline is paused for a reason the owner can fix (most often the daily budget).
+  Widget _waitingCard(Map<String, dynamic> waiting) {
+    final reason = '${waiting['reason']}';
+    final text = reason.contains('budget_')
+        ? 'Bài đang chờ vì đã hết ngân sách (${reason.contains('daily') ? 'trong ngày' : 'trong tháng'}). '
+            'Tăng hạn mức ở Cài đặt, mục Ngân sách (cần mật khẩu), rồi quay lại bấm "Chạy lại ngay".'
+        : reason.contains('voice_not_configured')
+            ? 'Bài đang chờ vì chưa chọn giọng đọc. Điền Voice ID ở Cài đặt rồi bấm "Chạy lại ngay".'
+            : 'Bài đang tạm dừng: $reason. Hệ thống tự thử lại sau ít phút, hoặc bấm "Chạy lại ngay".';
+    return Card(
+      color: Theme.of(context).colorScheme.errorContainer,
+      margin: const EdgeInsets.only(top: 12),
+      child: Padding(padding: const EdgeInsets.all(12), child: Text(text)),
     );
   }
 

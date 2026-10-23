@@ -41,12 +41,17 @@ def _due(item: ContentItem, now: datetime) -> bool:
     return not retry_after or datetime.fromisoformat(retry_after) <= now
 
 
-def _set_retry(session: Session, item: ContentItem, when: datetime | None) -> None:
+def _set_retry(
+    session: Session, item: ContentItem, when: datetime | None, reason: str | None = None
+) -> None:
     data = copy.deepcopy(item.pipeline_input or {})
     if when is None:
         data.pop("retry_after", None)
+        data.pop("wait_reason", None)
     else:
         data["retry_after"] = when.isoformat()
+        if reason:
+            data["wait_reason"] = reason[:120]  # shown to the owner: why nothing is happening
     item.pipeline_input = data
     session.commit()
 
@@ -90,6 +95,6 @@ async def run_pending(
         last = outcomes[-1].note if outcomes else ""
         item = session.get(ContentItem, item_id, populate_existing=True)
         delay = _backoff_for(last)
-        _set_retry(session, item, now + delay if delay else None)
+        _set_retry(session, item, now + delay if delay else None, last)
         notes.append(f"{item_id}:{item.status}:{last or 'ok'}")
     return notes

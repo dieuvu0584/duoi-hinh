@@ -148,6 +148,9 @@ def review_ticket(
         # What the owner originally asked for, so a held idea can be corrected and created again.
         "source": {"brief": data.get("brief"), "answer": data.get("answer")},
         "hold": hold_info(item),
+        # Set while the pipeline waits (e.g. budget_global_daily): why nothing is moving.
+        "waiting": ({"reason": data.get("wait_reason"), "retry_after": data.get("retry_after")}
+                    if data.get("wait_reason") else None),
         "videos": [
             {"target": v.target, "mode": v.mode, "width": v.width, "height": v.height,
              "duration_s": str(v.duration_s) if v.duration_s is not None else None,
