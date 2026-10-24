@@ -342,16 +342,27 @@ def test_a_budget_wait_is_explained_on_the_ticket_and_cleared_when_it_moves(
     assert t["waiting"] is None and t["status"] == "PENDING_APPROVAL"
 
 
-def test_an_automatic_qa_rejection_is_explained_on_the_ticket(world, client, auth_headers, db):
+def test_a_poor_qa_result_reaches_the_owner_with_a_warning(world, client, auth_headers, db):
     from tests.test_content_pipeline import qa
 
     world.llm.script("qa", qa(40, "reject", issues=["c1: nobody whispers"]))
     item = start_draft(world)
     run(cp.run_until_wait(db, world.deps, item.id))
     t = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
-    assert t["status"] == "REJECTED"
-    assert t["hold"]["kind"] == "rejected" and t["hold"]["can_resume"] is False
-    assert t["hold"]["reason"].startswith("qa_rejected")
-    assert t["source"]["brief"]  # so the owner can correct it and create it again
+    assert t["status"] == "PENDING_APPROVAL" and t["can_approve"] is True
+    flag = t["explanation"]["qa_flag"]
+    assert flag["score"] == 40 and "c1: nobody whispers" in flag["issues"]
+    assert t["source"]["brief"]
+
+
+def test_an_owner_rejection_has_no_hold_but_a_system_rejection_is_explained(
+    world, client, auth_headers, db
+):
+    item = start_draft(world)
+    run(cp.run_until_wait(db, world.deps, item.id))
+    client.post(f"/api/content/{item.id}/reject", headers=auth_headers, json={"note": "no"})
+    t = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
+    assert t["status"] == "REJECTED" and t["hold"]["kind"] == "rejected"
+    assert t["hold"]["can_resume"] is False
     r = client.post(f"/api/content/{item.id}/resume", headers=auth_headers)
     assert r.status_code == 409 and r.json()["error"]["code"] == "not_held"

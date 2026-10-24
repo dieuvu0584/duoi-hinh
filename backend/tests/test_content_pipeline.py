@@ -402,13 +402,15 @@ def test_a_revise_verdict_regenerates_with_the_issues_then_passes(world):
     assert "clock is cut" in second_prompt_input  # the QA findings steer the next attempt
 
 
-def test_the_regeneration_limit_rejects_instead_of_spending_forever(world, db):
+def test_the_regeneration_limit_stops_spending_and_shows_the_owner_the_result(world, db):
     db.execute(text("UPDATE system_settings SET max_image_regenerations = 1"))
     db.commit()
     world.llm.script("qa", qa(70, "revise", issues=["x"]))
     item, _ = go(world)
-    assert item.status == "REJECTED" and len(world.images.calls) == 1
-    assert "regeneration_limit" in str(item.pipeline_input["notes"])
+    # no more images are bought; the owner sees the video with the warning instead of nothing
+    assert item.status == "PENDING_APPROVAL" and len(world.images.calls) == 1
+    flag = item.pipeline_input["qa_flag"]
+    assert flag["reason"] == "regeneration_limit" and flag["score"] == 70 and flag["issues"]
 
 
 def test_a_hard_failure_overrides_a_high_score(world):
@@ -423,10 +425,21 @@ def test_missing_clues_override_the_recommendation(world):
     assert len(world.images.calls) == 2
 
 
-def test_a_low_score_or_reject_recommendation_rejects_the_content(world):
-    world.llm.script("qa", qa(40, "reject"))
+def test_a_low_score_or_reject_recommendation_is_flagged_for_the_owner_not_thrown_away(world):
+    world.llm.script("qa", qa(40, "reject", issues=["clue missing"]))
     item, _ = go(world)
-    assert item.status == "REJECTED"
+    assert item.status == "PENDING_APPROVAL"
+    flag = item.pipeline_input["qa_flag"]
+    assert flag["reason"] == "unfixable" and flag["score"] == 40
+    assert len(world.images.calls) == 1  # nothing more is bought for a concept that cannot work
+    safety = world.db.scalars(select(SafetyReview).where(SafetyReview.gate == "final")).all()
+    assert len(safety) == 1  # the final safety review still ran
+
+
+def test_a_later_good_attempt_clears_the_warning(world):
+    world.llm.script("qa", qa(70, "revise", issues=["x"]), qa(90))
+    item, _ = go(world)
+    assert item.status == "PENDING_APPROVAL" and "qa_flag" not in item.pipeline_input
 
 
 def test_the_backend_applies_the_pass_threshold_not_the_model(world):

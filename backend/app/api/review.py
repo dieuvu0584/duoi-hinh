@@ -146,6 +146,7 @@ def review_ticket(
             "visual_explanation": (data.get("image_prompt") or {}).get("visual_explanation"),
             "analysis": data.get("analysis"),
             "last_qa_issues": data.get("last_qa_issues"),
+            "qa_flag": data.get("qa_flag"),
             "notes": data.get("notes"),
         },
         "safety": {"intake": _review_out(intake), "final": _review_out(final)},

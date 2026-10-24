@@ -183,6 +183,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
         ]),
         if (t['hold'] != null) _holdCard(Map<String, dynamic>.from(t['hold'] as Map)),
         if (t['waiting'] != null) _waitingCard(Map<String, dynamic>.from(t['waiting'] as Map)),
+        if ((t['explanation'] as Map?)?['qa_flag'] != null)
+          _qaFlagCard(Map<String, dynamic>.from((t['explanation'] as Map)['qa_flag'] as Map)),
         if (_inPipeline.contains(status))
           Card(
             color: Theme.of(context).colorScheme.secondaryContainer,
@@ -263,6 +265,26 @@ class _ReviewScreenState extends State<ReviewScreen> {
       color: Theme.of(context).colorScheme.errorContainer,
       margin: const EdgeInsets.only(top: 12),
       child: Padding(padding: const EdgeInsets.all(12), child: Text(text)),
+    );
+  }
+
+  /// The automatic quality check was not happy, but the owner decides (nothing is thrown away).
+  Widget _qaFlagCard(Map<String, dynamic> flag) {
+    final issues = List<Object?>.from(flag['issues'] as List? ?? []);
+    return Card(
+      color: Theme.of(context).colorScheme.tertiaryContainer,
+      margin: const EdgeInsets.only(top: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Cảnh báo chất lượng', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text('Kiểm tra tự động chấm ${flag['score']} điểm (đạt từ 80). '
+              'Hãy xem video kỹ rồi tự quyết định: Duyệt nếu bạn thấy dùng được, Từ chối hoặc '
+              '"Sửa và tạo lại" nếu chưa ổn.'),
+          for (final i in issues.take(5)) Text('• $i', style: Theme.of(context).textTheme.bodySmall),
+        ]),
+      ),
     );
   }
 

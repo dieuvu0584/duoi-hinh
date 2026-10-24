@@ -83,6 +83,7 @@ void main() {
   scheduleTests();
   holdTests();
   rejectedTests();
+  qaFlagTests();
   testWidgets('login shows a friendly message for a wrong password', (tester) async {
     final backend = FakeBackend({
       'POST /api/auth/login': (_) =>
@@ -493,6 +494,31 @@ void rejectedTests() {
     await tester.pumpAndSettle();
     expect(find.textContaining('hết ngân sách (trong ngày)'), findsOneWidget);
     expect(find.textContaining('Chạy lại ngay'), findsWidgets);
+  });
+}
+
+
+void qaFlagTests() {
+  testWidgets('a poor automatic check is shown to the owner as a warning, approval stays possible',
+      (tester) async {
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) {
+        final t = ticket();
+        (t['explanation'] as Map<String, Object?>)['qa_flag'] = {
+          'score': 58.75,
+          'issues': ['c1: không có học sinh thì thầm'],
+          'reason': 'unfixable',
+        };
+        return (200, t);
+      },
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.text('Cảnh báo chất lượng'), findsOneWidget);
+    expect(find.textContaining('chấm 58.75 điểm'), findsOneWidget);
+    expect(find.textContaining('không có học sinh thì thầm'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Duyệt')).onPressed,
+        isNotNull);
   });
 }
 

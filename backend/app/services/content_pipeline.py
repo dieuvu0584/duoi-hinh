@@ -438,17 +438,31 @@ async def _qa(session: Session, deps: PipelineDeps, item: ContentItem) -> StageO
     passed = (qa["recommendation"] == "pass" and qa["score_total"] >= PASS_SCORE
               and not qa["hard_failures"] and not qa["missing_clues"])
     if passed:
+        data = copy.deepcopy(item.pipeline_input or {})
+        data.pop("qa_flag", None)  # an earlier attempt's warning no longer applies
+        item.pipeline_input = data
         content_service.transition_content(session, item, CS.FINAL_SAFETY_PENDING, actor="system")
         session.commit()
         return StageOutcome("qa", CS.FINAL_SAFETY_PENDING.value,
                             details={"score": qa["score_total"]})
-    if qa["recommendation"] == "reject" or qa["score_total"] < REJECT_SCORE:
-        return _hold(session, item, CS.REJECTED, f"qa_rejected: score {qa['score_total']}", "qa")
     settings_row = get_settings_row(session)
     attempts = session.scalar(select(func.count()).select_from(ImageAsset).where(
         ImageAsset.content_item_id == item.id)) or 0
-    if attempts >= settings_row.max_image_regenerations:
-        return _hold(session, item, CS.REJECTED, "regeneration_limit", "qa")
+    unfixable = qa["recommendation"] == "reject" or qa["score_total"] < REJECT_SCORE
+    if unfixable or attempts >= settings_row.max_image_regenerations:
+        # The automatic check is advisory (the owner approves every post anyway), so a poor result
+        # is shown to the owner WITH the warning instead of being thrown away: the money is spent
+        # and the owner can see at once whether it is usable. The final safety review still runs.
+        data = copy.deepcopy(item.pipeline_input or {})
+        data["qa_flag"] = {"score": qa["score_total"], "recommendation": qa["recommendation"],
+                           "reason": "unfixable" if unfixable else "regeneration_limit",
+                           "issues": issues[:8]}
+        item.pipeline_input = data
+        content_service.transition_content(session, item, CS.FINAL_SAFETY_PENDING, actor="system",
+                                           reason="qa_flagged")
+        session.commit()
+        return StageOutcome("qa", CS.FINAL_SAFETY_PENDING.value, "qa_flagged",
+                            {"score": qa["score_total"]})
     # fixable: back to generation with the issues passed to the next image prompt
     stored = copy.deepcopy(data.get("image_prompt") or {})
     stored["redo"] = True
