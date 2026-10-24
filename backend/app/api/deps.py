@@ -48,3 +48,17 @@ def get_llm(cfg: Settings = Depends(get_settings)):
         return build_llm(cfg)
     except RuntimeError as exc:
         raise ApiError(503, "llm_not_configured", "ANTHROPIC_API_KEY is not set") from exc
+
+
+def get_publish_providers(
+    session: Session = Depends(get_session), cfg: Settings = Depends(get_settings)
+):
+    """Platform -> provider, built like the worker does (tests override this with fakes)."""
+    from app.providers.factory import get_providers
+    from app.services.settings_service import effective_page_id, get_settings_row
+
+    try:
+        page = effective_page_id(get_settings_row(session), cfg)
+        return get_providers(cfg, page)
+    except RuntimeError as exc:
+        raise ApiError(503, "publishing_not_configured", str(exc)[:160]) from exc

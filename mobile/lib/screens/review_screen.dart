@@ -118,6 +118,61 @@ class _ReviewScreenState extends State<ReviewScreen> {
     if (mounted && message != null) showMessage(context, message!);
   }
 
+  /// Approved but not queued: take the approval back (the item becomes "rejected").
+  Future<void> _withdrawApproval() async {
+    final note = await askNote(context, 'Hủy duyệt bài này');
+    if (note == null) return;
+    await _act(() => _api.reject(widget.id, note: note.isEmpty ? 'Hủy duyệt' : note),
+        done: 'Đã hủy duyệt', pop: true);
+  }
+
+  Future<void> _cancelSchedule() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hủy lịch đăng?'),
+        content: const Text(
+            'Bài chưa lên công khai sẽ không được đăng nữa, bản nháp đã tải lên Facebook/YouTube '
+            '(nếu có) sẽ bị xóa. Bài quay về trạng thái "Đã duyệt": bạn có thể lên lịch lại hoặc hủy duyệt.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Giữ lịch')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Hủy lịch')),
+        ],
+      ),
+    );
+    if (ok == true) await _act(() => _api.cancelSchedule(widget.id), done: 'Đã hủy lịch đăng');
+  }
+
+  Future<void> _retract() async {
+    final reason = TextEditingController();
+    final password = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Gỡ bài đã đăng'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Bài sẽ bị xóa khỏi nền tảng. Việc này không hoàn tác được.'),
+          TextField(controller: reason, decoration: const InputDecoration(labelText: 'Lý do gỡ (bắt buộc)')),
+          TextField(
+              controller: password,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'Mật khẩu')),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Gỡ bài')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    if (reason.text.trim().length < 3 || password.text.isEmpty) {
+      if (mounted) showMessage(context, 'Cần nhập lý do (ít nhất 3 ký tự) và mật khẩu.');
+      return;
+    }
+    await _act(() => _api.retractPublished(widget.id, reason: reason.text.trim(), password: password.text),
+        done: 'Đã gửi lệnh gỡ bài');
+  }
+
   Future<void> _reject() async {
     final note = await askNote(context, 'Từ chối bài này');
     if (note == null) return;
@@ -495,6 +550,22 @@ class _ReviewScreenState extends State<ReviewScreen> {
       buttons.add(Expanded(
         child: FilledButton(
             onPressed: _busy ? null : _schedule, child: const Text('Lên lịch đăng')),
+      ));
+      buttons.add(Expanded(
+        child: OutlinedButton(
+            onPressed: _busy ? null : _withdrawApproval, child: const Text('Hủy duyệt')),
+      ));
+    }
+    if (status == 'SCHEDULED') {
+      buttons.add(Expanded(
+        child: FilledButton.tonal(
+            onPressed: _busy ? null : _cancelSchedule, child: const Text('Hủy lịch đăng')),
+      ));
+    }
+    if (status == 'PUBLISHED') {
+      buttons.add(Expanded(
+        child: OutlinedButton(
+            onPressed: _busy ? null : _retract, child: const Text('Gỡ bài đã đăng')),
       ));
     }
     if (const {

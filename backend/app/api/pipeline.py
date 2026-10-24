@@ -4,17 +4,18 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import current_owner
+from app.api.deps import client_ip, current_owner, get_publish_providers
 from app.api.review import hold_info
 from app.core.errors import ApiError
 from app.db.base import utcnow
-from app.db.models import ContentItem, OwnerAccount
+from app.db.models import ContentItem, OwnerAccount, PublishingRecord
 from app.db.session import get_session
-from app.services import content_pipeline, content_service, pipeline_runner
+from app.services import auth_service, content_pipeline, content_service, pipeline_runner
 from app.services import publishing_service as ps
 from app.services.state_machine import ContentState
 
@@ -95,6 +96,85 @@ def resume_held(
                                        reason="owner_resume")
     pipeline_runner.clear_retry(session, item)
     return {"id": str(item.id), "status": item.status}
+
+
+# Records the owner may still cancel: nothing is public and no upload/publish call is in flight.
+CANCELLABLE = {"SCHEDULED", "READY_TO_PUBLISH", "BLOCKED", "EXPIRED"}
+BUSY = {"PREPARING", "PUBLISHING", "UNKNOWN_RESULT", "RETRACTION_REQUESTED"}
+ENDED = ("FAILED", "CANCELLED", "SKIPPED_LATE", "RETRACTED")
+
+
+class _NoProvider:
+    """Stands in when a platform has no provider: only used when no draft exists there."""
+
+    async def delete(self, *, video_id: str) -> None:  # pragma: no cover - guarded by the caller
+        raise RuntimeError("no provider")
+
+
+def _active_records(session: Session, item: ContentItem) -> list[PublishingRecord]:
+    return list(session.scalars(
+        select(PublishingRecord).where(
+            PublishingRecord.revision_id == item.current_revision_id,
+            PublishingRecord.status.notin_(ENDED)).order_by(PublishingRecord.platform)))
+
+
+@router.post("/{content_id}/cancel-schedule")
+async def cancel_schedule(
+    content_id: uuid.UUID,
+    owner: OwnerAccount = Depends(current_owner),
+    session: Session = Depends(get_session),
+    providers=Depends(get_publish_providers),
+):
+    """Take an approved post back before it goes public: cancels every queued/ready record (the
+    private draft at Facebook/YouTube is deleted) and returns the item to APPROVED."""
+    item = _load(session, content_id)
+    active = _active_records(session, item)
+    if any(r.status in BUSY for r in active):
+        raise ApiError(409, "busy",
+                       "A video is being uploaded or published right now; try again in a minute")
+    todo = [r for r in active if r.status in CANCELLABLE]
+    if not todo:
+        raise ApiError(409, "nothing_to_cancel", "Nothing is queued for publishing")
+    for record in todo:
+        provider = providers.get(record.platform)
+        if provider is None and record.meta_video_id:
+            raise ApiError(409, "provider_unavailable",
+                           "Cannot remove the draft: this platform is not configured")
+        await ps.cancel(session, provider or _NoProvider(), record.id, actor=f"owner:{owner.id}")
+    session.expire_all()
+    return {"cancelled": [r.platform for r in todo], "status": _load(session, content_id).status}
+
+
+class RetractRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str = Field(min_length=3, max_length=300)
+    password: str = Field(min_length=1, max_length=256)
+
+
+@router.post("/{content_id}/retract")
+async def retract_published(
+    content_id: uuid.UUID,
+    body: RetractRequest,
+    request: Request,
+    owner: OwnerAccount = Depends(current_owner),
+    session: Session = Depends(get_session),
+    providers=Depends(get_publish_providers),
+):
+    """Take PUBLISHED posts down (the password and a reason are required; both are audited)."""
+    auth_service.verify_owner_password(session, owner, body.password, client_ip(request))
+    item = _load(session, content_id)
+    published = [r for r in _active_records(session, item) if r.status == "PUBLISHED"]
+    if not published:
+        raise ApiError(409, "nothing_to_retract", "There is no published post to take down")
+    results = {}
+    for record in published:
+        provider = providers.get(record.platform)
+        if provider is None:
+            results[record.platform] = "provider_unavailable"
+            continue
+        results[record.platform] = await ps.retract(
+            session, provider, record.id, reason=body.reason, actor=f"owner:{owner.id}")
+    return {"results": results}
 
 
 @router.post("/{content_id}/schedule", status_code=201)

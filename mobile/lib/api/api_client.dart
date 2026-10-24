@@ -241,6 +241,16 @@ class ApiClient {
 
   Future<void> resumeHeld(String id) => _request('POST', '/api/content/$id/resume');
 
+  /// Takes a queued/scheduled post back before it is public (drafts at the platforms are deleted).
+  Future<Map<String, dynamic>> cancelSchedule(String id) async => Map<String, dynamic>.from(
+      await _request('POST', '/api/content/$id/cancel-schedule') as Map);
+
+  /// Takes a PUBLISHED post down. Needs the password and a reason.
+  Future<Map<String, dynamic>> retractPublished(String id,
+          {required String reason, required String password}) async =>
+      Map<String, dynamic>.from(await _request('POST', '/api/content/$id/retract',
+          data: {'reason': reason, 'password': password}) as Map);
+
   Future<void> retryNow(String id) => _request('POST', '/api/content/$id/retry');
 
   Future<void> schedule(String id, DateTime when, {List<String> platforms = const ['facebook']}) =>

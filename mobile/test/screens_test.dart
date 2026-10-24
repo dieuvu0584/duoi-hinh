@@ -86,6 +86,7 @@ void main() {
   qaFlagTests();
   publishOnApproveTests();
   queueTitleTests();
+  cancelTests();
   testWidgets('login shows a friendly message for a wrong password', (tester) async {
     final backend = FakeBackend({
       'POST /api/auth/login': (_) =>
@@ -597,6 +598,74 @@ void queueTitleTests() {
     expect(find.text('Một con mèo béo cố chui vào hộp nhỏ'), findsOneWidget);
     expect(find.text('Đoán xem đây là gì?'), findsOneWidget); // blank text falls through to caption
     expect(find.text('(chưa có nội dung)'), findsOneWidget); // only when there is truly nothing
+  });
+}
+
+
+void cancelTests() {
+  testWidgets('a scheduled post can be cancelled after confirmation', (tester) async {
+    var cancelled = 0;
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, ticket(status: 'SCHEDULED', canApprove: false)),
+      'POST /api/content/abc/cancel-schedule': (_) {
+        cancelled++;
+        return (200, {'cancelled': ['facebook'], 'status': 'APPROVED'});
+      },
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(FilledButton, 'Duyệt'), findsNothing);
+    await tester.tap(find.text('Hủy lịch đăng'));
+    await tester.pumpAndSettle();
+    expect(cancelled, 0); // nothing before the owner confirms
+    await tester.tap(find.widgetWithText(FilledButton, 'Hủy lịch'));
+    await tester.pumpAndSettle();
+    expect(cancelled, 1);
+  });
+
+  testWidgets('an approved item can have its approval withdrawn', (tester) async {
+    String? note;
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, ticket(status: 'APPROVED', canApprove: false)),
+      'POST /api/content/abc/reject': (c) {
+        note = (c.body as Map)['note'] as String?;
+        return (200, {});
+      },
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.text('Lên lịch đăng'), findsOneWidget);
+    await tester.tap(find.text('Hủy duyệt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Đồng ý'));
+    await tester.pumpAndSettle();
+    expect(note, 'Hủy duyệt');
+  });
+
+  testWidgets('taking a published post down needs a reason and the password', (tester) async {
+    Map<String, dynamic>? sent;
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, ticket(status: 'PUBLISHED', canApprove: false)),
+      'POST /api/content/abc/retract': (c) {
+        sent = Map<String, dynamic>.from(c.body as Map);
+        return (200, {'results': {'facebook': 'retracted'}});
+      },
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gỡ bài đã đăng'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Gỡ bài'));
+    await tester.pumpAndSettle();
+    expect(sent, isNull); // nothing is sent without a reason and a password
+    expect(find.textContaining('Cần nhập lý do'), findsOneWidget);
+    await tester.tap(find.text('Gỡ bài đã đăng'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Lý do gỡ (bắt buộc)'), 'Sai nội dung');
+    await tester.enterText(find.widgetWithText(TextField, 'Mật khẩu'), 'my password');
+    await tester.tap(find.widgetWithText(FilledButton, 'Gỡ bài'));
+    await tester.pumpAndSettle();
+    expect(sent, {'reason': 'Sai nội dung', 'password': 'my password'});
   });
 }
 

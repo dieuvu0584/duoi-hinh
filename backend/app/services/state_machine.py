@@ -88,7 +88,7 @@ CONTENT_TRANSITIONS: dict[ContentState, frozenset[ContentState]] = {
     C.NEEDS_REWORK: frozenset({C.GENERATING, C.REJECTED}),
     C.FINAL_SAFETY_PENDING: frozenset({C.PENDING_APPROVAL, C.HELD_FOR_HUMAN, C.BLOCKED}),
     C.PENDING_APPROVAL: frozenset({C.APPROVED, C.REJECTED, C.NEEDS_REWORK}),
-    C.APPROVED: frozenset({C.SCHEDULED}),
+    C.APPROVED: frozenset({C.SCHEDULED, C.REJECTED}),  # REJECTED = the owner withdraws approval
     C.SCHEDULED: frozenset({C.APPROVED, C.PUBLISHED}),
     C.PUBLISHED: frozenset({C.ARCHIVED}),
 }
@@ -117,7 +117,7 @@ PUBLISH_TRANSITIONS: dict[PublishState, frozenset[PublishState]] = {
     # READY_TO_PUBLISH, so the retry passes the full pre-publish gate again (never straight to
     # PUBLISHING).
     P.UNKNOWN_RESULT: frozenset({P.PUBLISHED, P.FAILED, P.READY_TO_PUBLISH}),
-    P.BLOCKED: frozenset({P.SCHEDULED}),
+    P.BLOCKED: frozenset({P.SCHEDULED, P.CANCELLED}),
     P.PUBLISHED: frozenset({P.RETRACTION_REQUESTED}),
     P.RETRACTION_REQUESTED: frozenset({P.RETRACTED, P.RETRACTION_FAILED}),
     # After a failed API retraction the owner can retry or record a manual retraction.

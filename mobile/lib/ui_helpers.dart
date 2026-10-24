@@ -23,6 +23,14 @@ String friendlyError(Object e) {
         return 'Bài đã bị chặn, không thể gỡ bằng tay.';
       case 'download_failed':
         return 'Không tải được video, hãy thử lại.';
+      case 'busy':
+        return 'Hệ thống đang tải lên hoặc đăng bài này, hãy thử lại sau một phút.';
+      case 'nothing_to_cancel':
+        return 'Bài này không có lịch đăng nào để hủy.';
+      case 'nothing_to_retract':
+        return 'Bài này chưa được đăng nên không có gì để gỡ.';
+      case 'provider_unavailable':
+        return 'Chưa cấu hình nền tảng đó nên không xóa được bản nháp.';
       case 'scan_in_progress':
         return 'Đang có một lượt quét chờ hoặc đang chạy.';
       case 'no_idioms':
