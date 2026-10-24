@@ -78,6 +78,11 @@ async def get_or_create_narration(
 
     hit = session.scalar(select(AudioAsset).where(AudioAsset.text_hash == key))
     if hit is not None:
+        if hit.duration_s is None:
+            # An earlier probe failed (ffprobe timed out on a busy machine); without a duration the
+            # video can never be rendered, so measure the stored file again instead of reusing null.
+            hit.duration_s = probe_duration(Path(cfg.media_dir) / hit.storage_ref)
+            session.commit()
         return hit  # free: same text, voice, model and settings
 
     reservation = budget_service.reserve(

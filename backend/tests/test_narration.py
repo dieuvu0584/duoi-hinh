@@ -165,6 +165,17 @@ def test_an_identical_request_is_a_free_cache_hit(db, media):
     assert len(db.scalars(select(CostLedger)).all()) == 1  # no second reservation
 
 
+def test_a_cached_asset_without_a_duration_is_measured_again(db, media, monkeypatch):
+    budget(db)
+    speech = FakeSpeech()
+    monkeypatch.setattr(ns, "probe_duration", lambda path: None)  # ffprobe failed the first time
+    first = narrate(db, speech, media)
+    assert first.duration_s is None
+    monkeypatch.setattr(ns, "probe_duration", lambda path: Decimal("4.200"))
+    again = narrate(db, speech, media)
+    assert again.id == first.id and again.duration_s == Decimal("4.200") and len(speech.calls) == 1
+
+
 @pytest.mark.parametrize("change", [{"voice": "otherVoice1"}, {"model": "eleven_v4"},
                                     {"text": "Một câu khác."}, {"settings": {"speed": 1.1}}])
 def test_any_change_to_the_inputs_is_a_new_asset(db, media, change):
