@@ -32,6 +32,9 @@ services:
       NHD_MEDIA_DIR: /app/media
       # Rendering runs on the PC's CPU: veryfast keeps a render to about a minute instead of ~8.
       NHD_X264_PRESET: veryfast
+      # LIVE publishing. Nothing goes out until the owner also turns the kill switch off, turns
+      # automation on and approves a post. Set to dry_run (here) to rehearse without posting.
+      NHD_PUBLISH_MODE: live
     volumes:
       - ../media:/app/media  # the worker writes generated media here
     depends_on:

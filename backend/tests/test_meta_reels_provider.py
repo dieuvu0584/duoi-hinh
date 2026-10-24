@@ -334,3 +334,32 @@ def test_dry_run_provider_publishes_nothing_but_follows_the_contract(video):
         "/dry-run/")
     assert run(p.reconcile(video_id=prepared.video_id)).state == "published"
     assert json.dumps(DryRunReels.label)  # clearly labelled
+
+
+# ---------------------------------------------------------------- token check and its reason
+def check(handler):
+    p = provider(handler)
+    return asyncio.run(p.check_token()), p.last_problem
+
+
+def test_check_token_passes_for_the_configured_page():
+    ok, why = check(lambda r: httpx.Response(200, json={"id": PAGE}))
+    assert ok is True and why is None
+
+
+def test_a_page_id_that_does_not_belong_to_the_token_is_named_as_the_problem():
+    ok, why = check(lambda r: httpx.Response(400, json={"error": {"code": 100, "message": "x"}}))
+    assert ok is False and why == "page_id_not_for_this_token"
+
+
+def test_a_dead_token_is_told_apart_from_a_wrong_page_id():
+    ok, why = check(lambda r: httpx.Response(400, json={"error": {"code": 190, "message": "x"}}))
+    assert ok is False and why == "token_invalid"
+
+
+def test_the_token_check_never_raises_and_does_not_leak_the_token():
+    def boom(request):
+        raise httpx.ConnectError("down")
+
+    ok, why = check(boom)
+    assert ok is False and why == "unreachable" and TOKEN not in str(why)

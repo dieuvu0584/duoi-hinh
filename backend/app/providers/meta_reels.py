@@ -61,6 +61,7 @@ class MetaReelsProvider:
         self._poll, self._cc_timeout = poll_interval, copyright_timeout
         self._ready_timeout, self._verify_timeout = ready_timeout, verify_timeout
         self._max_bytes = max_file_bytes
+        self.last_problem: str | None = None
 
     # ------------------------------------------------------------------ plumbing
     def _headers(self, extra: dict[str, str] | None = None) -> dict[str, str]:
@@ -114,14 +115,27 @@ class MetaReelsProvider:
 
     # ------------------------------------------------------------------ contract
     async def check_token(self) -> bool:
-        """True when the Page token can read the Page (a cheap, side-effect-free call)."""
+        """True when the Page token can read the configured Page (cheap, side-effect free).
+
+        `last_problem` says why not, so the owner can tell a wrong Page ID from a dead token."""
+        self.last_problem = None
         try:
             resp = await self._client.get(
                 f"{self._graph}/{self._page_id}", params={"fields": "id"},
                 headers=self._headers())
         except httpx.HTTPError:
+            self.last_problem = "unreachable"
             return False
-        return resp.status_code == 200 and resp.json().get("id") == self._page_id
+        if resp.status_code == 200 and resp.json().get("id") == self._page_id:
+            return True
+        code = None
+        try:
+            code = resp.json().get("error", {}).get("code")
+        except ValueError:
+            pass
+        # 190 = the token itself is invalid or expired; 100/200 = this token cannot see that Page
+        self.last_problem = "token_invalid" if code == 190 else "page_id_not_for_this_token"
+        return False
 
     async def prepare(
         self, *, video_path: Path, description: str, is_ai_generated: bool, intent_key: str,
