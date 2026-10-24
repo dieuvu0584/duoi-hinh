@@ -523,3 +523,33 @@ def test_the_password_is_not_needed_for_scan_settings(client, owner, auth_header
     r = client.put("/api/system/settings", headers=auth_headers,
                    json={"changes": {"scan_enabled": True, "scan_times": ["10:00"]}})
     assert r.status_code == 200 and OWNER_PASSWORD  # no re-auth: it only schedules small spend
+
+
+# ------------------------------------------------------------------ international sources
+def test_the_international_sources_are_part_of_the_seed():
+    names = " ".join(n for n, _u, _k in FEED_SOURCES)
+    for expected in ("BBC", "Guardian", "Good News Network", "UPI", "NPR", "Google News (Anh)"):
+        assert expected in names
+    assert len(FEED_SOURCES) >= 20
+
+
+def test_a_busy_source_cannot_crowd_the_others_out_of_the_batch(db):
+    big = add_source(db, "Lon", "https://big.vn/rss")
+    small = add_source(db, "Nho", "https://small.vn/rss")
+    items = [FeedItem(source_id=big.id, url_hash=f"b{i}", title=f"b{i}", url=f"https://big.vn/{i}",
+                      fetched_at=NOW) for i in range(30)]
+    items += [FeedItem(source_id=small.id, url_hash=f"s{i}", title=f"s{i}",
+                       url=f"https://small.vn/{i}", fetched_at=NOW) for i in range(3)]
+    batch = idea_service.pick_batch(items, limit=10)
+    assert len(batch) == 10
+    assert {i.title for i in batch} >= {"s0", "s1", "s2"}  # the small feed is fully represented
+    assert [i.title for i in batch][:2] == ["b0", "s0"]  # sources take turns
+
+
+def test_the_batch_never_exceeds_the_limit_and_keeps_newest_first_within_a_source(db):
+    src = add_source(db)
+    items = [FeedItem(source_id=src.id, url_hash=f"x{i}", title=f"n{i}", url=f"https://a.vn/{i}",
+                      fetched_at=NOW) for i in range(100)]
+    batch = idea_service.pick_batch(items)
+    assert len(batch) == idea_service.MAX_PENDING_ITEMS
+    assert [i.title for i in batch][:3] == ["n0", "n1", "n2"]

@@ -1,6 +1,6 @@
 """Starting content for a fresh install: feed sources and the idiom bank (both owner-editable)."""
 
-# (name, url, kind). All verified to answer with RSS/Atom items on 2026-10-22.
+# (name, url, kind). All verified to answer with RSS/Atom items on 2026-10-22 / 2026-10-24.
 FEED_SOURCES: list[tuple[str, str, str]] = [
     ("VnExpress - Tin mới nhất", "https://vnexpress.net/rss/tin-moi-nhat.rss", "rss"),
     ("VnExpress - Cười", "https://vnexpress.net/rss/cuoi.rss", "rss"),
@@ -14,6 +14,24 @@ FEED_SOURCES: list[tuple[str, str, str]] = [
     ("Google News - Chuyện vui",
      "https://news.google.com/rss/search?q=chuy%E1%BB%87n+vui&hl=vi&gl=VN&ceid=VN:vi",
      "google_news"),
+    # International sources (English): lighthearted and human-interest feeds for memes.
+    ("BBC - Tin chính", "https://feeds.bbci.co.uk/news/rss.xml", "rss"),
+    ("BBC - Khoa học và môi trường",
+     "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", "rss"),
+    ("BBC - Giải trí và nghệ thuật",
+     "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml", "rss"),
+    ("BBC - Công nghệ", "https://feeds.bbci.co.uk/news/technology/rss.xml", "rss"),
+    ("The Guardian - Đời sống", "https://www.theguardian.com/lifeandstyle/rss", "rss"),
+    ("The Guardian - Công nghệ", "https://www.theguardian.com/technology/rss", "rss"),
+    ("NPR - Tin chính", "https://feeds.npr.org/1001/rss.xml", "rss"),
+    ("Good News Network - Tin vui", "https://www.goodnewsnetwork.org/feed/", "rss"),
+    ("UPI - Chuyện lạ", "https://rss.upi.com/news/odd_news.rss", "rss"),
+    ("Google News (Anh) - Tin chính",
+     "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", "google_news"),
+    ("Google News (Anh) - Chuyện vui lan truyền",
+     "https://news.google.com/rss/search?q=funny+viral&hl=en-US&gl=US&ceid=US:en",
+     "google_news"),
+    ("Straits Times - Thế giới", "https://www.straitstimes.com/news/world/rss.xml", "rss"),
 ]
 
 # (idiom or proverb, short meaning). Chosen to be easy to draw as separate visual clues.

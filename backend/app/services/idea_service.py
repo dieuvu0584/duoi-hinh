@@ -102,6 +102,22 @@ def _title_key(title: str) -> str:
     return _fold(title).strip()
 
 
+def pick_batch(items: list[FeedItem], limit: int = MAX_PENDING_ITEMS) -> list[FeedItem]:
+    """Newest first, but the sources take turns, so one busy feed (or the foreign ones) cannot
+    crowd the others out of the limited batch sent to the model."""
+    by_source: dict[uuid.UUID, list[FeedItem]] = {}
+    for item in items:  # `items` is already newest first
+        by_source.setdefault(item.source_id, []).append(item)
+    batch: list[FeedItem] = []
+    depth = 0
+    while len(batch) < limit and any(len(v) > depth for v in by_source.values()):
+        for queue in by_source.values():
+            if len(queue) > depth and len(batch) < limit:
+                batch.append(queue[depth])
+        depth += 1
+    return batch
+
+
 def _store_items(session: Session, sources: list[FeedSource], results: dict, now: datetime) -> int:
     known_titles = {
         _title_key(t) for (t,) in session.execute(
@@ -144,10 +160,10 @@ async def run_scan(
         sources = list(session.scalars(select(FeedSource).where(FeedSource.enabled.is_(True))))
         results = await feed_service.fetch_many([s.url for s in sources], fetch)
         run.items_new = _store_items(session, sources, results, now)
-        pending = list(session.scalars(
+        pending = pick_batch(list(session.scalars(
             select(FeedItem).where(FeedItem.processed_at.is_(None),
                                    FeedItem.fetched_at > now - LOOKBACK)
-            .order_by(FeedItem.published_at.desc().nullslast()).limit(MAX_PENDING_ITEMS)))
+            .order_by(FeedItem.published_at.desc().nullslast()).limit(600))))
         if not pending:
             return _finish(session, run, "done", note="no_new_items")
         candidates = await _shortlist(session, llm, cfg, pending, run, now)
