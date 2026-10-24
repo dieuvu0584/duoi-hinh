@@ -88,6 +88,7 @@ void main() {
   queueTitleTests();
   cancelTests();
   overrideTests();
+  rejectScheduledTests();
   testWidgets('login shows a friendly message for a wrong password', (tester) async {
     final backend = FakeBackend({
       'POST /api/auth/login': (_) =>
@@ -715,6 +716,56 @@ void overrideTests() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(FilledButton, 'Duyệt'), findsNothing);
     expect(find.widgetWithText(FilledButton, 'Sửa và tạo lại'), findsOneWidget);
+  });
+}
+
+
+void rejectScheduledTests() {
+  testWidgets('a scheduled post can be rejected: the schedule is cancelled first', (tester) async {
+    final calls = <String>[];
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, ticket(status: 'SCHEDULED', canApprove: false)),
+      'POST /api/content/abc/cancel-schedule': (_) {
+        calls.add('cancel');
+        return (200, {'cancelled': ['facebook'], 'status': 'APPROVED'});
+      },
+      'POST /api/content/abc/reject': (_) {
+        calls.add('reject');
+        return (200, {});
+      },
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.text('Hủy lịch đăng'), findsOneWidget);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Từ chối'));
+    await tester.pumpAndSettle();
+    expect(calls, isEmpty);
+    await tester.tap(find.widgetWithText(FilledButton, 'Đồng ý'));
+    await tester.pumpAndSettle();
+    expect(calls, ['cancel', 'reject']);
+  });
+
+  testWidgets('if the cancel is refused (an upload is running) the item is NOT rejected', (tester) async {
+    final calls = <String>[];
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, ticket(status: 'SCHEDULED', canApprove: false)),
+      'POST /api/content/abc/cancel-schedule': (_) {
+        calls.add('cancel');
+        return (409, {'error': {'code': 'busy', 'message': 'x'}});
+      },
+      'POST /api/content/abc/reject': (_) {
+        calls.add('reject');
+        return (200, {});
+      },
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Từ chối'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Đồng ý'));
+    await tester.pumpAndSettle();
+    expect(calls, ['cancel']);
+    expect(find.textContaining('thử lại sau một phút'), findsOneWidget);
   });
 }
 

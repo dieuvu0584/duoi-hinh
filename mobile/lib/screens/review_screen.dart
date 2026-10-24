@@ -131,6 +131,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
         done: 'Đã hủy duyệt', pop: true);
   }
 
+  /// Scheduled and now refused: cancel the queue first (drafts are deleted), then reject.
+  Future<void> _rejectScheduled() async {
+    final note = await askNote(context, 'Hủy lịch và từ chối bài này');
+    if (note == null) return;
+    await _act(() async {
+      await _api.cancelSchedule(widget.id);
+      await _api.reject(widget.id, note: note.isEmpty ? 'Từ chối sau khi lên lịch' : note);
+    }, done: 'Đã hủy lịch và từ chối', pop: true);
+  }
+
   Future<void> _cancelSchedule() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -576,6 +586,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
       buttons.add(Expanded(
         child: FilledButton.tonal(
             onPressed: _busy ? null : _cancelSchedule, child: const Text('Hủy lịch đăng')),
+      ));
+      buttons.add(Expanded(
+        child: OutlinedButton(
+            onPressed: _busy ? null : _rejectScheduled, child: const Text('Từ chối')),
       ));
     }
     if (status == 'PUBLISHED') {
