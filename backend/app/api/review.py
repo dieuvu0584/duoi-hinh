@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_owner, get_settings
@@ -49,6 +49,14 @@ def hold_info(item: ContentItem) -> dict[str, Any] | None:
     reason = last.get("reason") if isinstance(last, dict) else None
     return {"kind": kind, "stage": stage, "reason": str(reason)[:600] if reason else None,
             "can_resume": kind == "held" and stage in RESUMABLE_STAGES}
+
+# While an item is still being (re)generated nothing can be approved or published, so the owner may
+# watch the previous version while a new one is made.
+IN_PIPELINE = {
+    ContentState.DRAFT.value, ContentState.ANALYZING.value, ContentState.READY_FOR_GENERATION.value,
+    ContentState.NEEDS_REWORK.value, ContentState.GENERATING.value, ContentState.RENDERING.value,
+    ContentState.QA_PENDING.value, ContentState.FINAL_SAFETY_PENDING.value,
+}
 
 QUEUE_STATES = {
     ContentState.PENDING_APPROVAL.value,
@@ -102,6 +110,8 @@ def list_content(
             "updated_at": item.updated_at.isoformat(),
             "caption": revision.caption if revision else None,
             "overlay_text": revision.overlay_text if revision else None,
+            # what the owner asked for: shown while the item has no text of its own yet
+            "brief": ((item.pipeline_input or {}).get("brief") or "")[:200] or None,
         })
     return {"items": out}
 
@@ -127,6 +137,12 @@ def review_ticket(
         select(VideoAsset).where(VideoAsset.revision_id == revision.id,
                                  VideoAsset.status == "valid").order_by(VideoAsset.target)
     ).all()
+    videos_from: ContentRevision | None = None
+    if not videos and item.status in IN_PIPELINE:
+        # A new version is being made: keep showing the latest earlier one (clearly labelled)
+        # instead of making the video vanish.
+        videos_from, videos = _previous_videos(session, item)
+    rework = _rework_info(session, item, data)
     audio = (
         session.scalar(select(AudioAsset).where(AudioAsset.sha256 == revision.audio_hash))
         if revision.audio_hash else None
@@ -159,9 +175,13 @@ def review_ticket(
         "videos": [
             {"target": v.target, "mode": v.mode, "width": v.width, "height": v.height,
              "duration_s": str(v.duration_s) if v.duration_s is not None else None,
-             "url": f"/api/content/{item.id}/media/{v.target}"}
+             "url": f"/api/content/{item.id}/media/{v.target}"
+                    + (f"?revision={videos_from.id}" if videos_from else "")}
             for v in videos
         ],
+        # True when these videos belong to an EARLIER version while a new one is being made.
+        "videos_are_previous": videos_from is not None,
+        "rework": rework,
         "audio_url": f"/api/content/{item.id}/audio" if audio else None,
         # Informative only: the state machine and the publish gate decide for real.
         "can_approve": item.status == ContentState.PENDING_APPROVAL.value and human_ok,
@@ -188,6 +208,39 @@ def complete_human_review(
     return _review_out(final)
 
 
+def _previous_videos(
+    session: Session, item: ContentItem
+) -> tuple[ContentRevision | None, list[VideoAsset]]:
+    """The newest earlier revision of this item that has valid videos (None when there is none)."""
+    latest = session.scalar(
+        select(VideoAsset).join(ContentRevision, ContentRevision.id == VideoAsset.revision_id)
+        .where(ContentRevision.content_item_id == item.id, VideoAsset.status == "valid")
+        .order_by(VideoAsset.created_at.desc()).limit(1))
+    if latest is None:
+        return None, []
+    revision = session.get(ContentRevision, latest.revision_id)
+    rows = session.scalars(
+        select(VideoAsset).where(VideoAsset.revision_id == latest.revision_id,
+                                 VideoAsset.status == "valid").order_by(VideoAsset.target)).all()
+    return revision, list(rows)
+
+
+def _rework_info(session: Session, item: ContentItem, data: dict[str, Any]) -> dict | None:
+    """Why a new image is being made automatically after a first result (None otherwise)."""
+    from app.db.models import ImageAsset
+    from app.services.settings_service import get_settings_row
+
+    qa = data.get("qa") or []
+    if item.status not in IN_PIPELINE or not qa:
+        return None
+    images = session.scalar(
+        select(func.count()).select_from(ImageAsset).where(ImageAsset.content_item_id == item.id)
+    ) or 0
+    max_images = 1 + get_settings_row(session).max_image_regenerations
+    return {"score": qa[-1].get("score_total"), "issues": data.get("last_qa_issues") or [],
+            "images_made": images, "max_images": max_images}
+
+
 def _serve(cfg: Settings, ref: str, media_type: str) -> FileResponse:
     try:
         path = resolve_media_path(cfg.media_dir, ref)
@@ -200,12 +253,20 @@ def _serve(cfg: Settings, ref: str, media_type: str) -> FileResponse:
 def video(
     content_id: uuid.UUID,
     target: Literal["reel_9x16", "youtube_16x9"],
+    revision_id: uuid.UUID | None = Query(default=None, alias="revision"),
     owner: OwnerAccount = Depends(current_owner),
     session: Session = Depends(get_session),
     cfg: Settings = Depends(get_settings),
 ):
     item = _load(session, content_id)
     revision = content_service.current_revision(session, item)
+    if revision_id is not None and revision_id != revision.id:
+        # An earlier version may be previewed only while the item is still being made (nothing can
+        # be approved or published in those states), and only if it belongs to this item.
+        earlier = session.get(ContentRevision, revision_id)
+        if earlier is None or earlier.content_item_id != item.id or item.status not in IN_PIPELINE:
+            raise ApiError(404, "media_unavailable", "No rendered video for this revision")
+        revision = earlier
     asset = session.scalar(
         select(VideoAsset).where(VideoAsset.revision_id == revision.id,
                                  VideoAsset.target == target, VideoAsset.status == "valid"))

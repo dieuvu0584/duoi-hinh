@@ -366,3 +366,58 @@ def test_an_owner_rejection_has_no_hold_but_a_system_rejection_is_explained(
     assert t["hold"]["can_resume"] is False
     r = client.post(f"/api/content/{item.id}/resume", headers=auth_headers)
     assert r.status_code == 409 and r.json()["error"]["code"] == "not_held"
+
+
+# ------------------------------------------------------- a re-make must not hide the earlier video
+def test_while_a_new_version_is_made_the_previous_video_stays_visible_and_labelled(
+    world, client, auth_headers, db
+):
+    from tests.test_content_pipeline import qa
+
+    world.llm.script("qa", qa(70, "revise", issues=["clue c2 is weak"]), qa(90))
+    item = start_draft(world)
+
+    async def until_remaking():
+        # stage by stage: first QA verdict -> back to generation -> a NEW version is rendering
+        for _ in range(10):
+            await cp.run_stage(db, world.deps, item.id)
+            db.expire_all()
+            row = db.get(ContentItem, item.id)
+            if row.status == "RENDERING" and len(world.images.calls) == 2:
+                return
+
+    run(until_remaking())
+    assert reload(db, item).status == "RENDERING" and len(world.images.calls) == 2
+    t = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
+    assert t["videos_are_previous"] is True and {v["target"] for v in t["videos"]} == {
+        "reel_9x16", "youtube_16x9"}
+    assert t["rework"]["score"] == 70 and "clue c2 is weak" in t["rework"]["issues"]
+    assert t["rework"]["images_made"] == 2 and t["rework"]["max_images"] >= 2
+    url = t["videos"][0]["url"]
+    assert "?revision=" in url
+    from app.api.deps import get_settings
+    from app.main import app
+
+    app.dependency_overrides[get_settings] = lambda: world.cfg  # serve from the fake media dir
+    try:
+        assert client.get(url, headers=auth_headers).status_code == 200  # the earlier one plays
+        # without the revision parameter only the CURRENT revision is served (no video yet)
+        assert client.get(url.split("?")[0], headers=auth_headers).status_code == 404
+        run(cp.run_until_wait(db, world.deps, item.id))  # the new version finishes
+        t = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
+        assert t["status"] == "PENDING_APPROVAL" and t["videos_are_previous"] is False
+        assert t["rework"] is None
+        # an earlier version can no longer be fetched once the item waits for approval
+        assert client.get(url, headers=auth_headers).status_code == 404
+    finally:
+        app.dependency_overrides.pop(get_settings, None)
+    return
+
+
+def test_another_items_revision_cannot_be_fetched_through_this_item(world, client, auth_headers, db):
+    a = start_draft(world)
+    b = start_draft(world)
+    run(cp.run_until_wait(db, world.deps, a.id))
+    other = content_service.current_revision(db, reload(db, a))
+    r = client.get(f"/api/content/{b.id}/media/reel_9x16?revision={other.id}", headers=auth_headers)
+    assert r.status_code == 404

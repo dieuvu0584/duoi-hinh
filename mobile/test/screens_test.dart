@@ -85,6 +85,7 @@ void main() {
   rejectedTests();
   qaFlagTests();
   publishOnApproveTests();
+  queueTitleTests();
   testWidgets('login shows a friendly message for a wrong password', (tester) async {
     final backend = FakeBackend({
       'POST /api/auth/login': (_) =>
@@ -574,6 +575,28 @@ void publishOnApproveTests() {
         {'queued': false, 'reason': 'disabled'});
     await openApproveDialog(tester, backend);
     expect(find.textContaining('bạn chọn giờ đăng sau'), findsOneWidget);
+  });
+}
+
+
+void queueTitleTests() {
+  testWidgets('a row with no text yet shows the idea it was made from', (tester) async {
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content': (_) => (200, {
+            'items': [
+              {'id': '1', 'lane': 'daily_life', 'status': 'DRAFT', 'overlay_text': null,
+               'caption': null, 'brief': 'Một con mèo béo cố chui vào hộp nhỏ'},
+              {'id': '2', 'lane': 'rebus', 'status': 'DRAFT', 'overlay_text': '  ',
+               'caption': 'Đoán xem đây là gì?', 'brief': 'x'},
+              {'id': '3', 'lane': 'rebus', 'status': 'DRAFT'},
+            ]
+          }),
+    }));
+    await tester.pumpWidget(host(api, const Scaffold(body: QueueScreen())));
+    await tester.pumpAndSettle();
+    expect(find.text('Một con mèo béo cố chui vào hộp nhỏ'), findsOneWidget);
+    expect(find.text('Đoán xem đây là gì?'), findsOneWidget); // blank text falls through to caption
+    expect(find.text('(chưa có nội dung)'), findsOneWidget); // only when there is truly nothing
   });
 }
 

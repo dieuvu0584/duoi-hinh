@@ -28,6 +28,15 @@ class QueueScreen extends StatefulWidget {
   State<QueueScreen> createState() => _QueueScreenState();
 }
 
+/// The best name for a row: the on-screen text, else the caption, else the idea it was made from.
+String _title(Map<String, dynamic> it) {
+  for (final key in ['overlay_text', 'caption', 'brief']) {
+    final v = it[key];
+    if (v is String && v.trim().isNotEmpty) return v.trim();
+  }
+  return '(chưa có nội dung)';
+}
+
 class _QueueScreenState extends State<QueueScreen> {
   int _filter = 0;
   late Future<List<Map<String, dynamic>>> _items;
@@ -105,7 +114,7 @@ class _QueueScreenState extends State<QueueScreen> {
                     return ListTile(
                       // Text is always rendered as plain text, never as markup.
                       title: Text(
-                        '${it['overlay_text'] ?? it['caption'] ?? '(chưa có nội dung)'}',
+                        _title(it),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),

@@ -74,7 +74,9 @@ def test_media_of_an_older_revision_is_not_served(served, client, auth_headers, 
     item = pending(served)
     content_service.edit_content(db, owner, item, {"caption": "Một chú thích khác hẳn"})
     t = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
-    assert t["videos"] == [] and t["can_approve"] is False  # the edit invalidated everything
+    assert t["can_approve"] is False  # the edit invalidated the approval basis
+    # any video shown now is labelled as an earlier version and cannot be fetched as "current"
+    assert t["videos"] == [] or t["videos_are_previous"] is True
     r = client.get(f"/api/content/{item.id}/media/reel_9x16", headers=auth_headers)
     assert r.status_code == 404
 
@@ -213,3 +215,14 @@ def test_the_env_values_are_reported_as_defaults(client, owner, auth_headers, mo
     s = client.get(SETTINGS_URL, headers=auth_headers).json()
     assert s["effective"]["elevenlabs_voice_id"] == "OwnVoice2"  # the owner's value wins
     assert "meta_access_token" not in str(s)
+
+
+def test_the_list_shows_the_idea_while_an_item_has_no_text_of_its_own(client, owner, auth_headers, db):
+    from app.services import content_pipeline as cp
+
+    item = cp.start(db, owner, lane="daily_life", brief="Một con mèo béo cố chui vào hộp nhỏ")
+    db.execute(text("UPDATE content_items SET status = 'HELD_FOR_HUMAN'"))
+    db.commit()
+    rows = client.get("/api/content", headers=auth_headers).json()["items"]
+    assert rows[0]["id"] == str(item.id)
+    assert rows[0]["brief"] == "Một con mèo béo cố chui vào hộp nhỏ"
