@@ -482,13 +482,17 @@ async def _qa(session: Session, deps: PipelineDeps, item: ContentItem) -> StageO
     attempts = session.scalar(select(func.count()).select_from(ImageAsset).where(
         ImageAsset.content_item_id == item.id)) or 0
     unfixable = qa["recommendation"] == "reject" or qa["score_total"] < REJECT_SCORE
-    if unfixable or attempts >= settings_row.max_image_regenerations:
+    manual_mode = not settings_row.automation_enabled
+    if unfixable or manual_mode or attempts >= settings_row.max_image_regenerations:
+        # With automation off the owner is reading every result anyway: the score is only a
+        # reference, so nothing is regenerated (and paid for) behind their back.
         # The automatic check is advisory (the owner approves every post anyway), so a poor result
         # is shown to the owner WITH the warning instead of being thrown away: the money is spent
         # and the owner can see at once whether it is usable. The final safety review still runs.
         data = copy.deepcopy(item.pipeline_input or {})
         data["qa_flag"] = {"score": qa["score_total"], "recommendation": qa["recommendation"],
-                           "reason": "unfixable" if unfixable else "regeneration_limit",
+                           "reason": ("unfixable" if unfixable else "manual_mode" if manual_mode
+                                     else "regeneration_limit"),
                            "issues": issues[:8]}
         item.pipeline_input = data
         content_service.transition_content(session, item, CS.FINAL_SAFETY_PENDING, actor="system",

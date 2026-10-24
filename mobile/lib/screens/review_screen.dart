@@ -391,6 +391,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
           Text('Cảnh báo chất lượng', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 4),
           Text('Kiểm tra tự động chấm ${flag['score']} điểm (đạt từ 80). '
+              '${flag['reason'] == 'manual_mode' ? 'Chế độ tự động đang tắt nên điểm chỉ để tham khảo, hệ thống không tự làm lại ảnh. ' : ''}'
               'Hãy xem video kỹ rồi tự quyết định: Duyệt nếu bạn thấy dùng được, Từ chối hoặc '
               '"Sửa và tạo lại" nếu chưa ổn.'),
           for (final i in issues.take(5)) Text('• $i', style: Theme.of(context).textTheme.bodySmall),

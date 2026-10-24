@@ -198,7 +198,7 @@ def world(db, owner, media):
                    x264_preset="ultrafast")
     prompts = cp.load_prompts(cfg.prompts_dir)
     db.execute(text("UPDATE system_settings SET daily_budget_limit=50, monthly_budget_limit=50,"
-                    " news_lane_enabled=false"))
+                    " news_lane_enabled=false, automation_enabled=true"))
     for name, limit in (("anthropic", "5"), ("fal", "4"), ("elevenlabs", "5")):
         db.add(ProviderBudget(provider=name, monthly_limit_usd=Decimal(limit)))
     db.commit()
@@ -449,6 +449,16 @@ def test_the_regeneration_limit_stops_spending_and_shows_the_owner_the_result(wo
     assert item.status == "PENDING_APPROVAL" and len(world.images.calls) == 1
     flag = item.pipeline_input["qa_flag"]
     assert flag["reason"] == "regeneration_limit" and flag["score"] == 70 and flag["issues"]
+
+
+def test_with_automation_off_a_revise_verdict_is_only_a_reference_for_the_owner(world, db):
+    db.execute(text("UPDATE system_settings SET automation_enabled=false"))
+    db.commit()
+    world.llm.script("qa", qa(70, "revise", issues=["x"]))
+    item, _ = go(world)
+    assert item.status == "PENDING_APPROVAL" and len(world.images.calls) == 1  # nothing re-bought
+    flag = item.pipeline_input["qa_flag"]
+    assert flag["reason"] == "manual_mode" and flag["score"] == 70
 
 
 def test_a_hard_failure_overrides_a_high_score(world):
