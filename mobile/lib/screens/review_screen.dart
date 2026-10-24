@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
@@ -317,6 +318,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         if (rev['answer_text'] != null)
           _section('Đáp án / ý nghĩa (chỉ bạn thấy, không đăng)', '${rev['answer_text']}'),
         _explanation(explanation, analysis, rev),
+        _externalPrompts(t['external_prompts'] as List? ?? const []),
         _safety(safety),
         const SizedBox(height: 8),
         Text('Phiên bản ${rev['revision_no']} · mã ${'${rev['content_hash']}'.substring(0, 10)}',
@@ -488,6 +490,39 @@ class _ReviewScreenState extends State<ReviewScreen> {
           SelectableText(text.trim().isEmpty ? '—' : text.trim()),
         ]),
       );
+
+  /// Ready-made prompts for the owner's other AI accounts (Gemini, Flow/Veo, HeyGen).
+  Widget _externalPrompts(List<dynamic> prompts) {
+    if (prompts.isEmpty) return const SizedBox.shrink();
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      title: const Text('Prompt cho công cụ khác (Gemini, Flow, HeyGen)'),
+      children: [
+        for (final p in prompts.whereType<Map>())
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${p['title']}', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 6),
+                SelectableText('${p['text']}'),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: '${p['text']}'));
+                      if (mounted) showMessage(context, 'Đã sao chép prompt.');
+                    },
+                    icon: const Icon(Icons.copy, size: 18),
+                    label: const Text('Sao chép'),
+                  ),
+                ),
+              ]),
+            ),
+          ),
+      ],
+    );
+  }
 
   Widget _explanation(Map<String, dynamic> e, Map<String, dynamic> analysis, Map<String, dynamic> rev) {
     final clues = (rev['clue_mapping'] as List? ?? []);

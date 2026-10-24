@@ -24,7 +24,7 @@ from app.db.models import (
     VideoAsset,
 )
 from app.db.session import get_session
-from app.services import content_service, hold_override
+from app.services import content_service, external_prompts, hold_override
 from app.services.media_paths import UnsafeMediaPath, resolve_media_path
 from app.services.state_machine import ContentState
 
@@ -174,6 +174,10 @@ def review_ticket(
                    "instructions": data.get("owner_instructions"),
                    "last_issues": data.get("last_qa_issues") or []},
         "hold": hold,
+        "external_prompts": external_prompts.build(
+            lane=item.lane, data=data, clue_mapping=revision.clue_mapping,
+            caption=revision.caption, overlay_text=revision.overlay_text,
+            narration_text=revision.narration_text),
         # Set while the pipeline waits (e.g. budget_global_daily): why nothing is moving.
         "waiting": ({"reason": data.get("wait_reason"), "retry_after": data.get("retry_after")}
                     if data.get("wait_reason") else None),

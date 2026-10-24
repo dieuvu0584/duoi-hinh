@@ -433,6 +433,27 @@ void holdTests() {
     expect(resumedBody?['instructions'], 'Vẽ đơn giản hơn');
   });
 
+  testWidgets('ready-made prompts for other AI tools are listed with a copy button',
+      (tester) async {
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, {
+            ...ticket(),
+            'external_prompts': [
+              {'tool': 'gemini', 'title': 'Gemini / Imagen: tạo ảnh', 'text': 'Create ONE illustration'},
+            ],
+          }),
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.textContaining('Prompt cho công cụ khác'), 300,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.textContaining('Prompt cho công cụ khác'));
+    await tester.pumpAndSettle();
+    expect(find.text('Gemini / Imagen: tạo ảnh'), findsOneWidget);
+    expect(find.text('Create ONE illustration'), findsOneWidget);
+    expect(find.text('Sao chép'), findsOneWidget);
+  });
+
   testWidgets('a hold from a review finding cannot be retried, only corrected or rejected',
       (tester) async {
     final api = await loggedIn(FakeBackend({
