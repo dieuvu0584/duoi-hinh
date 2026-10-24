@@ -61,6 +61,7 @@ from app.services.state_machine import ContentState as CS
 log = logging.getLogger(__name__)
 
 PASS_SCORE = 80
+MAX_CONCEPT_REPAIRS = 1  # automatic redesigns of a concept that cannot be drawn
 REJECT_SCORE = 65
 TEMPLATE_ID = "rendition-v1"
 WAITING = {CS.PENDING_APPROVAL, CS.HELD_FOR_HUMAN, CS.REJECTED, CS.BLOCKED, CS.APPROVED,
@@ -200,6 +201,9 @@ async def _analyze(session: Session, deps: PipelineDeps, item: ContentItem) -> S
         return StageOutcome("analyze", item.status, "waiting: voice_not_configured")
     data = copy.deepcopy(item.pipeline_input or {})
     payload = {"lane": item.lane, "brief": data.get("brief"), "answer": data.get("answer")}
+    feedback = data.pop("analysis_feedback", None)
+    if feedback:  # a redesign after the image model could not draw the first concept
+        payload["feedback"] = feedback
     try:
         analysis = await llm_service.call_json(
             session, deps.llm, cfg, purpose="analyze_topic",
@@ -313,9 +317,21 @@ async def _generate(session: Session, deps: PipelineDeps, item: ContentItem) -> 
         except (llm_service.LlmRefused, llm_service.LlmInvalidOutput) as exc:
             return _hold(session, item, CS.HELD_FOR_HUMAN, type(exc).__name__, "generate")
         if image_prompt["status"] != "ok":
+            why = "; ".join(image_prompt["revision_reasons"])
+            data = copy.deepcopy(item.pipeline_input or {})
+            if data.get("concept_repairs", 0) < MAX_CONCEPT_REPAIRS:
+                # The concept cannot be drawn as one picture. Redesign it ONCE automatically (a
+                # small text-only call) instead of stopping and asking the owner to simplify it.
+                data["concept_repairs"] = data.get("concept_repairs", 0) + 1
+                data["analysis_feedback"] = why[:600]
+                item.pipeline_input = data
+                content_service.transition_content(session, item, CS.ANALYZING, actor="system",
+                                                   reason="concept_repair")
+                session.commit()
+                return StageOutcome("generate", CS.ANALYZING.value, "concept_repair",
+                                    {"why": why[:200]})
             return _hold(session, item, CS.HELD_FOR_HUMAN,
-                         "image_prompt_needs_revision: " + "; ".join(
-                             image_prompt["revision_reasons"])[:200], "generate")
+                         "image_prompt_needs_revision: " + why[:200], "generate")
         stored = {"revision_id": str(revision.id), "flux_prompt": image_prompt["flux_prompt"],
                   "visual_explanation": image_prompt["visual_explanation"], "redo": False,
                   "image_id": None}

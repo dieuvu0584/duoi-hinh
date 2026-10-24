@@ -79,7 +79,8 @@ CONTENT_TRANSITIONS: dict[ContentState, frozenset[ContentState]] = {
         {C.READY_FOR_GENERATION, C.RENDERING, C.PENDING_APPROVAL, C.REJECTED}),
     C.READY_FOR_GENERATION: frozenset({C.GENERATING}),
     # Mid-pipeline stops that need a person (e.g. the image prompt cannot represent the idea).
-    C.GENERATING: frozenset({C.RENDERING, C.NEEDS_REWORK, C.HELD_FOR_HUMAN}),
+    # ANALYZING: a concept the image model could not draw is redesigned once, automatically.
+    C.GENERATING: frozenset({C.RENDERING, C.NEEDS_REWORK, C.HELD_FOR_HUMAN, C.ANALYZING}),
     C.RENDERING: frozenset({C.QA_PENDING, C.NEEDS_REWORK, C.HELD_FOR_HUMAN}),
     C.QA_PENDING: frozenset(
         {C.FINAL_SAFETY_PENDING, C.NEEDS_REWORK, C.REJECTED, C.HELD_FOR_HUMAN}

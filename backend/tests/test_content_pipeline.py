@@ -313,10 +313,25 @@ def test_a_refusal_at_analysis_holds_for_a_human(world):
 
 
 # ------------------------------------------------------------------------------ generation
-def test_an_image_prompt_that_needs_revision_holds_for_a_human(world):
+def test_an_image_prompt_that_needs_revision_holds_for_a_human_after_one_automatic_redesign(world):
     world.llm.script("image", image_prompt(status="needs_revision", revision_reasons=["too vague"]))
     item, _ = go(world)
     assert item.status == "HELD_FOR_HUMAN" and world.images.calls == []
+    assert world.llm.count("analyze") == 2  # the concept was redesigned once, not endlessly
+    assert item.pipeline_input["concept_repairs"] == 1
+
+
+def test_a_concept_that_cannot_be_drawn_is_redesigned_automatically_and_then_succeeds(world):
+    world.llm.script("image", image_prompt(status="needs_revision",
+                                           revision_reasons=["four sequential moments"]),
+                     image_prompt())
+    item, _ = go(world)
+    assert item.status == "PENDING_APPROVAL" and len(world.images.calls) == 1
+    analyses = [c for k, c in world.llm.calls if k == "analyze"]
+    assert len(analyses) == 2
+    assert "feedback" not in analyses[0][0]["text"]
+    assert "four sequential moments" in analyses[1][0]["text"]  # the reason goes back to the designer
+    assert "analysis_feedback" not in item.pipeline_input  # used once, then cleared
 
 
 def test_a_budget_stop_waits_and_resuming_never_pays_twice(world, db):
