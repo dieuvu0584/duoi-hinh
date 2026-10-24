@@ -110,12 +110,15 @@ async def publish_loop(*, once, interval, stop, provider, provider_page) -> None
         with session_factory()() as session:
             # The Page is an admin setting: rebuild the provider when the owner changes it.
             page = effective_page_id(get_settings_row(session), settings)
-            if provider is None or page != provider_page:
+            rebuilt = provider is None or page != provider_page
+            if rebuilt:
                 provider, provider_page = get_providers(settings, page), page
                 log.warning("publishing providers=%s page=%s",
                             {k: type(v).__name__ for k, v in provider.items()}, page)
             # The gate refuses to publish without a recent, valid token check.
-            await token_health_service.refresh_if_due(session, provider)
+            # A freshly built provider set (start-up, Page changed, dry-run -> live) is always
+            # checked at once: an older result may belong to a different provider.
+            await token_health_service.refresh_if_due(session, provider, force=rebuilt)
             report = await tick(session, provider, settings)
         log.info("tick: %s", report)
         if once:
