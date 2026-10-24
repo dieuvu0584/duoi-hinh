@@ -54,7 +54,7 @@ Each Reel is narrated in Vietnamese: the voice reads the question/setup for the 
 
 ### What is spoken, by lane
 - **rebus:** introduces the puzzle and the question ("Nhin hinh doan chuyen: day la mon gi?"), may state neutral facts such as the number of words, and invites the viewer to guess. It **never says or spells the answer, and never gives a hint that equals it**. A deterministic check (`leaks_answer`, tones and punctuation ignored) rejects any revision whose narration, caption or overlay contains the answer.
-- **daily_life:** a short setup or punchline for the scene (about 10-25 spoken words).
+- **daily_life:** a short setup or punchline for the scene. The narration repeats the caption (without hashtags) so the voice and the post text agree (about 15-40 spoken words).
 - **news (only if the lane is enabled):** neutral, sourced statements; states that the image is an illustration; always human reviewed.
 
 ### Script
