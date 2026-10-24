@@ -12,6 +12,7 @@ from sqlalchemy import select, text
 from app.core.config import Settings
 from app.core.errors import ApiError
 from app.db.models import (
+    AudioAsset,
     AuditEvent,
     ContentItem,
     CostLedger,
@@ -405,6 +406,28 @@ def test_a_render_failure_holds_for_a_human(world):
     world.deps.render_both = broken
     item, _ = go(world)
     assert item.status == "HELD_FOR_HUMAN" and "render_failed" in str(item.pipeline_input["notes"])
+
+
+def test_a_narration_stored_without_a_duration_is_measured_again_before_rendering(
+        world, monkeypatch):
+    seen = []
+    real = world.deps.render_both
+
+    def spy(session, cfg, *, audio, **kw):
+        seen.append(audio.duration_s)
+        return real(session, cfg, audio=audio, **kw)
+
+    world.deps.render_both = spy
+    monkeypatch.setattr(cp.narration_service, "probe_duration", lambda path: None)
+    first, _ = go(world)  # stored with no duration (the probe failed)
+    assert first.status == "PENDING_APPROVAL"
+    for a in world.db.scalars(select(AudioAsset)):
+        a.duration_s = None
+    world.db.commit()
+    seen.clear()
+    monkeypatch.setattr(cp.narration_service, "probe_duration", lambda path: Decimal("6.500"))
+    again, _ = go(world)
+    assert seen and all(d == Decimal("6.500") for d in seen)
 
 
 # ------------------------------------------------------------------------------ quality gate

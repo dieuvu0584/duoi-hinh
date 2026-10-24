@@ -397,6 +397,12 @@ async def _render(session: Session, deps: PipelineDeps, item: ContentItem) -> St
         CompositionCheck.image_sha256 == revision.media_hash))
     if image is None or audio is None or check is None:
         return _hold(session, item, CS.HELD_FOR_HUMAN, "assets_missing", "render")
+    if audio.duration_s is None:
+        # The probe failed when the narration was stored: measure the file again (the video length
+        # is derived from it) instead of failing the render every time.
+        audio.duration_s = await asyncio.to_thread(
+            narration_service.probe_duration, Path(deps.cfg.media_dir) / audio.storage_ref)
+        session.commit()
     boxes = [Box(**{k: b[k] for k in ("clue_id", "x0", "y0", "x1", "y1")}) for b in check.boxes]
     try:
         # ffmpeg takes minutes: run it in a thread so the worker's publishing loop, token checks
