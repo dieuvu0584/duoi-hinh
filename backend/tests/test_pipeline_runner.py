@@ -460,3 +460,36 @@ def test_a_slow_render_does_not_block_the_event_loop(world, db):
     beats = run(scenario())
     assert reload(db, item).status == "PENDING_APPROVAL"
     assert beats >= 12, f"the loop was starved during the render (only {beats} beats)"
+
+
+# ------------------------------------------------------ the owner's specific instructions
+def test_instructions_reach_the_designer_and_the_image_prompt_step(world, client, auth_headers, db):
+    r = client.post("/api/content/ideas", headers=auth_headers, json={
+        "lane": "daily_life", "brief": "Mèo lười",
+        "instructions": "Vẽ con mèo to hơn, không có đám đông"})
+    assert r.status_code == 201
+    item = db.get(ContentItem, r.json()["id"])
+    assert item.pipeline_input["owner_instructions"] == "Vẽ con mèo to hơn, không có đám đông"
+    run(cp.run_until_wait(db, world.deps, item.id))
+    sent = {k: c for k, c in world.llm.calls}
+    assert "owner_instructions" in sent["analyze"][0]["text"]
+    assert "Vẽ con mèo to hơn" in sent["analyze"][0]["text"]
+    assert "owner_instructions" in sent["image"][0]["text"]  # the picture step sees them too
+
+
+def test_no_instructions_means_no_extra_field_is_sent(world, db):
+    item = start_draft(world)
+    run(cp.run_until_wait(db, world.deps, item.id))
+    sent = {k: c for k, c in world.llm.calls}
+    assert "owner_instructions" not in sent["analyze"][0]["text"]
+    assert reload(db, item).pipeline_input["owner_instructions"] is None
+
+
+def test_instructions_are_limited_and_shown_back_on_the_ticket(world, client, auth_headers, db):
+    too_long = client.post("/api/content/ideas", headers=auth_headers, json={
+        "lane": "daily_life", "brief": "x", "instructions": "y" * 1501})
+    assert too_long.status_code == 422
+    ok = client.post("/api/content/ideas", headers=auth_headers, json={
+        "lane": "daily_life", "brief": "Mèo lười", "instructions": "Nền màu xanh"}).json()
+    t = client.get(f"/api/content/{ok['id']}/review", headers=auth_headers).json()
+    assert t["source"]["instructions"] == "Nền màu xanh"

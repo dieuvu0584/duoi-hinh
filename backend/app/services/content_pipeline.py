@@ -175,9 +175,10 @@ def _text_fields(rev: ContentRevision) -> dict[str, Any]:
 # ----------------------------------------------------------------------------- start
 def start(
     session: Session, owner: OwnerAccount | None, *, lane: str, brief: str,
-    answer: str | None = None,
+    answer: str | None = None, instructions: str | None = None,
 ) -> ContentItem:
-    """Create the item (DRAFT). For a rebus the owner-given answer is the verified answer."""
+    """Create the item (DRAFT). For a rebus the owner-given answer is the verified answer.
+    `instructions` are the owner's specific requests for the AI (e.g. when recreating a video)."""
     if lane not in {"daily_life", "rebus", "news"}:
         raise ApiError(422, "bad_lane", "Unknown lane")
     if not brief.strip() or len(brief) > 2000:
@@ -187,8 +188,11 @@ def start(
     item = content_service.create_content(
         session, owner, lane=lane, revision={"answer_text": answer if lane == "rebus" else None},
         fresh_until=None)
+    if instructions and len(instructions) > 1500:
+        raise ApiError(422, "bad_instructions", "The instructions are too long")
     item.pipeline_input = {"brief": brief.strip(),
-                           "answer": answer.strip() if answer else None, "notes": []}
+                           "answer": answer.strip() if answer else None, "notes": [],
+                           "owner_instructions": (instructions or "").strip() or None}
     session.commit()
     return item
 
@@ -202,6 +206,8 @@ async def _analyze(session: Session, deps: PipelineDeps, item: ContentItem) -> S
         return StageOutcome("analyze", item.status, "waiting: voice_not_configured")
     data = copy.deepcopy(item.pipeline_input or {})
     payload = {"lane": item.lane, "brief": data.get("brief"), "answer": data.get("answer")}
+    if data.get("owner_instructions"):
+        payload["owner_instructions"] = data["owner_instructions"]
     feedback = data.pop("analysis_feedback", None)
     if feedback:  # a redesign after the image model could not draw the first concept
         payload["feedback"] = feedback
@@ -308,6 +314,8 @@ async def _generate(session: Session, deps: PipelineDeps, item: ContentItem) -> 
                 "intended_viewer_inference": analysis.get("intended_viewer_inference"),
                 "ambiguity_risks": analysis.get("ambiguity_risks"),
                 "previous_qa_issues": (item.pipeline_input or {}).get("last_qa_issues", [])}
+        if (item.pipeline_input or {}).get("owner_instructions"):
+            spec["owner_instructions"] = item.pipeline_input["owner_instructions"]
         try:
             image_prompt = await llm_service.call_json(
                 session, deps.llm, cfg, purpose="image_prompt",

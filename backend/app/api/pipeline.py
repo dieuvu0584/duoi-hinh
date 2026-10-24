@@ -28,6 +28,9 @@ class IdeaRequest(BaseModel):
     brief: str = Field(min_length=1, max_length=2000)
     # Rebus only: the owner's verified answer (the model never chooses or changes it).
     answer: str | None = Field(default=None, max_length=500)
+    # Specific requests for the AI (e.g. "make the cat bigger, no crowd"), most useful when the
+    # owner recreates a video they were not happy with.
+    instructions: str | None = Field(default=None, max_length=1500)
 
 
 class ScheduleRequest(BaseModel):
@@ -53,7 +56,7 @@ def create_idea(
 ):
     """Queue an idea; the worker generates it (analysis -> media -> QA -> your approval)."""
     item = content_pipeline.start(session, owner, lane=body.lane, brief=body.brief,
-                                  answer=body.answer)
+                                  answer=body.answer, instructions=body.instructions)
     return {"id": str(item.id), "lane": item.lane, "status": item.status}
 
 

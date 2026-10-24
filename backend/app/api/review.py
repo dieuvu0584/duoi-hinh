@@ -170,7 +170,9 @@ def review_ticket(
         },
         "safety": {"intake": _review_out(intake), "final": _review_out(final)},
         # What the owner originally asked for, so a held idea can be corrected and created again.
-        "source": {"brief": data.get("brief"), "answer": data.get("answer")},
+        "source": {"brief": data.get("brief"), "answer": data.get("answer"),
+                   "instructions": data.get("owner_instructions"),
+                   "last_issues": data.get("last_qa_issues") or []},
         "hold": hold,
         # Set while the pipeline waits (e.g. budget_global_daily): why nothing is moving.
         "waiting": ({"reason": data.get("wait_reason"), "retry_after": data.get("retry_after")}

@@ -454,8 +454,12 @@ void holdTests() {
     expect(find.text('Ôm quạt đợi khuya'), findsOneWidget);
     await tester.enterText(find.widgetWithText(TextField, 'Một con mèo lười dậy sớm'),
         'Một con mèo lười dậy sớm, vẽ thật đơn giản');
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Yêu cầu chỉnh sửa cụ thể cho AI (không bắt buộc)'),
+        'Vẽ con mèo to hơn');
     await tester.tap(find.widgetWithText(FilledButton, 'Tạo bài'));
     await tester.pumpAndSettle();
+    expect(created!['instructions'], 'Vẽ con mèo to hơn');
     expect(created!['lane'], 'rebus');
     expect(created!['brief'], contains('đơn giản'));
     expect(created!['answer'], 'Ôm quạt đợi khuya');

@@ -438,6 +438,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
           initialLane: '${t['lane']}',
           initialBrief: source['brief'] == null ? '' : '${source['brief']}',
           initialAnswer: source['answer'] == null ? '' : '${source['answer']}',
+          initialInstructions: source['instructions'] == null ? '' : '${source['instructions']}',
+          previousIssues: List<Object?>.from(source['last_issues'] as List? ?? [])
+              .map((e) => '$e')
+              .toList(),
+          replaceId: widget.id,
+          replaceStatus: '${t['status']}',
         ),
       ),
     ));
@@ -571,6 +577,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
           child: const Text('Duyệt'),
         ),
       ));
+      if (source['brief'] != null) {
+        buttons.add(Expanded(
+          child: FilledButton.tonal(
+            onPressed: _busy ? null : () => _editAndRecreate(t),
+            child: const Text('Sửa và tạo lại'),
+          ),
+        ));
+      }
     }
     if (status == 'APPROVED') {
       buttons.add(Expanded(

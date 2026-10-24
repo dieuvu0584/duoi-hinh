@@ -5,12 +5,29 @@ import '../api/api_client.dart';
 import '../ui_helpers.dart';
 
 class CreateScreen extends StatefulWidget {
-  const CreateScreen({super.key, this.initialLane, this.initialBrief, this.initialAnswer});
+  const CreateScreen({
+    super.key,
+    this.initialLane,
+    this.initialBrief,
+    this.initialAnswer,
+    this.initialInstructions,
+    this.previousIssues = const [],
+    this.replaceId,
+    this.replaceStatus,
+  });
 
   /// Used to correct a held idea and create it again: the old text is already filled in.
   final String? initialLane;
   final String? initialBrief;
   final String? initialAnswer;
+  final String? initialInstructions;
+
+  /// What the automatic check disliked last time (shown so the owner can answer it).
+  final List<String> previousIssues;
+
+  /// The item being replaced: refused automatically once the new one is queued (if still open).
+  final String? replaceId;
+  final String? replaceStatus;
 
   @override
   State<CreateScreen> createState() => _CreateScreenState();
@@ -20,6 +37,7 @@ class _CreateScreenState extends State<CreateScreen> {
   String _lane = 'daily_life';
   final _brief = TextEditingController();
   final _answer = TextEditingController();
+  final _instructions = TextEditingController();
   bool _busy = false;
 
   @override
@@ -30,6 +48,7 @@ class _CreateScreenState extends State<CreateScreen> {
     }
     _brief.text = widget.initialBrief ?? '';
     _answer.text = widget.initialAnswer ?? '';
+    _instructions.text = widget.initialInstructions ?? '';
   }
 
   Future<void> _submit() async {
@@ -40,13 +59,26 @@ class _CreateScreenState extends State<CreateScreen> {
     }
     setState(() => _busy = true);
     try {
-      await context.read<ApiClient>().createIdea(
+      final api = context.read<ApiClient>();
+      await api.createIdea(
             lane: _lane,
             brief: brief,
             answer: _lane == 'rebus' ? _answer.text : null,
+            instructions: _instructions.text,
           );
+      // Recreating replaces the old version: an item still waiting for the owner is refused so
+      // that two versions of the same idea do not sit in the queue.
+      if (widget.replaceId != null &&
+          const {'PENDING_APPROVAL', 'HELD_FOR_HUMAN'}.contains(widget.replaceStatus)) {
+        try {
+          await api.reject(widget.replaceId!, note: 'Đã tạo lại phiên bản mới');
+        } catch (_) {
+          // The new version is queued either way; the old one can be refused by hand.
+        }
+      }
       _brief.clear();
       _answer.clear();
+      _instructions.clear();
       if (widget.initialBrief != null && mounted) {
         showMessage(context, 'Đã xếp hàng tạo lại. Xem ở mục Bài viết (Đang tạo).');
         Navigator.of(context).pop();
@@ -86,6 +118,34 @@ class _CreateScreenState extends State<CreateScreen> {
             border: const OutlineInputBorder(),
           ),
         ),
+        const SizedBox(height: 12),
+        if (widget.previousIssues.isNotEmpty)
+          Card(
+            color: Theme.of(context).colorScheme.tertiaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Lần trước kiểm tra tự động chê:',
+                    style: Theme.of(context).textTheme.titleSmall),
+                for (final i in widget.previousIssues.take(5))
+                  Text('• $i', style: Theme.of(context).textTheme.bodySmall),
+              ]),
+            ),
+          ),
+        if (widget.previousIssues.isNotEmpty) const SizedBox(height: 12),
+        TextField(
+          controller: _instructions,
+          maxLines: 4,
+          minLines: 2,
+          maxLength: 1500,
+          decoration: const InputDecoration(
+            labelText: 'Yêu cầu chỉnh sửa cụ thể cho AI (không bắt buộc)',
+            helperText:
+                'Ví dụ: vẽ con mèo to hơn, bỏ đám đông, nền xanh, đừng có người thứ hai. AI làm theo khi vẫn vẽ được trong một khung hình.',
+            helperMaxLines: 3,
+            border: OutlineInputBorder(),
+          ),
+        ),
         if (_lane == 'rebus') ...[
           const SizedBox(height: 12),
           TextField(
@@ -114,6 +174,7 @@ class _CreateScreenState extends State<CreateScreen> {
   void dispose() {
     _brief.dispose();
     _answer.dispose();
+    _instructions.dispose();
     super.dispose();
   }
 }

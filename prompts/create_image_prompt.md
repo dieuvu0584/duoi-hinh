@@ -13,6 +13,8 @@ Requirements for the picture:
 - Flat or lightly shaded illustration style, clear silhouettes, high contrast for phones. Never photorealistic news imagery; never a real or identifiable person.
 - For rebus, the picture must NOT show or spell the answer; only the clues.
 
+If the input contains `owner_instructions`, honour them in the picture (composition, size, style, what to include or avoid) while keeping every clue clear and the no-text rule.
+
 Length limits (the checker rejects longer text and the call is wasted): `visual_blueprint` under 1200 characters, `flux_prompt` under 1500, `expected_viewer_interpretation` under 400, `visual_explanation` under 600.
 
 If the concept cannot be drawn clearly, or the answer would be ambiguous, return `needs_revision` with `revision_reasons` instead of a polished but misleading prompt (the other fields may then be brief).

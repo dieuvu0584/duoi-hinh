@@ -22,6 +22,7 @@ class _CandidateScreenState extends State<CandidateScreen> {
   int _selected = -1;
   final _brief = TextEditingController();
   final _answer = TextEditingController();
+  final _instructions = TextEditingController();
 
   ApiClient get _api => context.read<ApiClient>();
 
@@ -113,7 +114,8 @@ class _CandidateScreenState extends State<CandidateScreen> {
           id: widget.id,
           lane: lane,
           brief: _brief.text.trim(),
-          answer: lane == 'rebus' ? _answer.text.trim() : null);
+          answer: lane == 'rebus' ? _answer.text.trim() : null,
+          instructions: _instructions.text);
       if (!mounted) return;
       showMessage(context, 'Đã xếp hàng tạo bài. Xem ở mục Bài viết (Đang tạo).');
       Navigator.of(context).pop();
@@ -207,6 +209,18 @@ class _CandidateScreenState extends State<CandidateScreen> {
                       border: const OutlineInputBorder(),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _instructions,
+                    maxLines: 4,
+                    minLines: 2,
+                    maxLength: 1500,
+                    decoration: const InputDecoration(
+                      labelText: 'Yêu cầu chỉnh sửa cụ thể cho AI (không bắt buộc)',
+                      helperText: 'Ví dụ: vẽ nhân vật to hơn, nền xanh, không có đám đông.',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                   if (_lane == 'rebus') ...[
                     const SizedBox(height: 12),
                     TextField(
@@ -277,6 +291,7 @@ class _CandidateScreenState extends State<CandidateScreen> {
   void dispose() {
     _brief.dispose();
     _answer.dispose();
+    _instructions.dispose();
     super.dispose();
   }
 }

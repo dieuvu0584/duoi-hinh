@@ -263,11 +263,16 @@ class ApiClient {
           data: {'scheduled_for': when.toUtc().toIso8601String(), 'platforms': platforms});
 
   Future<Map<String, dynamic>> createIdea(
-          {required String lane, required String brief, String? answer}) async =>
+          {required String lane,
+          required String brief,
+          String? answer,
+          String? instructions}) async =>
       Map<String, dynamic>.from(await _request('POST', '/api/content/ideas', data: {
         'lane': lane,
         'brief': brief,
-        if (answer != null && answer.trim().isNotEmpty) 'answer': answer.trim(),
+        'answer': ?(answer == null || answer.trim().isEmpty ? null : answer.trim()),
+        'instructions':
+            ?(instructions == null || instructions.trim().isEmpty ? null : instructions.trim()),
       }) as Map);
 
   Future<Map<String, dynamic>> settings() async =>
@@ -317,10 +322,13 @@ class ApiClient {
           {required String id,
           required String lane,
           required String brief,
-          String? answer}) async =>
+          String? answer,
+          String? instructions}) async =>
       Map<String, dynamic>.from(await _request('POST', '/api/ideas/candidates/$id/create', data: {
         'lane': lane,
         'brief': brief,
+        'instructions':
+            ?(instructions == null || instructions.trim().isEmpty ? null : instructions.trim()),
         'answer': ?(answer == null || answer.trim().isEmpty ? null : answer.trim()),
       }) as Map);
 

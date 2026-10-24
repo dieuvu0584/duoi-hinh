@@ -317,11 +317,12 @@ async def propose(
 
 def create_content(
     session: Session, owner: OwnerAccount, candidate_id: uuid.UUID, *, lane: str, brief: str,
-    answer: str | None,
+    answer: str | None, instructions: str | None = None,
 ) -> ContentItem:
     """The owner's final, possibly edited, text starts the pipeline (rebus answer = verified)."""
     cand = _active_candidate(session, candidate_id)
-    item = content_pipeline.start(session, owner, lane=lane, brief=brief, answer=answer)
+    item = content_pipeline.start(session, owner, lane=lane, brief=brief, answer=answer,
+                                  instructions=instructions)
     cand.status, cand.lane, cand.content_item_id = "created", lane, item.id
     record_audit(session, actor=f"owner:{owner.id}", action="ideas.create",
                  entity_type="idea_candidate", entity_id=str(cand.id),

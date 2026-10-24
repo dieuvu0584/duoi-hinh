@@ -100,6 +100,7 @@ class CreateRequest(BaseModel):
     lane: Literal["daily_life", "rebus"]
     brief: str = Field(min_length=1, max_length=2000)
     answer: str | None = Field(default=None, max_length=500)
+    instructions: str | None = Field(default=None, max_length=1500)
 
 
 @router.post("/candidates/{candidate_id}/create", status_code=201)
@@ -111,7 +112,8 @@ def create(
 ):
     """Start the content pipeline from the owner's (edited) brief and verified answer."""
     item = idea_service.create_content(
-        session, owner, candidate_id, lane=body.lane, brief=body.brief, answer=body.answer)
+        session, owner, candidate_id, lane=body.lane, brief=body.brief, answer=body.answer,
+        instructions=body.instructions)
     return {"id": str(item.id), "lane": item.lane, "status": item.status}
 
 
