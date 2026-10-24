@@ -22,6 +22,7 @@ EDITABLE_FIELDS = {
     "elevenlabs_voice_id": str,
     "scan_enabled": bool,
     "youtube_enabled": bool,
+    "publish_on_approve": bool,
     "scan_times": list,
 }
 # Text settings: "" clears the value (the environment value then applies again).
@@ -29,7 +30,8 @@ TEXT_FIELDS = {"facebook_page_id", "youtube_channel_id", "elevenlabs_voice_id"}
 # Changes that widen what the system may do need password confirmation (re-auth).
 # Changing the publishing target is one of them: it decides which Page/channel receives posts.
 REAUTH_FIELDS = {"news_lane_enabled", "daily_budget_limit", "monthly_budget_limit",
-                 "automation_enabled", "facebook_page_id", "youtube_channel_id", "youtube_enabled"}
+                 "automation_enabled", "facebook_page_id", "youtube_channel_id", "youtube_enabled",
+                 "publish_on_approve"}
 
 
 def normalise_scan_times(values: list[str]) -> list[str]:
@@ -92,6 +94,7 @@ def snapshot(row: SystemSettings, cfg=None) -> dict:
         "elevenlabs_voice_id": row.elevenlabs_voice_id,
         "scan_enabled": row.scan_enabled,
         "youtube_enabled": row.youtube_enabled,
+        "publish_on_approve": row.publish_on_approve,
         "scan_times": list(row.scan_times or []),
         # What is actually used: the owner's value, else the .env default.
         "env_defaults": defaults,

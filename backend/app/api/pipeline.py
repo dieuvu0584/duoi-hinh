@@ -6,18 +6,16 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_owner
 from app.api.review import hold_info
 from app.core.errors import ApiError
 from app.db.base import utcnow
-from app.db.models import ContentItem, OwnerAccount, VideoAsset
+from app.db.models import ContentItem, OwnerAccount
 from app.db.session import get_session
 from app.services import content_pipeline, content_service, pipeline_runner
 from app.services import publishing_service as ps
-from app.services.settings_service import get_settings_row
 from app.services.state_machine import ContentState
 
 router = APIRouter(prefix="/content", tags=["pipeline"])
@@ -113,20 +111,9 @@ def schedule(
         raise ApiError(422, "in_the_past", "scheduled_for must be in the future")
     item = _load(session, content_id)
     revision = content_service.current_revision(session, item)
-    platforms = list(dict.fromkeys(body.platforms))
-    if "youtube" in platforms and not get_settings_row(session).youtube_enabled:
-        raise ApiError(409, "youtube_disabled", "YouTube publishing is switched off in Settings")
-    videos = {}
-    for platform in platforms:  # check everything first so nothing is half-scheduled
-        video = session.scalar(select(VideoAsset).where(
-            VideoAsset.revision_id == revision.id,
-            VideoAsset.target == ps.PLATFORM_TARGET[platform], VideoAsset.status == "valid"))
-        if video is None:
-            raise ApiError(409, "no_video", "There is no rendered video for the approved revision")
-        videos[platform] = video
-    records = [ps.schedule(session, item=item, scheduled_for=body.scheduled_for,
-                           actor=f"owner:{owner.id}", video_ref=videos[p].storage_ref, platform=p)
-               for p in platforms]
+    del revision  # the service reads the current revision itself
+    records = ps.schedule_item(session, item=item, when=body.scheduled_for,
+                               platforms=list(body.platforms), actor=f"owner:{owner.id}")
     first = records[0]
     return {"record_id": str(first.id), "status": first.status,
             "scheduled_for": first.scheduled_for.isoformat(),

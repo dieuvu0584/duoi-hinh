@@ -66,20 +66,56 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
   }
 
+  /// What approving will do, in the owner's words (it may publish at once).
+  String _approveConsequence(Map<String, dynamic> s) {
+    if (s['publish_on_approve'] != true) {
+      return 'Bài sẽ chuyển sang "Đã duyệt"; bạn chọn giờ đăng sau.';
+    }
+    final where = s['youtube_enabled'] == true ? 'Facebook và YouTube' : 'Facebook';
+    if (s['publishing_kill_switch'] == true) {
+      return 'Công tắc đăng đang TẮT nên bài chỉ được duyệt, chưa đăng. Bật lại ở tab Hệ thống để đăng.';
+    }
+    if (s['automation_enabled'] != true) {
+      return 'Tự động đăng đang TẮT nên bài chỉ được duyệt, chưa đăng. Bật ở tab Hệ thống.';
+    }
+    return 'Bài sẽ được ĐĂNG NGAY lên $where (sau khi hệ thống tải lên và kiểm tra, khoảng vài phút), không cần hẹn giờ.';
+  }
+
   Future<void> _approve() async {
+    var consequence = 'Bài sẽ chuyển sang "Đã duyệt".';
+    try {
+      consequence = _approveConsequence(await _api.settings());
+    } catch (_) {
+      // Settings could not be read: the dialog still works, the server decides.
+    }
+    if (!mounted) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Duyệt bài này?'),
-        content: const Text(
-            'Bạn xác nhận đã xem video, lời đọc và chú thích. Mọi chỉnh sửa sau đó sẽ làm lệnh duyệt mất hiệu lực.'),
+        content: Text(
+            'Bạn xác nhận đã xem video, lời đọc và chú thích. Mọi chỉnh sửa sau đó sẽ làm lệnh duyệt mất hiệu lực.\n\n$consequence'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Duyệt')),
         ],
       ),
     );
-    if (ok == true) await _act(() => _api.approve(widget.id), done: 'Đã duyệt');
+    if (ok != true) return;
+    String? message;
+    await _act(() async {
+      final result = await _api.approve(widget.id);
+      final publish = Map<String, dynamic>.from(result['publish'] as Map? ?? {});
+      message = publish['queued'] == true
+          ? 'Đã duyệt và xếp hàng đăng ngay lên ${(publish['platforms'] as List).map((p) => p == 'youtube' ? 'YouTube' : 'Facebook').join(' + ')}.'
+          : switch ('${publish['reason']}') {
+              'kill_switch' => 'Đã duyệt. Chưa đăng vì công tắc đăng đang tắt.',
+              'automation_disabled' => 'Đã duyệt. Chưa đăng vì tự động đăng đang tắt.',
+              'disabled' => 'Đã duyệt. Bạn chọn giờ đăng ở nút "Lên lịch đăng".',
+              _ => 'Đã duyệt nhưng chưa xếp hàng đăng (${publish['reason']}). Hãy lên lịch bằng tay.',
+            };
+    }, done: null);
+    if (mounted && message != null) showMessage(context, message!);
   }
 
   Future<void> _reject() async {

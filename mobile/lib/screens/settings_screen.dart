@@ -124,6 +124,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return changes;
   }
 
+  Future<void> _togglePublishOnApprove(bool value) async {
+    await _save(() async {
+      await withReauth(
+          context, (pw) async => _api.putSettings({'publish_on_approve': value}, password: pw),
+          reason: 'Đổi cách đăng sau khi duyệt cần mật khẩu');
+    }, value ? 'Duyệt xong sẽ đăng ngay' : 'Duyệt xong sẽ chờ bạn chọn giờ');
+  }
+
   Future<void> _toggleYoutube(bool value) async {
     await _save(() async {
       await withReauth(
@@ -185,6 +193,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           Text('Nơi đăng và giọng đọc', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Duyệt xong tự đăng ngay'),
+            subtitle: const Text(
+                'Bấm Duyệt là đăng luôn, không phải chọn giờ. Vẫn qua mọi bước kiểm tra, và công tắc dừng đăng vẫn chặn được. Cần mật khẩu.'),
+            value: _settings!['publish_on_approve'] == true,
+            onChanged: _busy ? null : _togglePublishOnApprove,
+          ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Đăng lên YouTube'),

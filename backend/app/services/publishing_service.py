@@ -121,6 +121,54 @@ def schedule(
     return record
 
 
+def schedule_item(
+    session: Session, *, item: ContentItem, when: datetime, platforms: list[str], actor: str,
+) -> list[PublishingRecord]:
+    """Schedule the item's current revision on each platform (all checked before any is created)."""
+    from app.db.models import VideoAsset
+    from app.services.settings_service import get_settings_row
+
+    revision = session.get(ContentRevision, item.current_revision_id)
+    if revision is None:
+        raise ApiError(409, "no_revision", "Content has no revision")
+    platforms = list(dict.fromkeys(platforms))
+    if "youtube" in platforms and not get_settings_row(session).youtube_enabled:
+        raise ApiError(409, "youtube_disabled", "YouTube publishing is switched off in Settings")
+    videos = {}
+    for platform in platforms:
+        video = session.scalar(select(VideoAsset).where(
+            VideoAsset.revision_id == revision.id,
+            VideoAsset.target == PLATFORM_TARGET[platform], VideoAsset.status == "valid"))
+        if video is None:
+            raise ApiError(409, "no_video", "There is no rendered video for the approved revision")
+        videos[platform] = video
+    return [schedule(session, item=item, scheduled_for=when, actor=actor,
+                     video_ref=videos[p].storage_ref, platform=p) for p in platforms]
+
+
+def publish_now_after_approval(session: Session, item: ContentItem, *, actor: str) -> dict:
+    """Approval = publish: queue the approved item for immediate publishing when the owner switched
+    that on and nothing forbids it. It only QUEUES: the worker still runs the whole pre-publish
+    gate (approval, review, token, limits, kill switch) right before each upload and publish."""
+    from app.services.settings_service import get_settings_row
+
+    row = get_settings_row(session)
+    if not row.publish_on_approve:
+        return {"queued": False, "reason": "disabled"}
+    if row.publishing_kill_switch:
+        return {"queued": False, "reason": "kill_switch"}
+    if not row.automation_enabled:
+        return {"queued": False, "reason": "automation_disabled"}
+    platforms = ["facebook"] + (["youtube"] if row.youtube_enabled else [])
+    try:
+        records = schedule_item(session, item=item, when=utcnow(), platforms=platforms,
+                                actor=actor)
+    except ApiError as exc:  # the approval stays; the owner can schedule by hand
+        session.rollback()
+        return {"queued": False, "reason": exc.code}
+    return {"queued": True, "platforms": [r.platform for r in records]}
+
+
 async def prepare(
     session: Session, provider: ReelsPublishingProvider, record_id: uuid.UUID, *,
     video_path: Path, description: str, actor: str = "system",

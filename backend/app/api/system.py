@@ -52,6 +52,7 @@ class SettingsUpdate(BaseModel):
     elevenlabs_voice_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{0,80}$")
     scan_enabled: bool | None = None
     youtube_enabled: bool | None = None
+    publish_on_approve: bool | None = None
     # Times of day in Vietnam time, e.g. ["10:00", "16:00"]; validated and sorted by the service.
     scan_times: list[str] | None = Field(default=None, max_length=8)
 

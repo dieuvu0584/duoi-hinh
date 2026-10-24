@@ -84,6 +84,7 @@ void main() {
   holdTests();
   rejectedTests();
   qaFlagTests();
+  publishOnApproveTests();
   testWidgets('login shows a friendly message for a wrong password', (tester) async {
     final backend = FakeBackend({
       'POST /api/auth/login': (_) =>
@@ -519,6 +520,60 @@ void qaFlagTests() {
     expect(find.textContaining('không có học sinh thì thầm'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Duyệt')).onPressed,
         isNotNull);
+  });
+}
+
+
+void publishOnApproveTests() {
+  Future<FakeBackend> approving(Map<String, Object?> settings, Map<String, Object?> publish) async =>
+      FakeBackend({
+        'GET /api/content/abc/review': (_) => (200, ticket()),
+        'GET /api/system/settings': (_) => (200, settings),
+        'POST /api/content/abc/approve': (_) => (200, {'publish': publish}),
+      });
+
+  Future<void> openApproveDialog(WidgetTester tester, FakeBackend backend) async {
+    final api = await loggedIn(backend);
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Duyệt'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('the approve dialog says the post goes out at once, on which platforms', (tester) async {
+    final backend = await approving({
+      'publish_on_approve': true,
+      'publishing_kill_switch': false,
+      'automation_enabled': true,
+      'youtube_enabled': true,
+    }, {'queued': true, 'platforms': ['facebook', 'youtube']});
+    await openApproveDialog(tester, backend);
+    expect(find.textContaining('ĐĂNG NGAY lên Facebook và YouTube'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Duyệt').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('xếp hàng đăng ngay lên Facebook + YouTube'), findsOneWidget);
+  });
+
+  testWidgets('with the kill switch on the dialog warns that nothing will be published',
+      (tester) async {
+    final backend = await approving({
+      'publish_on_approve': true,
+      'publishing_kill_switch': true,
+      'automation_enabled': true,
+      'youtube_enabled': false,
+    }, {'queued': false, 'reason': 'kill_switch'});
+    await openApproveDialog(tester, backend);
+    expect(find.textContaining('Công tắc đăng đang TẮT'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Duyệt').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Chưa đăng vì công tắc đăng đang tắt'), findsOneWidget);
+  });
+
+  testWidgets('with auto-publish off, approving only approves', (tester) async {
+    final backend = await approving({'publish_on_approve': false},
+        {'queued': false, 'reason': 'disabled'});
+    await openApproveDialog(tester, backend);
+    expect(find.textContaining('bạn chọn giờ đăng sau'), findsOneWidget);
   });
 }
 

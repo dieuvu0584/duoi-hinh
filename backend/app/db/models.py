@@ -98,6 +98,9 @@ class SystemSettings(TimestampMixin, Base):
     # Idea scanning: owner-chosen times of day (Vietnam time, "HH:MM"). Off until the owner turns
     # it on, because every scan spends a little on the LLM.
     youtube_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Approving publishes at once (no time to pick), on every enabled platform, if the kill switch
+    # is off and automation is on. The approval is still the human decision.
+    publish_on_approve: Mapped[bool] = mapped_column(Boolean, default=True)
     scan_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     scan_times: Mapped[list[str]] = mapped_column(
         JSONB, default=lambda: ["10:00", "16:00", "20:00", "00:00"])

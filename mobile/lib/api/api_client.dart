@@ -228,8 +228,10 @@ class ApiClient {
   Future<Map<String, dynamic>> ticket(String id) async =>
       Map<String, dynamic>.from(await _request('GET', '/api/content/$id/review') as Map);
 
-  Future<void> approve(String id, {String? note}) =>
-      _request('POST', '/api/content/$id/approve', data: {'note': note});
+  /// Approves; the answer says whether the post was also queued for publishing right away.
+  Future<Map<String, dynamic>> approve(String id, {String? note}) async =>
+      Map<String, dynamic>.from(
+          await _request('POST', '/api/content/$id/approve', data: {'note': note}) as Map);
 
   Future<void> reject(String id, {String? note}) =>
       _request('POST', '/api/content/$id/reject', data: {'note': note});

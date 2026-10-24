@@ -10,7 +10,7 @@ from app.api.deps import current_owner
 from app.core.errors import ApiError
 from app.db.models import ContentItem, OwnerAccount
 from app.db.session import get_session
-from app.services import content_service
+from app.services import content_service, publishing_service
 
 router = APIRouter(prefix="/content", tags=["content"])
 
@@ -109,7 +109,12 @@ def approve(
 ):
     item = _load(session, content_id)
     content_service.approve(session, owner, item, note=body.note)
-    return _out(session, item)
+    # "Approve" can also mean "publish now" (a setting): the result tells the app what happened.
+    publish = publishing_service.publish_now_after_approval(
+        session, item, actor=f"owner:{owner.id}")
+    out = _out(session, item)
+    out["publish"] = publish
+    return out
 
 
 @router.post("/{content_id}/reject")
