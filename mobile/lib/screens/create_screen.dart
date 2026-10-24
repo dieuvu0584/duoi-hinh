@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
 import '../ui_helpers.dart';
+import 'prompts_sheet.dart';
 
 class CreateScreen extends StatefulWidget {
   const CreateScreen({
@@ -163,11 +164,31 @@ class _CreateScreenState extends State<CreateScreen> {
           icon: const Icon(Icons.auto_awesome),
           label: const Text('Tạo bài'),
         ),
+        OutlinedButton.icon(
+          onPressed: _busy ? null : _showPrompts,
+          icon: const Icon(Icons.copy_all_outlined),
+          label: const Text('Lấy prompt cho Gemini, Flow, HeyGen'),
+        ),
         const SizedBox(height: 8),
         Text('Mảng tin tức đang tắt theo quyết định D-16.',
             style: Theme.of(context).textTheme.bodySmall),
       ],
     );
+  }
+
+  Future<void> _showPrompts() async {
+    final brief = _brief.text.trim();
+    if (brief.isEmpty) {
+      showMessage(context, 'Hãy mô tả ý tưởng trước.');
+      return;
+    }
+    try {
+      final prompts = await context.read<ApiClient>().promptsForOtherTools(
+          lane: _lane, brief: brief, instructions: _instructions.text);
+      if (mounted) await showPromptsSheet(context, prompts);
+    } catch (e) {
+      if (mounted) showMessage(context, friendlyError(e));
+    }
   }
 
   @override

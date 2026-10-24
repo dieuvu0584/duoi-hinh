@@ -21,3 +21,22 @@ def test_all_tools_get_a_prompt_with_the_clues_and_the_owners_requests():
 def test_nothing_is_invented_when_the_concept_is_missing():
     assert ep.build(lane="daily_life", data={}, clue_mapping=[], caption=None,
                     overlay_text=None, narration_text=None) == []
+
+
+def test_prompts_from_the_idea_text_before_the_concept_exists():
+    out = ep.build_from_brief(lane="rebus", brief="Một chiếc ô và một cái bánh",
+                              instructions="nền xanh")
+    by = {p["tool"]: p["text"] for p in out}
+    assert set(by) == {"gemini", "flow", "gemini_text", "heygen"}
+    assert "Một chiếc ô và một cái bánh" in by["gemini"] and "nền xanh" in by["gemini"]
+    assert "never the answer" in by["gemini"] and "KHÔNG được nói hay gợi ra đáp án" in by["gemini_text"]
+    assert ep.build_from_brief(lane="daily_life", brief="  ", instructions=None) == []
+
+
+def test_the_prompts_endpoint_needs_login_and_returns_prompts(client, owner, auth_headers):
+    body = {"lane": "daily_life", "brief": "Mèo lười dậy sớm"}
+    assert client.post("/api/ideas/prompts", json=body).status_code == 401
+    r = client.post("/api/ideas/prompts", json=body, headers=auth_headers)
+    assert r.status_code == 200 and len(r.json()["prompts"]) == 4
+    assert client.post("/api/ideas/prompts", json={**body, "lane": "news"},
+                       headers=auth_headers).status_code == 422

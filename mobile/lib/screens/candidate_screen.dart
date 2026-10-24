@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
 import '../ui_helpers.dart';
+import 'prompts_sheet.dart';
 
 class CandidateScreen extends StatefulWidget {
   const CandidateScreen({super.key, required this.id});
@@ -239,6 +240,11 @@ class _CandidateScreenState extends State<CandidateScreen> {
                     icon: const Icon(Icons.auto_awesome),
                     label: const Text('Tạo bài'),
                   ),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : _showPrompts,
+                    icon: const Icon(Icons.copy_all_outlined),
+                    label: const Text('Lấy prompt cho Gemini, Flow, HeyGen'),
+                  ),
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                     TextButton(
                         onPressed: _busy
@@ -256,6 +262,21 @@ class _CandidateScreenState extends State<CandidateScreen> {
               ],
             ),
     );
+  }
+
+  Future<void> _showPrompts() async {
+    final brief = _brief.text.trim();
+    if (brief.isEmpty) {
+      showMessage(context, 'Hãy mô tả ý tưởng trước.');
+      return;
+    }
+    try {
+      final prompts = await _api.promptsForOtherTools(
+          lane: _lane!, brief: brief, instructions: _instructions.text);
+      if (mounted) await showPromptsSheet(context, prompts);
+    } catch (e) {
+      if (mounted) showMessage(context, friendlyError(e));
+    }
   }
 
   Widget _optionCard(int i) {

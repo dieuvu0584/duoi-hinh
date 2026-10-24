@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nhd_admin/api/api_client.dart';
 import 'package:nhd_admin/api/token_store.dart';
 import 'package:nhd_admin/media_saver.dart';
+import 'package:nhd_admin/screens/create_screen.dart';
 import 'package:nhd_admin/screens/lessons_screen.dart';
 import 'package:nhd_admin/screens/login_screen.dart';
 import 'package:nhd_admin/screens/queue_screen.dart';
@@ -338,6 +339,31 @@ void main() {
       expect(sent!['rating'], 2);
       expect(sent!['labels'], ['bad_text']);
       expect(find.widgetWithText(FilledButton, 'Đã lưu'), findsOneWidget);
+    });
+
+    testWidgets('prompts for other AI tools can be taken as soon as an idea is written', (tester) async {
+      Map? sent;
+      final api = await loggedIn(FakeBackend({
+        'POST /api/ideas/prompts': (c) {
+          sent = c.body as Map?;
+          return (200, {
+            'prompts': [
+              {'tool': 'gemini', 'title': 'Gemini / Imagen: tạo ảnh', 'text': 'Scene: mèo lười'},
+            ]
+          });
+        },
+      }));
+      await tester.pumpWidget(host(api, const Scaffold(body: CreateScreen())));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Lấy prompt cho Gemini, Flow, HeyGen'));
+      await tester.pumpAndSettle();
+      expect(sent, isNull); // nothing is requested without an idea text
+      await tester.enterText(find.byType(TextField).first, 'mèo lười');
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Lấy prompt cho Gemini, Flow, HeyGen'));
+      await tester.pumpAndSettle();
+      expect(sent!['brief'], 'mèo lười');
+      expect(find.text('Scene: mèo lười'), findsOneWidget);
+      expect(find.text('Sao chép'), findsOneWidget);
     });
 
     testWidgets('lessons: a proposed lesson can be approved and approved ones are listed', (tester) async {

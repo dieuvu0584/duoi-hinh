@@ -15,7 +15,7 @@ from app.core.errors import ApiError
 from app.core.urlsafety import is_safe_public_https_url
 from app.db.models import FeedSource, IdeaCandidate, Idiom, OwnerAccount, ScanRun
 from app.db.session import get_session
-from app.services import idea_service
+from app.services import external_prompts, idea_service
 from app.services.audit import record_audit
 
 router = APIRouter(prefix="/ideas", tags=["ideas"])
@@ -101,6 +101,23 @@ class CreateRequest(BaseModel):
     brief: str = Field(min_length=1, max_length=2000)
     answer: str | None = Field(default=None, max_length=500)
     instructions: str | None = Field(default=None, max_length=1500)
+
+
+class PromptsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    lane: Literal["daily_life", "rebus"]
+    brief: str = Field(min_length=1, max_length=2000)
+    instructions: str | None = Field(default=None, max_length=1500)
+
+
+@router.post("/prompts")
+def prompts_for_other_tools(
+    body: PromptsRequest,
+    owner: OwnerAccount = Depends(current_owner),
+):
+    """Copy-ready prompts (Gemini, Flow/Veo, HeyGen) from the idea text; no model call, no cost."""
+    return {"prompts": external_prompts.build_from_brief(
+        lane=body.lane, brief=body.brief, instructions=body.instructions)}
 
 
 @router.post("/candidates/{candidate_id}/create", status_code=201)

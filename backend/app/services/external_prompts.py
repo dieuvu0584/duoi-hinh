@@ -76,3 +76,46 @@ def build(*, lane: str, data: dict[str, Any], clue_mapping: list[Any], caption: 
         prompts.append({"tool": "text", "title": "Chữ và chú thích để dán",
                         "text": "\n".join(parts)})
     return prompts
+
+
+def build_from_brief(*, lane: str, brief: str, instructions: str | None) -> list[dict[str, str]]:
+    """Prompts available as soon as an idea is chosen, before the concept is designed.
+
+    Only the owner's own text is used (brief and requests); the rebus answer is not an input."""
+    brief = brief.strip()
+    extra = (instructions or "").strip()
+    if not brief:
+        return []
+    image = [
+        "Create ONE flat, lightly shaded illustration with clear silhouettes and high contrast "
+        "for phones (never photorealistic, never a real person).",
+        f"Scene: {brief}",
+    ]
+    if extra:
+        image.append(f"Extra requests: {extra}")
+    if lane == "rebus":
+        image.append("This is a visual puzzle: draw only the clues described, never the answer, "
+                     "and no text.")
+    image += [FRAMING, NO_TEXT]
+    video = (
+        "Animate the supplied still picture into an 8 second vertical-friendly clip. Camera: very "
+        "slow push-in (about 5 percent), no cuts. Characters: only tiny natural motion (blink, "
+        "breathing, a small head or hand movement). Keep every object exactly where it is and "
+        "keep all clues in the centre of the frame visible the whole time. No new objects, no "
+        "text, no logos, no morphing. Keep the flat illustration style. Silent clip (the "
+        "voiceover is added later)." + (f"\nExtra requests: {extra}" if extra else ""))
+    script = (
+        "Viết bằng tiếng Việt, giọng thân thiện, vui. Trả về 2 phần: (1) CHÚ THÍCH đăng kèm 15-40 "
+        "từ, câu đơn giản, không emoji, không hashtag, số viết bằng chữ; (2) CHỮ TRÊN VIDEO tối "
+        "đa 6 từ gợi tình huống nhưng không nói ra điểm hài. "
+        + ("Đây là câu đố hình: KHÔNG được nói hay gợi ra đáp án. " if lane == "rebus" else "")
+        + f"\nÝ tưởng: {brief}" + (f"\nYêu cầu thêm: {extra}" if extra else ""))
+    return [
+        {"tool": "gemini", "title": "Gemini / Imagen: tạo ảnh vuông 1:1",
+         "text": "\n".join(image)},
+        {"tool": "flow", "title": "Google Flow / Veo: tạo video từ ảnh", "text": video},
+        {"tool": "gemini_text", "title": "Gemini: viết chú thích và lời đọc", "text": script},
+        {"tool": "heygen", "title": "HeyGen: đọc lời (dán chú thích đã duyệt vào)",
+         "text": "Language: Vietnamese. Tone: friendly, playful, medium pace, clear pronunciation "
+                 "of tones. Read exactly the text I paste next, nothing more."},
+    ]

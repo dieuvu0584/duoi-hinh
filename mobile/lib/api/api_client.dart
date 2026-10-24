@@ -365,6 +365,16 @@ class ApiClient {
 
   Future<void> deleteIdiom(String id) => _request('DELETE', '/api/ideas/idioms/$id');
 
+  Future<List<Map<String, dynamic>>> promptsForOtherTools(
+      {required String lane, required String brief, String? instructions}) async {
+    final body = await _request('POST', '/api/ideas/prompts', data: {
+      'lane': lane,
+      'brief': brief,
+      'instructions': ?_nonEmpty(instructions),
+    });
+    return List<Map<String, dynamic>>.from((body as Map)['prompts'] as List);
+  }
+
   Future<void> saveFeedback(String id,
           {required int rating, required List<String> labels, String? note}) =>
       _request('POST', '/api/content/$id/feedback',
