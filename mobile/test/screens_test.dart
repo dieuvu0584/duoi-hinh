@@ -87,6 +87,7 @@ void main() {
   publishOnApproveTests();
   queueTitleTests();
   cancelTests();
+  overrideTests();
   testWidgets('login shows a friendly message for a wrong password', (tester) async {
     final backend = FakeBackend({
       'POST /api/auth/login': (_) =>
@@ -666,6 +667,54 @@ void cancelTests() {
     await tester.tap(find.widgetWithText(FilledButton, 'Gỡ bài'));
     await tester.pumpAndSettle();
     expect(sent, {'reason': 'Sai nội dung', 'password': 'my password'});
+  });
+}
+
+
+void overrideTests() {
+  Map<String, Object?> heldWithVideo({required bool override}) => {
+        ...ticket(status: 'HELD_FOR_HUMAN', canApprove: false),
+        'hold': {
+          'kind': 'held',
+          'stage': 'safety',
+          'reason': 'LlmInvalidOutput',
+          'can_resume': false,
+          'can_override': override,
+        },
+        'source': {'brief': 'Mèo lười', 'answer': null},
+      };
+
+  testWidgets('a held item whose automatic review failed to finish can still be approved',
+      (tester) async {
+    var approvedHeld = 0;
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, heldWithVideo(override: true)),
+      'GET /api/system/settings': (_) => (200, {'publish_on_approve': false}),
+      'POST /api/content/abc/approve-held': (_) {
+        approvedHeld++;
+        return (200, {'publish': {'queued': false, 'reason': 'disabled'}});
+      },
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('không chạy xong'), findsWidgets);
+    await tester.tap(find.widgetWithText(FilledButton, 'Duyệt'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Bạn tự chịu trách nhiệm'), findsOneWidget);
+    expect(approvedHeld, 0); // nothing before the owner confirms
+    await tester.tap(find.widgetWithText(FilledButton, 'Duyệt').last);
+    await tester.pumpAndSettle();
+    expect(approvedHeld, 1);
+  });
+
+  testWidgets('a hold from a real finding offers no approve button', (tester) async {
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content/abc/review': (_) => (200, heldWithVideo(override: false)),
+    }));
+    await tester.pumpWidget(host(api, const ReviewScreen(id: 'abc')));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(FilledButton, 'Duyệt'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Sửa và tạo lại'), findsOneWidget);
   });
 }
 

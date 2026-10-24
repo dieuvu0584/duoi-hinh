@@ -24,7 +24,7 @@ from app.db.models import (
     VideoAsset,
 )
 from app.db.session import get_session
-from app.services import content_service
+from app.services import content_service, hold_override
 from app.services.media_paths import UnsafeMediaPath, resolve_media_path
 from app.services.state_machine import ContentState
 
@@ -143,6 +143,9 @@ def review_ticket(
         # instead of making the video vanish.
         videos_from, videos = _previous_videos(session, item)
     rework = _rework_info(session, item, data)
+    hold = hold_info(item)
+    if hold is not None and hold["kind"] == "held":
+        hold["can_override"] = hold_override.can_override(session, item)
     audio = (
         session.scalar(select(AudioAsset).where(AudioAsset.sha256 == revision.audio_hash))
         if revision.audio_hash else None
@@ -168,7 +171,7 @@ def review_ticket(
         "safety": {"intake": _review_out(intake), "final": _review_out(final)},
         # What the owner originally asked for, so a held idea can be corrected and created again.
         "source": {"brief": data.get("brief"), "answer": data.get("answer")},
-        "hold": hold_info(item),
+        "hold": hold,
         # Set while the pipeline waits (e.g. budget_global_daily): why nothing is moving.
         "waiting": ({"reason": data.get("wait_reason"), "retry_after": data.get("retry_after")}
                     if data.get("wait_reason") else None),

@@ -23,11 +23,11 @@
         "brand_fit": { "type": "number", "minimum": 0, "maximum": 100 }
       }
     },
-    "hard_failures": { "type": "array", "items": { "type": "string", "maxLength": 300 }, "maxItems": 12 },
-    "missing_clues": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "maxItems": 12 },
-    "ambiguous_alternatives": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "maxItems": 8 },
-    "crop_or_text_issues": { "type": "array", "items": { "type": "string", "maxLength": 300 }, "maxItems": 12 },
+    "hard_failures": { "type": "array", "items": { "type": "string", "maxLength": 800 }, "maxItems": 12 },
+    "missing_clues": { "type": "array", "items": { "type": "string", "maxLength": 800 }, "maxItems": 12 },
+    "ambiguous_alternatives": { "type": "array", "items": { "type": "string", "maxLength": 600 }, "maxItems": 8 },
+    "crop_or_text_issues": { "type": "array", "items": { "type": "string", "maxLength": 800 }, "maxItems": 12 },
     "recommendation": { "enum": ["pass", "revise", "reject"] },
-    "explanation": { "type": "string", "maxLength": 800 }
+    "explanation": { "type": "string", "maxLength": 3000 }
   }
 }

@@ -9,4 +9,4 @@ Report `hard_failures` (any of these overrides every score): a missing or duplic
 
 `recommendation`: `pass` only if there are no hard failures and `score_total` is at least 80; `revise` for 65-79 or fixable problems; `reject` below 65 or for a fundamental failure. Scores are heuristic; the backend enforces the thresholds and hard failures itself.
 
-Return JSON only, matching `docs/schemas/quality_review.schema.json`. No markdown fences.
+Keep each text field concise (the `explanation` under 600 characters, each issue one sentence). Return JSON only, matching `docs/schemas/quality_review.schema.json`. No markdown fences.

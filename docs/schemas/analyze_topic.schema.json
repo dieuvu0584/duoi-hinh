@@ -13,8 +13,8 @@
   "properties": {
     "decision": { "enum": ["proceed", "hold_for_human", "reject"] },
     "reasons": { "type": "array", "items": { "type": "string" }, "description": "Why hold or reject; empty when proceeding." },
-    "answer_or_message": { "type": "string", "maxLength": 300 },
-    "intended_viewer_inference": { "type": "string", "maxLength": 400 },
+    "answer_or_message": { "type": "string", "maxLength": 600 },
+    "intended_viewer_inference": { "type": "string", "maxLength": 800 },
     "clue_mapping": {
       "type": "array",
       "maxItems": 8,
@@ -24,8 +24,8 @@
         "required": ["clue_id", "visual_clue", "maps_to", "operation"],
         "properties": {
           "clue_id": { "type": "string", "maxLength": 40 },
-          "visual_clue": { "type": "string", "maxLength": 200 },
-          "maps_to": { "type": "string", "maxLength": 200 },
+          "visual_clue": { "type": "string", "maxLength": 600 },
+          "maps_to": { "type": "string", "maxLength": 500 },
           "operation": { "enum": ["literal", "homophone", "drop_tone", "add", "remove", "sound_alike", "position", "metaphor"] }
         }
       }
@@ -37,6 +37,6 @@
     "hashtags": { "type": "array", "items": { "type": "string", "maxLength": 40 }, "maxItems": 5 },
     "overlay_text": { "type": "string", "maxLength": 200 },
     "narration_text": { "type": "string", "maxLength": 600 },
-    "reasoning_summary": { "type": "string", "maxLength": 600 }
+    "reasoning_summary": { "type": "string", "maxLength": 1500 }
   }
 }

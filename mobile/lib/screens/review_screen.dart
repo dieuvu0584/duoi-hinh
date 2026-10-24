@@ -81,7 +81,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     return 'Bài sẽ được ĐĂNG NGAY lên $where (sau khi hệ thống tải lên và kiểm tra, khoảng vài phút), không cần hẹn giờ.';
   }
 
-  Future<void> _approve() async {
+  Future<void> _approve({bool held = false}) async {
     var consequence = 'Bài sẽ chuyển sang "Đã duyệt".';
     try {
       consequence = _approveConsequence(await _api.settings());
@@ -92,9 +92,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Duyệt bài này?'),
-        content: Text(
-            'Bạn xác nhận đã xem video, lời đọc và chú thích. Mọi chỉnh sửa sau đó sẽ làm lệnh duyệt mất hiệu lực.\n\n$consequence'),
+        title: Text(held ? 'Tự duyệt bài này?' : 'Duyệt bài này?'),
+        content: Text((held
+                ? 'Kiểm tra an toàn tự động của Claude không chạy xong. Bạn tự chịu trách nhiệm: '
+                    'hãy xem hết video, đọc chú thích và lời đọc trước khi duyệt. '
+                    'Việc kiểm tra bắt buộc về lộ đáp án và từ cấm vẫn được chạy.\n\n'
+                : 'Bạn xác nhận đã xem video, lời đọc và chú thích. Mọi chỉnh sửa sau đó sẽ làm lệnh duyệt mất hiệu lực.\n\n') +
+            consequence),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Duyệt')),
@@ -104,7 +108,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
     if (ok != true) return;
     String? message;
     await _act(() async {
-      final result = await _api.approve(widget.id);
+      final result =
+          held ? await _api.approveHeld(widget.id) : await _api.approve(widget.id);
       final publish = Map<String, dynamic>.from(result['publish'] as Map? ?? {});
       message = publish['queued'] == true
           ? 'Đã duyệt và xếp hàng đăng ngay lên ${(publish['platforms'] as List).map((p) => p == 'youtube' ? 'YouTube' : 'Facebook').join(' + ')}.'
@@ -317,7 +322,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final kind = '${hold['kind']}';
     final reason = hold['reason'] == null ? '' : '${hold['reason']}';
     if (kind != 'held') return _rejectedCard(kind, stage, reason);
-    final advice = switch (stage) {
+    final advice = hold['can_override'] == true
+        ? 'Kiểm tra an toàn tự động không chạy xong (Claude trả kết quả lỗi), không phải do nội dung có vấn đề. '
+            'Video đã dựng xong: bạn xem kỹ rồi bấm "Duyệt" nếu thấy ổn.'
+        : switch (stage) {
       'render' =>
         'Dựng video bị lỗi (thường do máy quá chậm). Bấm "Thử lại" để dựng lại; ảnh và giọng đọc đã có nên không tốn thêm tiền.',
       'generate' =>
@@ -507,6 +515,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
     final hold = t['hold'] == null ? null : Map<String, dynamic>.from(t['hold'] as Map);
     final source = Map<String, dynamic>.from(t['source'] as Map? ?? {});
+    if (status == 'HELD_FOR_HUMAN' && hold?['can_override'] == true) {
+      buttons.add(Expanded(
+        child: FilledButton(
+          onPressed: _busy ? null : () => _approve(held: true),
+          child: const Text('Duyệt'),
+        ),
+      ));
+    }
     if (status == 'HELD_FOR_HUMAN' && hold?['can_resume'] == true) {
       buttons.add(Expanded(
         child: FilledButton(

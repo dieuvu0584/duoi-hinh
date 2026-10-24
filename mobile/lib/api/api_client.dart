@@ -228,6 +228,11 @@ class ApiClient {
   Future<Map<String, dynamic>> ticket(String id) async =>
       Map<String, dynamic>.from(await _request('GET', '/api/content/$id/review') as Map);
 
+  /// Approves an item whose automatic review could not finish (the owner's own review stands in).
+  Future<Map<String, dynamic>> approveHeld(String id, {String? note}) async =>
+      Map<String, dynamic>.from(
+          await _request('POST', '/api/content/$id/approve-held', data: {'note': note}) as Map);
+
   /// Approves; the answer says whether the post was also queued for publishing right away.
   Future<Map<String, dynamic>> approve(String id, {String? note}) async =>
       Map<String, dynamic>.from(

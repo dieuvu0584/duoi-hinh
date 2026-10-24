@@ -19,11 +19,11 @@
         "required": ["category", "description"],
         "properties": {
           "category": { "type": "string", "maxLength": 60 },
-          "description": { "type": "string", "maxLength": 400 }
+          "description": { "type": "string", "maxLength": 1000 }
         }
       }
     },
-    "required_changes": { "type": "array", "items": { "type": "string", "maxLength": 300 }, "maxItems": 8 },
-    "summary": { "type": "string", "maxLength": 600 }
+    "required_changes": { "type": "array", "items": { "type": "string", "maxLength": 800 }, "maxItems": 8 },
+    "summary": { "type": "string", "maxLength": 2000 }
   }
 }

@@ -27,4 +27,4 @@ Hard rules:
 - If the input also contains `feedback`, your previous concept could not be drawn for that reason: redesign it completely as ONE simpler moment (same topic, same frozen answer for a rebus), do not patch it.
 - Do not ask the image model for readable text; on-screen words come from `overlay_text`, added later by code.
 
-Return JSON only, matching the schema `docs/schemas/analyze_topic.schema.json` (every field is required). No markdown fences.
+Keep `visual_clue` under 200 characters (one concrete object or expression), `maps_to` short and `reasoning_summary` under 500 characters. Return JSON only, matching the schema `docs/schemas/analyze_topic.schema.json` (every field is required). No markdown fences.

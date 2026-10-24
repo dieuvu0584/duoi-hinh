@@ -9,4 +9,4 @@ Return:
 
 You only advise. The backend decides, derives whether a human must review, and sets expiry; a numerical impression is never a reason to allow. Never invent evidence. When unsure, choose `hold_for_human`.
 
-Return JSON only, matching `docs/schemas/safety_review.schema.json` (every field required). No markdown fences.
+Keep each text field concise (the `summary` under 400 characters, each finding one or two sentences). Return JSON only, matching `docs/schemas/safety_review.schema.json` (every field required). No markdown fences.
