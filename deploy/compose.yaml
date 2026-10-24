@@ -6,9 +6,13 @@ services:
     build:
       context: ..
       dockerfile: backend/Dockerfile
-    env_file: ../.env
+    env_file:
+      - ../.env
+      - path: .env.secrets  # NHD_JWT_SECRET (needed once NHD_ENVIRONMENT is not development)
+        required: false
     environment:
       NHD_MEDIA_DIR: /app/media
+      NHD_PUBLISH_MODE: live  # same as the worker (the API only validates it, it never publishes)
     volumes:
       - ../media:/app/media:ro  # review previews are served from here
     ports:
@@ -27,7 +31,10 @@ services:
       context: ..
       dockerfile: backend/Dockerfile
     command: ["python", "-m", "app.worker"]
-    env_file: ../.env
+    env_file:
+      - ../.env
+      - path: .env.secrets  # NHD_JWT_SECRET (needed once NHD_ENVIRONMENT is not development)
+        required: false
     environment:
       NHD_MEDIA_DIR: /app/media
       # Rendering runs on the PC's CPU: veryfast keeps a render to about a minute instead of ~8.
