@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI
 
-from app.api import auth, content, costs, ideas, pipeline, review, system
+from app.api import auth, content, costs, feedback, ideas, pipeline, review, system
 from app.core.config import settings
 from app.core.errors import install_error_handling
 from app.core.logging import configure_logging
@@ -25,6 +25,7 @@ def create_app() -> FastAPI:
     api.include_router(review.router)
     api.include_router(pipeline.router)
     api.include_router(ideas.router)
+    api.include_router(feedback.router)
     api.include_router(costs.router)
     app.include_router(api)
 

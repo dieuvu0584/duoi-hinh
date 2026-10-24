@@ -22,9 +22,10 @@ from app.db.models import (
     OwnerAccount,
     SafetyReview,
     VideoAsset,
+    VideoFeedback,
 )
 from app.db.session import get_session
-from app.services import content_service, external_prompts, hold_override
+from app.services import content_service, external_prompts, feedback_service, hold_override
 from app.services.media_paths import UnsafeMediaPath, resolve_media_path
 from app.services.state_machine import ContentState
 
@@ -174,6 +175,8 @@ def review_ticket(
                    "instructions": data.get("owner_instructions"),
                    "last_issues": data.get("last_qa_issues") or []},
         "hold": hold,
+        "feedback": feedback_service.feedback_out(session.scalar(
+            select(VideoFeedback).where(VideoFeedback.content_item_id == item.id))),
         "external_prompts": external_prompts.build(
             lane=item.lane, data=data, clue_mapping=revision.clue_mapping,
             caption=revision.caption, overlay_text=revision.overlay_text,

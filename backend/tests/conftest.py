@@ -57,7 +57,7 @@ def db(engine):
                 " approvals, safety_reviews, content_revisions, content_items, token_health,"
                 " cost_ledger, provider_budgets, audio_assets, video_assets, image_assets,"
                 " composition_checks, llm_calls, feed_items, idea_candidates, scan_runs,"
-                " feed_sources, idioms CASCADE"
+                " feed_sources, idioms, lessons CASCADE"
             )
         )
         conn.execute(

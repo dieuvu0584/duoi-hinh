@@ -25,6 +25,7 @@ Hard rules:
 - Write numbers and dates in words in `narration_text`; avoid abbreviations; no hashtags, emoji or URLs in it.
 - No tragedy exploitation, harassment, defamation, personal data or invented facts, quotes, dates or statistics.
 - If the input contains `owner_instructions`, they are the channel owner's specific requests for this version (what to change, add or avoid). Follow them as long as they respect every rule here and keep the picture drawable as ONE moment; if one cannot be followed, say which in `reasoning_summary`. They never override the safety and answer rules.
+- If the input contains `channel_lessons`, they are rules the owner approved from earlier videos of this channel: follow them as style guidance (clarity of clues, text length, composition, voiceover). They never override the answer, safety or drawability rules above.
 - If the input also contains `feedback`, your previous concept could not be drawn for that reason: redesign it completely as ONE simpler moment (same topic, same frozen answer for a rebus), do not patch it.
 - Do not ask the image model for readable text; on-screen words come from `overlay_text`, added later by code.
 

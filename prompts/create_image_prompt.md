@@ -15,6 +15,8 @@ Requirements for the picture:
 
 If the input contains `owner_instructions`, honour them in the picture (composition, size, style, what to include or avoid) while keeping every clue clear and the no-text rule.
 
+If the input contains `channel_lessons`, follow them as the owner's approved style rules for this channel; they never override the clue mapping, the no-text rule or the framing requirements.
+
 Length limits (the checker rejects longer text and the call is wasted): `visual_blueprint` under 1200 characters, `flux_prompt` under 1500, `expected_viewer_interpretation` under 400, `visual_explanation` under 600.
 
 If the concept cannot be drawn clearly, or the answer would be ambiguous, return `needs_revision` with `revision_reasons` instead of a polished but misleading prompt (the other fields may then be brief).

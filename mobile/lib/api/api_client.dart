@@ -364,4 +364,31 @@ class ApiClient {
       _request('POST', '/api/ideas/idioms', data: {'text': text, 'meaning': meaning});
 
   Future<void> deleteIdiom(String id) => _request('DELETE', '/api/ideas/idioms/$id');
+
+  Future<void> saveFeedback(String id,
+          {required int rating, required List<String> labels, String? note}) =>
+      _request('POST', '/api/content/$id/feedback',
+          data: {'rating': rating, 'labels': labels, 'note': (note ?? '').trim()});
+
+  Future<Map<String, dynamic>> feedbackSummary() async =>
+      Map<String, dynamic>.from(await _request('GET', '/api/feedback/summary') as Map);
+
+  Future<List<Map<String, dynamic>>> lessons() async {
+    final body = await _request('GET', '/api/lessons');
+    return List<Map<String, dynamic>>.from((body as Map)['lessons'] as List);
+  }
+
+  Future<void> addLesson(String text, {String lane = 'all'}) =>
+      _request('POST', '/api/lessons', data: {'text': text, 'lane': lane});
+
+  Future<void> setLessonStatus(String id, String status) =>
+      _request('PATCH', '/api/lessons/$id', data: {'status': status});
+
+  Future<void> deleteLesson(String id) => _request('DELETE', '/api/lessons/$id');
+
+  /// Returns how many new lessons Claude proposed (nothing is applied until approved).
+  Future<int> distillLessons() async {
+    final body = await _request('POST', '/api/lessons/distill');
+    return ((body as Map)['proposed'] as List).length;
+  }
 }

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nhd/lessons_distill/1",
+  "title": "LessonsDistillResult",
+  "description": "Short, concrete rules for this channel's videos, drawn only from the owner's feedback. The owner approves each one before it reaches any prompt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["lessons"],
+  "properties": {
+    "lessons": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "lane", "reason"],
+        "properties": {
+          "text": { "type": "string", "maxLength": 300 },
+          "lane": { "enum": ["all", "daily_life", "rebus", "news"] },
+          "reason": { "type": "string", "maxLength": 300 }
+        }
+      }
+    }
+  }
+}

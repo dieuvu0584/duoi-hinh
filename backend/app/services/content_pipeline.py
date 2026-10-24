@@ -48,6 +48,7 @@ from app.providers.errors import ProviderError
 from app.services import (
     composition_service,
     content_service,
+    feedback_service,
     image_service,
     llm_service,
     narration_service,
@@ -208,6 +209,9 @@ async def _analyze(session: Session, deps: PipelineDeps, item: ContentItem) -> S
     payload = {"lane": item.lane, "brief": data.get("brief"), "answer": data.get("answer")}
     if data.get("owner_instructions"):
         payload["owner_instructions"] = data["owner_instructions"]
+    lessons = feedback_service.approved_lessons(session, item.lane)
+    if lessons:
+        payload["channel_lessons"] = lessons
     feedback = data.pop("analysis_feedback", None)
     if feedback:  # a redesign after the image model could not draw the first concept
         payload["feedback"] = feedback
@@ -316,6 +320,9 @@ async def _generate(session: Session, deps: PipelineDeps, item: ContentItem) -> 
                 "previous_qa_issues": (item.pipeline_input or {}).get("last_qa_issues", [])}
         if (item.pipeline_input or {}).get("owner_instructions"):
             spec["owner_instructions"] = item.pipeline_input["owner_instructions"]
+        lessons = feedback_service.approved_lessons(session, item.lane)
+        if lessons:
+            spec["channel_lessons"] = lessons
         try:
             image_prompt = await llm_service.call_json(
                 session, deps.llm, cfg, purpose="image_prompt",

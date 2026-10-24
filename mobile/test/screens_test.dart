@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nhd_admin/api/api_client.dart';
 import 'package:nhd_admin/api/token_store.dart';
 import 'package:nhd_admin/media_saver.dart';
+import 'package:nhd_admin/screens/lessons_screen.dart';
 import 'package:nhd_admin/screens/login_screen.dart';
 import 'package:nhd_admin/screens/queue_screen.dart';
 import 'package:nhd_admin/screens/review_screen.dart';
@@ -308,6 +309,61 @@ void main() {
              'url': '/api/content/abcdef12/media/youtube_16x9'},
           ],
         };
+
+    testWidgets('the owner can rate the video; the verdict is sent to the backend', (tester) async {
+      Map? sent;
+      final api = await loggedIn(FakeBackend({
+        'GET /api/content/abcdef12/review': (_) => (200, withVideos()),
+        'POST /api/content/abcdef12/feedback': (c) {
+          sent = c.body as Map?;
+          return (200, {'rating': 2, 'labels': ['bad_text'], 'note': 'chu xau'});
+        },
+      }));
+      await tester.pumpWidget(MultiProvider(
+        providers: [Provider<ApiClient>.value(value: api), Provider<MediaSaver>.value(value: _FakeSaver())],
+        child: const MaterialApp(home: ReviewScreen(id: 'abcdef12')),
+      ));
+      await tester.pumpAndSettle();
+      final star = find.byTooltip('2 sao');
+      await tester.scrollUntilVisible(star, 200, scrollable: find.byType(Scrollable).first);
+      await tester.tap(star);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Chữ chưa ổn'));
+      await tester.tap(find.text('Chữ chưa ổn'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Lưu đánh giá'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Lưu đánh giá'));
+      await tester.pumpAndSettle();
+      expect(sent!['rating'], 2);
+      expect(sent!['labels'], ['bad_text']);
+      expect(find.widgetWithText(FilledButton, 'Đã lưu'), findsOneWidget);
+    });
+
+    testWidgets('lessons: a proposed lesson can be approved and approved ones are listed', (tester) async {
+      var status = 'proposed';
+      final api = await loggedIn(FakeBackend({
+        'GET /api/lessons': (_) => (200, {
+              'lessons': [
+                {'id': 'l1', 'text': 'Chữ tối đa 4 từ', 'lane': 'all', 'status': status,
+                 'source': 'auto', 'reason': '3 video', 'created_at': 'x'},
+              ]
+            }),
+        'GET /api/feedback/summary': (_) => (200, {'count': 3, 'by_lane': {'rebus': {'count': 3, 'average': 2.5}}, 'labels': {}}),
+        'PATCH /api/lessons/l1': (c) {
+          status = (c.body as Map)['status'] as String;
+          return (200, {});
+        },
+      }));
+      await tester.pumpWidget(host(api, const LessonsScreen()));
+      await tester.pumpAndSettle();
+      expect(find.text('Đề xuất, chờ bạn duyệt (1)'), findsOneWidget);
+      expect(find.textContaining('3 video đã đánh giá'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Duyệt'));
+      await tester.pumpAndSettle();
+      expect(status, 'approved');
+      expect(find.text('Đang áp dụng (1)'), findsOneWidget);
+    });
 
     testWidgets('the owner can save the selected video to the phone before approving', (tester) async {
       final saver = _FakeSaver();

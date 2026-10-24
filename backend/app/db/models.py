@@ -520,3 +520,44 @@ class Idiom(Base):
     meaning: Mapped[str] = mapped_column(String(300), default="")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class VideoFeedback(Base):
+    """The owner's verdict on a finished video: one row per content item (the latest wins)."""
+
+    __tablename__ = "video_feedback"
+    __table_args__ = (
+        CheckConstraint("rating BETWEEN 1 AND 5", name="rating_valid"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    content_item_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("content_items.id"), unique=True)
+    revision_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("content_revisions.id"))
+    rating: Mapped[int] = mapped_column(Integer)
+    labels: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    note: Mapped[str] = mapped_column(String(500), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Lesson(Base):
+    """A short rule for this channel's videos, distilled from feedback and approved by the owner.
+
+    Only `approved` lessons reach a prompt; they are style guidance and never override the
+    answer, safety or schema rules (the backend enforces those itself)."""
+
+    __tablename__ = "lessons"
+    __table_args__ = (
+        CheckConstraint("status IN ('proposed', 'approved', 'rejected')", name="status_valid"),
+        CheckConstraint("lane IN ('all', 'daily_life', 'rebus', 'news')", name="lane_valid"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    text: Mapped[str] = mapped_column(String(300))
+    lane: Mapped[str] = mapped_column(String(10), default="all")
+    status: Mapped[str] = mapped_column(String(10), default="proposed")
+    source: Mapped[str] = mapped_column(String(10), default="auto")  # auto | owner
+    reason: Mapped[str] = mapped_column(String(300), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

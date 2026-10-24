@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
 import '../ui_helpers.dart';
+import 'lessons_screen.dart';
 
 class StatusScreen extends StatefulWidget {
   const StatusScreen({super.key});
@@ -116,6 +117,15 @@ class _StatusScreenState extends State<StatusScreen> {
             subtitle: const Text('Dừng mọi lệnh gọi trả phí để tạo bài mới.'),
             value: s['generation_paused'] == true,
             onChanged: _busy ? null : (v) => _toggle('generation_paused', v, reason: 'Xác nhận'),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.school_outlined),
+            title: const Text('Bài học rút kinh nghiệm'),
+            subtitle: const Text('Đánh giá video, Claude rút quy tắc cho kênh, bạn duyệt.'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context)
+                .push(MaterialPageRoute<void>(builder: (_) => const LessonsScreen())),
           ),
           const Divider(),
           Text('Chi phí (USD)', style: Theme.of(context).textTheme.titleMedium),

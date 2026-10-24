@@ -7,6 +7,7 @@ import '../api/api_client.dart';
 import '../media_saver.dart';
 import '../ui_helpers.dart';
 import 'create_screen.dart';
+import 'feedback_card.dart';
 
 class ReviewScreen extends StatefulWidget {
   const ReviewScreen({super.key, required this.id});
@@ -318,6 +319,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
         if (rev['answer_text'] != null)
           _section('Đáp án / ý nghĩa (chỉ bạn thấy, không đăng)', '${rev['answer_text']}'),
         _explanation(explanation, analysis, rev),
+        if ((t['videos'] as List? ?? const []).isNotEmpty && t['videos_are_previous'] != true)
+          FeedbackCard(
+              key: ValueKey('feedback-${widget.id}'),
+              id: widget.id,
+              initial: t['feedback'] == null
+                  ? null
+                  : Map<String, dynamic>.from(t['feedback'] as Map)),
         _externalPrompts(t['external_prompts'] as List? ?? const []),
         _safety(safety),
         const SizedBox(height: 8),
