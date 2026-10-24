@@ -244,7 +244,9 @@ class ApiClient {
   Future<void> completeHumanReview(String id) =>
       _request('POST', '/api/content/$id/human-review/complete');
 
-  Future<void> resumeHeld(String id) => _request('POST', '/api/content/$id/resume');
+  Future<void> resumeHeld(String id, {String? instructions}) => _request(
+      'POST', '/api/content/$id/resume',
+      data: {'instructions': ?_nonEmpty(instructions)});
 
   /// Takes a queued/scheduled post back before it is public (drafts at the platforms are deleted).
   Future<Map<String, dynamic>> cancelSchedule(String id) async => Map<String, dynamic>.from(
@@ -256,7 +258,11 @@ class ApiClient {
       Map<String, dynamic>.from(await _request('POST', '/api/content/$id/retract',
           data: {'reason': reason, 'password': password}) as Map);
 
-  Future<void> retryNow(String id) => _request('POST', '/api/content/$id/retry');
+  Future<void> retryNow(String id, {String? instructions}) => _request(
+      'POST', '/api/content/$id/retry',
+      data: {'instructions': ?_nonEmpty(instructions)});
+
+  static String? _nonEmpty(String? s) => s == null || s.trim().isEmpty ? null : s.trim();
 
   Future<void> schedule(String id, DateTime when, {List<String> platforms = const ['facebook']}) =>
       _request('POST', '/api/content/$id/schedule',

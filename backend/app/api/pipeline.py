@@ -33,6 +33,18 @@ class IdeaRequest(BaseModel):
     instructions: str | None = Field(default=None, max_length=1500)
 
 
+class RerunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    # Specific requests for the AI before this item runs again; replaces earlier ones when given.
+    instructions: str | None = Field(default=None, max_length=1500)
+
+
+def _store_instructions(item: ContentItem, body: RerunRequest | None) -> None:
+    text = ((body.instructions if body else None) or "").strip()
+    if text:
+        item.pipeline_input = {**(item.pipeline_input or {}), "owner_instructions": text}
+
+
 class ScheduleRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scheduled_for: datetime
@@ -63,6 +75,7 @@ def create_idea(
 @router.post("/{content_id}/retry")
 def retry_now(
     content_id: uuid.UUID,
+    body: RerunRequest | None = None,
     owner: OwnerAccount = Depends(current_owner),
     session: Session = Depends(get_session),
 ):
@@ -70,6 +83,7 @@ def retry_now(
     item = _load(session, content_id)
     if item.status not in {s.value for s in pipeline_runner.ACTIVE}:
         raise ApiError(409, "not_in_pipeline", "This item is not being generated")
+    _store_instructions(item, body)
     pipeline_runner.clear_retry(session, item)
     return {"id": str(item.id), "status": item.status}
 
@@ -77,6 +91,7 @@ def retry_now(
 @router.post("/{content_id}/resume")
 def resume_held(
     content_id: uuid.UUID,
+    body: RerunRequest | None = None,
     owner: OwnerAccount = Depends(current_owner),
     session: Session = Depends(get_session),
 ):
@@ -95,6 +110,7 @@ def resume_held(
     # not bought again); a failed generation starts the generation stage over.
     target = (ContentState.RENDERING if hold["stage"] == "render"
               else ContentState.READY_FOR_GENERATION)
+    _store_instructions(item, body)
     content_service.transition_content(session, item, target, actor=f"owner:{owner.id}",
                                        reason="owner_resume")
     pipeline_runner.clear_retry(session, item)

@@ -145,6 +145,16 @@ def test_retry_clears_the_back_off_only_for_items_in_the_pipeline(world, client,
                        headers=auth_headers).status_code == 409
 
 
+def test_retry_can_carry_new_instructions_for_the_ai(world, client, auth_headers, db):
+    item = start_draft(world)
+    r = client.post(f"/api/content/{item.id}/retry", headers=auth_headers,
+                    json={"instructions": "  Vẽ con mèo to hơn  "})
+    assert r.status_code == 200
+    assert reload(db, item).pipeline_input["owner_instructions"] == "Vẽ con mèo to hơn"
+    assert client.post(f"/api/content/{item.id}/retry", headers=auth_headers,
+                       json={"instructions": "x" * 1501}).status_code == 422
+
+
 def approved(world, client, auth_headers):
     item = start_draft(world)
     run(cp.run_until_wait(world.db, world.deps, item.id))

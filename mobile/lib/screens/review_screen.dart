@@ -429,6 +429,35 @@ class _ReviewScreenState extends State<ReviewScreen> {
     );
   }
 
+  /// Asks for optional specific requests for the AI, then runs [action] with them.
+  Future<void> _askInstructionsThen(Future<void> Function(String? text) action,
+      {String? done}) async {
+    final c = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Yêu cầu cho AI trước khi chạy lại'),
+        content: TextField(
+          controller: c,
+          maxLines: 4,
+          minLines: 2,
+          maxLength: 1500,
+          decoration: const InputDecoration(
+            hintText: 'Không bắt buộc. Ví dụ: vẽ nhân vật to hơn, bỏ đám đông, nền xanh.',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Chạy lại')),
+        ],
+      ),
+    );
+    final text = c.text; // not disposed here: the dialog is still animating out
+    if (ok != true) return;
+    await _act(() => action(text), done: done);
+  }
+
   Future<void> _editAndRecreate(Map<String, dynamic> t) async {
     final source = Map<String, dynamic>.from(t['source'] as Map? ?? {});
     final created = await Navigator.of(context).push<void>(MaterialPageRoute<void>(
@@ -544,7 +573,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
         child: FilledButton(
           onPressed: _busy
               ? null
-              : () => _act(() => _api.resumeHeld(widget.id), done: 'Đã cho chạy lại'),
+              : () => _askInstructionsThen(
+                  (text) => _api.resumeHeld(widget.id, instructions: text),
+                  done: 'Đã cho chạy lại'),
           child: const Text('Thử lại'),
         ),
       ));
@@ -618,7 +649,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }.contains(status)) {
       buttons.add(Expanded(
         child: OutlinedButton(
-            onPressed: _busy ? null : () => _act(() => _api.retryNow(widget.id), done: 'Sẽ chạy lại ở lượt kế tiếp'),
+            onPressed: _busy
+                ? null
+                : () => _askInstructionsThen(
+                    (text) => _api.retryNow(widget.id, instructions: text),
+                    done: 'Sẽ chạy lại ở lượt kế tiếp'),
             child: const Text('Chạy lại ngay')),
       ));
     }

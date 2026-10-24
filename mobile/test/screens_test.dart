@@ -406,10 +406,12 @@ void holdTests() {
 
   testWidgets('a held item explains why and offers retry, edit and reject', (tester) async {
     var resumed = 0;
+    Map? resumedBody;
     final api = await loggedIn(FakeBackend({
       'GET /api/content/abc/review': (_) => (200, held()),
-      'POST /api/content/abc/resume': (_) {
+      'POST /api/content/abc/resume': (c) {
         resumed++;
+        resumedBody = c.body as Map?;
         return (200, {});
       },
     }));
@@ -423,7 +425,12 @@ void holdTests() {
     expect(find.widgetWithText(FilledButton, 'Duyệt'), findsNothing); // nothing to approve yet
     await tester.tap(find.widgetWithText(FilledButton, 'Thử lại'));
     await tester.pumpAndSettle();
+    expect(find.text('Yêu cầu cho AI trước khi chạy lại'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Vẽ đơn giản hơn');
+    await tester.tap(find.widgetWithText(FilledButton, 'Chạy lại'));
+    await tester.pumpAndSettle();
     expect(resumed, 1);
+    expect(resumedBody?['instructions'], 'Vẽ đơn giản hơn');
   });
 
   testWidgets('a hold from a review finding cannot be retried, only corrected or rejected',
