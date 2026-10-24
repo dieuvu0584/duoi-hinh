@@ -15,6 +15,7 @@ matters (answer never changed, leak and word-list checks, thresholds, hard-failu
 review rule, regeneration limit); the models only measure and advise.
 """
 
+import asyncio
 import base64
 import copy
 import json
@@ -390,8 +391,10 @@ async def _render(session: Session, deps: PipelineDeps, item: ContentItem) -> St
         return _hold(session, item, CS.HELD_FOR_HUMAN, "assets_missing", "render")
     boxes = [Box(**{k: b[k] for k in ("clue_id", "x0", "y0", "x1", "y1")}) for b in check.boxes]
     try:
-        videos = deps.render_both(
-            session, deps.cfg, master_ref=image.storage_ref, audio=audio,
+        # ffmpeg takes minutes: run it in a thread so the worker's publishing loop, token checks
+        # and the API are not frozen while a video renders.
+        videos = await asyncio.to_thread(
+            deps.render_both, session, deps.cfg, master_ref=image.storage_ref, audio=audio,
             caption=revision.overlay_text or revision.caption or "", boxes=boxes,
             revision_id=revision.id, expected=check.expected_clues)
     except render_service.RenderError as exc:
@@ -432,7 +435,7 @@ async def _qa(session: Session, deps: PipelineDeps, item: ContentItem) -> StageO
             "overlay_text": revision.overlay_text, "narration_text": revision.narration_text,
             "intended_viewer_inference": analysis.get("intended_viewer_inference")}
     content = [{"type": "text", "text": json.dumps(spec, ensure_ascii=False)},
-               *_keyframe_blocks(session, deps, revision)]
+               *await asyncio.to_thread(_keyframe_blocks, session, deps, revision)]
     try:
         qa = await llm_service.call_json(
             session, deps.llm, cfg, purpose="quality_review",
@@ -499,7 +502,7 @@ async def _final_safety(session: Session, deps: PipelineDeps, item: ContentItem)
             "answer_or_message": revision.answer_text, "clue_mapping": revision.clue_mapping,
             "ai_generated": revision.is_ai_generated}
     content = [{"type": "text", "text": json.dumps(spec, ensure_ascii=False)},
-               *_keyframe_blocks(session, deps, revision, per_video=1)]
+               *await asyncio.to_thread(_keyframe_blocks, session, deps, revision, 1)]
     try:
         review = await llm_service.call_json(
             session, deps.llm, cfg, purpose="safety_review",

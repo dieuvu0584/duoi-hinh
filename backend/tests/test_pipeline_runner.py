@@ -1,5 +1,6 @@
 """Pipeline runner (worker side) and the idea/retry/schedule API."""
 
+import asyncio
 from datetime import timedelta
 
 import pytest
@@ -421,3 +422,41 @@ def test_another_items_revision_cannot_be_fetched_through_this_item(world, clien
     other = content_service.current_revision(db, reload(db, a))
     r = client.get(f"/api/content/{b.id}/media/reel_9x16?revision={other.id}", headers=auth_headers)
     assert r.status_code == 404
+
+
+# ------------------------------------------------ a long render must not freeze the worker
+def test_a_slow_render_does_not_block_the_event_loop(world, db):
+    """The worker runs publishing and generation in one event loop: while ffmpeg runs, other
+    coroutines (the publish tick, token checks) must keep running."""
+    import time
+
+    from tests.test_content_pipeline import fake_render
+
+    good = fake_render(world.media)
+
+    def slow(*args, **kwargs):
+        time.sleep(1.0)  # stands in for ffmpeg
+        return good(*args, **kwargs)
+
+    world.deps.render_both = slow
+    item = start_draft(world)
+
+    async def scenario():
+        beats = 0
+        stop = asyncio.Event()
+
+        async def heartbeat():
+            nonlocal beats
+            while not stop.is_set():
+                await asyncio.sleep(0.05)
+                beats += 1
+
+        beat = asyncio.create_task(heartbeat())
+        await cp.run_until_wait(db, world.deps, item.id)
+        stop.set()
+        await beat
+        return beats
+
+    beats = run(scenario())
+    assert reload(db, item).status == "PENDING_APPROVAL"
+    assert beats >= 12, f"the loop was starved during the render (only {beats} beats)"
