@@ -36,7 +36,7 @@ class GalleryMediaSaver implements MediaSaver {
     final file = File('${dir.path}/$name');
     try {
       await api.downloadMedia(path, file.path, onProgress: onProgress);
-      await Gal.putVideo(file.path, album: 'Nhin Hinh Doan Chuyen');
+      await Gal.putVideo(file.path, album: 'Memes On Air');
     } finally {
       if (await file.exists()) await file.delete();
     }

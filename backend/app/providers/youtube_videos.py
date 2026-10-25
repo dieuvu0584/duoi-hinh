@@ -50,8 +50,8 @@ def split_title_description(text: str) -> tuple[str, str]:
     plus the full text so nothing the owner approved is lost."""
     text = _TAGS.sub("", text)  # YouTube rejects angle brackets; drop any markup first
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    first = lines[0] if lines else "Nhìn Hình Đoán Chuyện"
-    title = _TITLE_BAD.sub("", first)[:100].strip() or "Nhìn Hình Đoán Chuyện"
+    first = lines[0] if lines else "Memes On Air"
+    title = _TITLE_BAD.sub("", first)[:100].strip() or "Memes On Air"
     return title, _TITLE_BAD.sub("", text)[:4900]
 
 

@@ -1,6 +1,6 @@
 ---
 name: prompt-engineering
-description: Build image concepts and provider-specific prompts for the Nhìn Hình Đoán Chuyện brand while preserving answer and clue integrity.
+description: Build image concepts and provider-specific prompts for the Memes On Air brand while preserving answer and clue integrity.
 ---
 # Prompt engineering skill
 

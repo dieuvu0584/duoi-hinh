@@ -561,7 +561,7 @@ void holdTests() {
     await tester.tap(find.widgetWithText(FilledButton, 'Sửa và tạo lại'));
     await tester.pumpAndSettle();
     expect(find.text('Một con mèo lười dậy sớm'), findsOneWidget);
-    expect(find.text('Ôm quạt đợi khuya'), findsOneWidget);
+    expect(find.text('Ôm quạt đợi khuya'), findsNothing); // no puzzle answer field any more
     await tester.enterText(find.widgetWithText(TextField, 'Một con mèo lười dậy sớm'),
         'Một con mèo lười dậy sớm, vẽ thật đơn giản');
     await tester.enterText(
@@ -570,9 +570,9 @@ void holdTests() {
     await tester.tap(find.widgetWithText(FilledButton, 'Tạo bài'));
     await tester.pumpAndSettle();
     expect(created!['instructions'], 'Vẽ con mèo to hơn');
-    expect(created!['lane'], 'rebus');
+    expect(created!['lane'], 'daily_life'); // an old puzzle is redone as a meme
     expect(created!['brief'], contains('đơn giản'));
-    expect(created!['answer'], 'Ôm quạt đợi khuya');
+    expect(created!.containsKey('answer'), isFalse);
   });
 }
 

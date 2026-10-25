@@ -35,7 +35,7 @@ class CreateScreen extends StatefulWidget {
 }
 
 class _CreateScreenState extends State<CreateScreen> {
-  String _lane = 'daily_life';
+  final String _lane = 'daily_life';
   final _brief = TextEditingController();
   final _answer = TextEditingController();
   final _instructions = TextEditingController();
@@ -44,9 +44,7 @@ class _CreateScreenState extends State<CreateScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialLane == 'daily_life' || widget.initialLane == 'rebus') {
-      _lane = widget.initialLane!;
-    }
+    // The puzzle lane is closed (decision D-32): everything is made as a meme picture.
     _brief.text = widget.initialBrief ?? '';
     _answer.text = widget.initialAnswer ?? '';
     _instructions.text = widget.initialInstructions ?? '';
@@ -100,15 +98,6 @@ class _CreateScreenState extends State<CreateScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(value: 'daily_life', label: Text('Đời sống')),
-            ButtonSegment(value: 'rebus', label: Text('Đố hình')),
-          ],
-          selected: {_lane},
-          onSelectionChanged: (s) => setState(() => _lane = s.first),
-        ),
-        const SizedBox(height: 16),
         TextField(
           controller: _brief,
           maxLines: 5,

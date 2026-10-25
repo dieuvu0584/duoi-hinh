@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nhin-hinh-doan-chuyen-backend"
 version = "0.1.0"
-description = "Backend scaffold for Nhin Hinh Doan Chuyen"
+description = "Backend scaffold for Memes On Air"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115,<1.0",

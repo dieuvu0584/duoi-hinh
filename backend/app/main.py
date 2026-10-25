@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Nhìn Hình Đoán Chuyện API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Memes On Air API", version="0.1.0", lifespan=lifespan)
     install_error_handling(app)
     api = APIRouter(prefix="/api")
     api.include_router(auth.router)

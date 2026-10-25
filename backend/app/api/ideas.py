@@ -78,7 +78,7 @@ def get_candidate(
 
 class ProposeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    lane: Literal["daily_life", "rebus"]
+    lane: Literal["daily_life"]
 
 
 @router.post("/candidates/{candidate_id}/propose")
@@ -97,7 +97,7 @@ async def propose(
 
 class CreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    lane: Literal["daily_life", "rebus"]
+    lane: Literal["daily_life"]
     brief: str = Field(min_length=1, max_length=2000)
     answer: str | None = Field(default=None, max_length=500)
     instructions: str | None = Field(default=None, max_length=1500)
@@ -105,7 +105,7 @@ class CreateRequest(BaseModel):
 
 class PromptsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    lane: Literal["daily_life", "rebus"]
+    lane: Literal["daily_life"]
     brief: str = Field(min_length=1, max_length=2000)
     instructions: str | None = Field(default=None, max_length=1500)
 

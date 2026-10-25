@@ -113,13 +113,11 @@ def test_an_idea_is_queued_as_a_draft(client, owner, auth_headers, db):
     assert item.pipeline_input["brief"] == "Sáng thứ Hai của con mèo"
 
 
-def test_a_rebus_idea_needs_the_owners_answer(client, owner, auth_headers):
+def test_the_puzzle_lane_is_closed_for_new_ideas(client, owner, auth_headers):
+    # Decision D-32: the channel makes meme pictures only; old rebus items stay readable.
     r = client.post("/api/content/ideas", headers=auth_headers,
-                    json={"lane": "rebus", "brief": "Một câu đố"})
-    assert r.status_code == 422 and r.json()["error"]["code"] == "answer_required"
-    ok = client.post("/api/content/ideas", headers=auth_headers,
-                     json={"lane": "rebus", "brief": "Một câu đố", "answer": "đầu voi đuôi chuột"})
-    assert ok.status_code == 201
+                    json={"lane": "rebus", "brief": "Một câu đố", "answer": "đầu voi đuôi chuột"})
+    assert r.status_code == 422
 
 
 def test_the_news_lane_stays_closed_until_enabled(client, owner, auth_headers):

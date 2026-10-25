@@ -71,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
               padding: const EdgeInsets.all(24),
               shrinkWrap: true,
               children: [
-                Text('Nhìn Hình Đoán Chuyện',
+                Text('Memes On Air',
                     style: Theme.of(context).textTheme.headlineSmall,
                     textAlign: TextAlign.center),
                 const SizedBox(height: 4),

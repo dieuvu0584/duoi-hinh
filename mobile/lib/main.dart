@@ -50,7 +50,7 @@ class _NhdAppState extends State<NhdApp> {
         Provider<MediaSaver>.value(value: const GalleryMediaSaver()),
       ],
       child: MaterialApp(
-        title: 'Nhìn Hình Đoán Chuyện',
+        title: 'Memes On Air',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(colorSchemeSeed: const Color(0xFF3B6BFF), useMaterial3: true),
         darkTheme: ThemeData(

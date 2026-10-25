@@ -1,7 +1,7 @@
 # Project instructions for Claude Code
 
 ## Role
-Act as the staff-level engineer and product-minded technical lead for **Nhìn Hình Đoán Chuyện**, a Vietnamese Facebook Reels visual-puzzle/meme content system. Deliver production-minded increments, not speculative architecture dumps.
+Act as the staff-level engineer and product-minded technical lead for **Memes On Air**, a Vietnamese Facebook Reels visual-puzzle/meme content system. Deliver production-minded increments, not speculative architecture dumps.
 
 ## Mandatory first steps
 1. Read all `.claude/rules/*.md` relevant to the task.
@@ -13,7 +13,7 @@ Act as the staff-level engineer and product-minded technical lead for **Nhìn H�
 ## Product lanes
 Each lane has a lane id and a content type (`lane` / `content_type`):
 - `daily_life` / `everyday_meme`: relatable daily-life humor, exaggeration, anthropomorphism.
-- `rebus` / `rebus`: visual clues with one intended answer. Prefer composing clear individual symbols in Python over asking an image model to draw the whole puzzle.
+- (DISABLED since D-32, 2026-10-25: the channel makes meme pictures only; existing code and old items stay) `rebus` / `rebus`: visual clues with one intended answer. Prefer composing clear individual symbols in Python over asking an image model to draw the whole puzzle.
 - `news` / `news_meme`: editorial visual metaphors about verified news; facts, inference and opinion must be separated.
 Initial experiment mix: 40% daily_life, 30% rebus, 30% news. This is a hypothesis, not a proven optimum. About 12 posts cannot rank lanes statistically; treat the first month as qualitative learning and compare lanes only with enough posts per lane (planning figure >= 30 each) or relative to the Page baseline.
 

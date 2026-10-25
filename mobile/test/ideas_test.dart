@@ -89,30 +89,35 @@ void main() {
     expect(find.textContaining('Đã xếp lịch quét'), findsOneWidget);
   });
 
-  testWidgets('picking Đố hình shows options and creates with the edited answer', (tester) async {
+  testWidgets('picking a direction shows meme options and creates with the edited text', (tester) async {
     Map<String, dynamic>? created;
+    final option = {
+      'title': 'Mèo ngủ gật',
+      'brief': 'Con mèo ngủ gật trên bàn làm việc, mặt đầy vẻ tội lỗi.',
+      'answer': '',
+      'idiom': '',
+      'twist': '',
+      'explanation': 'Hợp tin cuối tuần.',
+      'syllables': <String>[],
+      'difficulty': 'easy',
+    };
     final api = await loggedIn(FakeBackend({
       'GET /api/ideas/candidates/c1': (_) => (200, idea()),
       'POST /api/ideas/candidates/c1/propose': (c) {
-        expect((c.body as Map)['lane'], 'rebus');
-        return (200, idea(status: 'proposed', lane: 'rebus', proposals: [rebusOption()]));
+        expect((c.body as Map)['lane'], 'daily_life');
+        return (200, idea(status: 'proposed', lane: 'daily_life', proposals: [option]));
       },
       'POST /api/ideas/candidates/c1/create': (c) {
         created = Map<String, dynamic>.from(c.body as Map);
-        return (201, {'id': 'item1', 'lane': 'rebus', 'status': 'DRAFT'});
+        return (201, {'id': 'item1', 'lane': 'daily_life', 'status': 'DRAFT'});
       },
     }));
     await tester.pumpWidget(host(api, const CandidateScreen(id: 'c1')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Đố hình'));
+    expect(find.text('Đố hình'), findsNothing); // the puzzle lane is closed
+    await tester.tap(find.text('Gợi ý hướng làm meme'));
     await tester.pumpAndSettle();
-    expect(find.text('Đáp án: Ba nắng bảy mưa'), findsOneWidget);
-    expect(find.textContaining('Từ thành ngữ: Ba chìm bảy nổi'), findsOneWidget);
-
-    // The owner edits the verified answer before creating.
-    final answerField = find.widgetWithText(TextField, 'Ba nắng bảy mưa');
-    await tester.scrollUntilVisible(answerField, 200, scrollable: find.byType(Scrollable).first);
-    await tester.enterText(answerField, 'Ba nắng bảy mưa!');
+    expect(find.text('Mèo ngủ gật'), findsWidgets);
     final create = find.widgetWithText(FilledButton, 'Tạo bài');
     await tester.scrollUntilVisible(create, 200, scrollable: find.byType(Scrollable).first);
     await tester.tap(create);
@@ -120,9 +125,8 @@ void main() {
     expect(created, isNull); // nothing is sent before the owner confirms
     await tester.tap(find.widgetWithText(FilledButton, 'Tạo bài').last);
     await tester.pumpAndSettle();
-    expect(created!['lane'], 'rebus');
-    expect(created!['answer'], 'Ba nắng bảy mưa!');
-    expect(created!['brief'], contains('ba ngón tay'));
+    expect(created!['lane'], 'daily_life');
+    expect(created!['brief'], contains('mèo'));
   });
 
   testWidgets('a rebus cannot be created with an empty answer', (tester) async {

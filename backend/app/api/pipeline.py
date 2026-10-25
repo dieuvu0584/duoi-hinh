@@ -24,7 +24,7 @@ router = APIRouter(prefix="/content", tags=["pipeline"])
 
 class IdeaRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    lane: Literal["daily_life", "rebus", "news"]
+    lane: Literal["daily_life", "news"]
     brief: str = Field(min_length=1, max_length=2000)
     # Rebus only: the owner's verified answer (the model never chooses or changes it).
     answer: str | None = Field(default=None, max_length=500)

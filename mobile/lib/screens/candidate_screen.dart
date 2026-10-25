@@ -168,25 +168,12 @@ class _CandidateScreenState extends State<CandidateScreen> {
                 ),
                 const Divider(),
                 if (_lane == null) ...[
-                  Text('Làm thành loại nào?', style: Theme.of(context).textTheme.titleSmall),
+                  FilledButton.icon(
+                      onPressed: _busy ? null : () => _propose('daily_life'),
+                      icon: const Icon(Icons.auto_awesome),
+                      label: const Text('Gợi ý hướng làm meme')),
                   const SizedBox(height: 8),
-                  Row(children: [
-                    Expanded(
-                      child: FilledButton(
-                          onPressed: _busy ? null : () => _propose('daily_life'),
-                          child: const Text('Đời sống')),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.tonal(
-                          onPressed: _busy ? null : () => _propose('rebus'),
-                          child: const Text('Đố hình')),
-                    ),
-                  ]),
-                  const SizedBox(height: 8),
-                  Text(
-                      'Đố hình lấy thành ngữ từ kho của bạn rồi biến tấu cho hợp tin. '
-                      'Claude sẽ gợi ý 3 phương án (tốn vài cent).',
+                  Text('Claude sẽ gợi ý 3 hướng làm bài hài hước (tốn vài cent).',
                       style: Theme.of(context).textTheme.bodySmall),
                   TextButton(onPressed: _busy ? null : _dismiss, child: const Text('Bỏ ý tưởng này')),
                 ] else if (_busy && _options.isEmpty) ...[

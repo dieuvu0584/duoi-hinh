@@ -4,7 +4,7 @@
          TLS certificate, so cleartext HTTP is allowed. Do not expose the API publicly this way. -->
     <application
         android:usesCleartextTraffic="true"
-        android:label="Nhìn Hình Đoán Chuyện"
+        android:label="Memes On Air"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

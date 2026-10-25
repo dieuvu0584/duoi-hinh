@@ -3,7 +3,7 @@
 The v0.1 kit had no editorial definition, so the LLM would have to invent tone and rules. This file is the editorial source of truth passed to analysis and caption prompts. The owner approved the defaults below as-is (decision D-22); change them here when the brand evolves, and bump `policy_version` for the prompts that use this file.
 
 ## Brand
-- Name: Nhìn Hình Đoán Chuyện. Language: Vietnamese (standard orthography, NFC). Tone: playful, warm, never mocking real individuals. Recurring format: intro hook in the first 1-2 s, puzzle held >= 5 s, "đoán thử" call to comment.
+- Name: Memes On Air. Language: Vietnamese (standard orthography, NFC). Tone: playful, warm, never mocking real individuals. Recurring format: intro hook in the first 1-2 s, puzzle held >= 5 s, "đoán thử" call to comment.
 - Series naming and numbering: e.g. "Câu đố số N" so the audience learns the format.
 
 ## Enabling the news lane (decision D-16)

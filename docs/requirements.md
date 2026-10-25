@@ -1,7 +1,7 @@
-# Yêu cầu sản phẩm (PRD) - Nhìn Hình Đoán Chuyện
+# Yêu cầu sản phẩm (PRD) - Memes On Air
 
 ## 1. Mục tiêu và phạm vi
-Hệ thống một chủ sở hữu giúp tạo, kiểm duyệt, duyệt tay và đăng **Facebook Reels** cho thương hiệu "Nhìn Hình Đoán Chuyện", ba mảng: `daily_life`, `rebus`, `news`. Backend chạy trên VPS; điện thoại/web chỉ là giao diện quản trị.
+Hệ thống một chủ sở hữu giúp tạo, kiểm duyệt, duyệt tay và đăng **Facebook Reels** cho thương hiệu "Memes On Air", ba mảng: `daily_life`, `rebus`, `news`. Backend chạy trên VPS; điện thoại/web chỉ là giao diện quản trị.
 
 **Ngoài phạm vi (MVP):** đa người dùng, đăng nền tảng khác (Instagram/TikTok), video do AI sinh, nhân bản giọng, phụ đề tự động, tự động đăng không qua duyệt, quảng cáo trả phí.
 

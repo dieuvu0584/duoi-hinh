@@ -5,14 +5,11 @@ import '../api/api_client.dart';
 import '../ui_helpers.dart';
 import 'candidate_screen.dart';
 import 'create_screen.dart';
-import 'idioms_screen.dart';
 import 'scan_schedule_screen.dart';
 import 'sources_screen.dart';
 
 String laneHint(String lane) => switch (lane) {
-      'daily_life' => 'Hợp: Đời sống',
-      'rebus' => 'Hợp: Đố hình',
-      _ => 'Hợp: cả hai',
+      _ => 'Meme',
     };
 
 class IdeasScreen extends StatefulWidget {
@@ -107,13 +104,11 @@ class _IdeasScreenState extends State<IdeasScreen> {
                 tooltip: 'Thiết lập quét',
                 onSelected: (v) => _open(switch (v) {
                   'schedule' => const ScanScheduleScreen(),
-                  'sources' => const SourcesScreen(),
-                  _ => const IdiomsScreen(),
+                  _ => const SourcesScreen(),
                 }),
                 itemBuilder: (_) => const [
                   PopupMenuItem(value: 'schedule', child: Text('Khung giờ quét')),
                   PopupMenuItem(value: 'sources', child: Text('Nguồn tin (RSS)')),
-                  PopupMenuItem(value: 'idioms', child: Text('Kho thành ngữ')),
                 ],
               ),
             ]),

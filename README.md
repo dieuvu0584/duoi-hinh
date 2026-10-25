@@ -1,6 +1,6 @@
-# Nhìn Hình Đoán Chuyện — Claude Code handoff kit
+# Memes On Air — Claude Code handoff kit
 
-Bộ khung kỹ thuật để Claude Code triển khai hệ thống quản trị và tự động hóa nội dung Facebook Reels cho thương hiệu **Nhìn Hình Đoán Chuyện**.
+Bộ khung kỹ thuật để Claude Code triển khai hệ thống quản trị và tự động hóa nội dung Facebook Reels cho thương hiệu **Memes On Air**.
 
 ## Mục tiêu
 - Ba luồng nội dung: `daily_life`, `rebus`, `news`.
