@@ -1,7 +1,7 @@
 """Pipeline runner (worker side) and the idea/retry/schedule API."""
 
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import select, text
@@ -544,3 +544,23 @@ def test_a_cancel_during_a_step_is_not_undone_when_the_step_finishes(world, db):
     notes = run(pipeline_runner.run_pending(db, world.deps))
     assert reload(db, item).status == "REJECTED"  # never revived by the finishing step
     assert any("cancelled_by_owner" in n for n in notes)
+
+
+def test_an_account_problem_at_the_provider_is_named_and_waits_longer(world, db):
+    from app.providers.errors import ProviderPermanent
+
+    class Broke:
+        calls = 0
+
+        async def generate(self, **_kw):
+            Broke.calls += 1
+            raise ProviderPermanent("403", 'User is locked. Reason: Exhausted balance.')
+
+    item = start_draft(world)
+    world.deps.images = Broke()
+    notes = run(pipeline_runner.run_pending(db, world.deps))
+    assert any("[account_balance]" in n for n in notes)
+    after = reload(db, item)
+    assert "[account_balance]" in after.pipeline_input["wait_reason"]
+    retry_at = datetime.fromisoformat(after.pipeline_input["retry_after"])
+    assert retry_at - utcnow() > timedelta(minutes=25)  # not hammered every few minutes

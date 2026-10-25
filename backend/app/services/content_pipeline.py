@@ -131,6 +131,17 @@ def _item(session: Session, item_id: uuid.UUID) -> ContentItem:
     return item
 
 
+def _account_problem(exc: Exception) -> str:
+    """A short, safe tag when the provider rejected the ACCOUNT (money or key), which the owner
+    can fix; waiting a few minutes cannot."""
+    code = str(getattr(exc, "code", ""))
+    text = str(exc).lower()
+    if code in {"401", "402", "403"} or "balance" in text:
+        broke = "balance" in text or code == "402"
+        return " [account_balance]" if broke else " [account_rejected]"
+    return ""
+
+
 def _hold(session: Session, item: ContentItem, target: CS, reason: str, stage: str) -> StageOutcome:
     """Move to a waiting/terminal state and remember why (audit + pipeline_input.notes)."""
     content_service.transition_content(session, item, target, actor="system", reason=reason)
@@ -589,9 +600,11 @@ async def run_stage(session: Session, deps: PipelineDeps, item_id: uuid.UUID) ->
         session.rollback()
         record_audit(session, actor="system", action="pipeline.provider_error", result="error",
                      entity_type="content_item", entity_id=str(item.id),
-                     metadata={"stage": status.value, "error": type(exc).__name__})
+                     metadata={"stage": status.value, "error": type(exc).__name__,
+                               "detail": str(exc)[:200]})  # adapters already redact secrets
         session.commit()
-        return StageOutcome(status.value, item.status, f"provider_error: {type(exc).__name__}")
+        return StageOutcome(status.value, item.status,
+                            f"provider_error: {type(exc).__name__}{_account_problem(exc)}")
     return StageOutcome("none", status.value, "nothing to do")
 
 

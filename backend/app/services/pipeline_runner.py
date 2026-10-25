@@ -31,6 +31,8 @@ def _backoff_for(note: str) -> timedelta | None:
         return BACKOFF["waiting: budget"]
     if note.startswith("waiting"):
         return BACKOFF["waiting"]
+    if note.startswith("provider_error") and "[account_" in note:
+        return timedelta(minutes=30)  # needs the owner (top up / new key), not a quick retry
     if note.startswith("provider_error"):
         return BACKOFF["provider_error"]
     return None

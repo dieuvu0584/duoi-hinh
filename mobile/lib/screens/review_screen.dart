@@ -379,7 +379,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
             'Tăng hạn mức ở Cài đặt, mục Ngân sách (cần mật khẩu), rồi quay lại bấm "Chạy lại ngay".'
         : reason.contains('voice_not_configured')
             ? 'Bài đang chờ vì chưa chọn giọng đọc. Điền Voice ID ở Cài đặt rồi bấm "Chạy lại ngay".'
-            : 'Bài đang tạm dừng: $reason. Hệ thống tự thử lại sau ít phút, hoặc bấm "Chạy lại ngay".';
+            : reason.contains('account_balance')
+                ? 'Tài khoản của dịch vụ tạo ảnh/giọng đã hết tiền nên bài tạm dừng (các lần thử bị từ chối trước khi tính phí, '
+                    'chưa mất tiền). Nạp thêm tiền ở trang thanh toán của nhà cung cấp (fal.ai hoặc ElevenLabs), '
+                    'rồi quay lại bấm "Chạy lại ngay".'
+                : reason.contains('account_rejected')
+                    ? 'Khóa truy cập của dịch vụ tạo ảnh/giọng bị từ chối. Kiểm tra khóa trong file .env của server rồi bấm "Chạy lại ngay".'
+                    : 'Bài đang tạm dừng: $reason. Hệ thống tự thử lại sau ít phút, hoặc bấm "Chạy lại ngay".';
     return Card(
       color: Theme.of(context).colorScheme.errorContainer,
       margin: const EdgeInsets.only(top: 12),
