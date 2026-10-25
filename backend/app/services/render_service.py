@@ -28,7 +28,7 @@ from app.db.models import AudioAsset, VideoAsset
 from app.services.composition import SAFE_REGIONS, Box, decide_modes
 from app.services.media_paths import UnsafeMediaPath, resolve_media_path
 
-RENDERER_VERSION = 1
+RENDERER_VERSION = 2  # 2: captions centred
 FPS = 30
 LEAD_IN_S = 0.8
 HOLD_S = 2.0
@@ -112,9 +112,16 @@ def _caption_png(path: Path, text: str, size: tuple[int, int], box: tuple[int, i
         lines.append(line)
     step = int(font_px * 1.3)
     height = min(h, len(lines) * step + 30)
-    draw.rounded_rectangle((x, y, x + w, y + height), radius=18, fill=(0, 0, 0, 150))
+    # Centred: the pill hugs the text and sits in the middle of its region (both directions),
+    # and every line is centred inside it.
+    widest = max((draw.textlength(ln, font=font) for ln in lines), default=0)
+    pill_w = int(min(w, widest + 40))
+    px = x + (w - pill_w) // 2
+    py = y + (h - height) // 2
+    draw.rounded_rectangle((px, py, px + pill_w, py + height), radius=18, fill=(0, 0, 0, 150))
     for i, ln in enumerate(lines):
-        draw.text((x + 20, y + 15 + i * step), ln, font=font, fill=(255, 255, 255, 255))
+        lx = px + (pill_w - draw.textlength(ln, font=font)) / 2
+        draw.text((lx, py + 15 + i * step), ln, font=font, fill=(255, 255, 255, 255))
     img.save(path)
 
 
