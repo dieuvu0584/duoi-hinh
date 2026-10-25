@@ -118,3 +118,33 @@ def test_feedback_survives_in_the_table_per_item(world, client, auth_headers, db
     item, _ = go(world)
     client.post(f"/api/content/{item.id}/feedback", headers=auth_headers, json={"rating": 4})
     assert db.scalar(select(ContentItem.id).where(ContentItem.id == item.id))
+
+
+def test_the_list_shows_the_rating_of_each_rated_item(world, client, auth_headers):
+    rated, _ = go(world)
+    other, _ = go(world)
+    client.post(f"/api/content/{rated.id}/feedback", headers=auth_headers, json={"rating": 4})
+    rows = client.get("/api/content?status=PENDING_APPROVAL", headers=auth_headers).json()["items"]
+    by_id = {r["id"]: r["rating"] for r in rows}
+    assert by_id[str(rated.id)] == 4 and by_id[str(other.id)] is None
+
+
+def test_levels_for_picture_and_words_are_stored_validated_and_summarised(
+        world, client, auth_headers):
+    item, _ = go(world)
+    url = f"/api/content/{item.id}/feedback"
+    scores = {"image": {"surprise": 4, "humor": 5}, "text": {"meaning": 2, "impact": 3}}
+    r = client.post(url, headers=auth_headers, json={"rating": 4, "scores": scores})
+    assert r.status_code == 200 and r.json()["scores"] == scores
+    ticket = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
+    assert ticket["feedback"]["scores"]["image"]["humor"] == 5
+    levels = client.get("/api/feedback/summary", headers=auth_headers).json()["levels"]
+    assert levels["image.humor"] == {"count": 1, "average": 5.0}
+    for bad in ({"video": {"humor": 3}}, {"image": {"funny": 3}}, {"image": {"humor": 6}},
+                {"image": {"humor": 0}}):
+        assert client.post(url, headers=auth_headers,
+                           json={"rating": 3, "scores": bad}).status_code == 422, bad
+    # an update without levels clears them (the form always sends what it shows)
+    client.post(url, headers=auth_headers, json={"rating": 3})
+    again = client.get(f"/api/content/{item.id}/review", headers=auth_headers).json()
+    assert again["feedback"]["scores"] == {}

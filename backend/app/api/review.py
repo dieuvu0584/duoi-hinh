@@ -101,12 +101,16 @@ def list_content(
         select(ContentItem).where(ContentItem.status.in_(states))
         .order_by(ContentItem.updated_at.desc()).limit(limit)
     ).all()
+    ratings = dict(session.execute(
+        select(VideoFeedback.content_item_id, VideoFeedback.rating)
+        .where(VideoFeedback.content_item_id.in_([i.id for i in items]))).all())
     out = []
     for item in items:
         revision = (
             content_service.current_revision(session, item) if item.current_revision_id else None
         )
         out.append({
+            "rating": ratings.get(item.id),
             "id": str(item.id), "lane": item.lane, "status": item.status,
             "updated_at": item.updated_at.isoformat(),
             "caption": revision.caption if revision else None,

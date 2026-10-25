@@ -18,6 +18,19 @@ const feedbackLabels = <String, String>{
   'answer_too_hard': 'Đáp án quá khó',
 };
 
+/// Detailed levels the owner can give, separately for the picture and for the words.
+const feedbackGroups = <String, String>{
+  'image': 'Hình ảnh',
+  'text': 'Câu chữ (chữ trên video, chú thích, lời đọc)',
+};
+const feedbackDimensions = <String, String>{
+  'surprise': 'Bất ngờ',
+  'meaning': 'Ý nghĩa',
+  'impact': 'Ấn tượng',
+  'humor': 'Hài hước',
+};
+const _levelWords = ['Nhạt', 'Hơi nhạt', 'Ổn', 'Khá mạnh', 'Rất mạnh'];
+
 /// The owner's verdict on a video: stars, a few tags and an optional note. Claude later turns
 /// many of these into rules for the channel, which the owner approves (Hệ thống > Bài học).
 class FeedbackCard extends StatefulWidget {
@@ -33,6 +46,7 @@ class FeedbackCard extends StatefulWidget {
 class _FeedbackCardState extends State<FeedbackCard> {
   int _rating = 0;
   final Set<String> _labels = {};
+  final Map<String, Map<String, int>> _scores = {};
   final _note = TextEditingController();
   bool _busy = false;
   bool _saved = false;
@@ -45,6 +59,13 @@ class _FeedbackCardState extends State<FeedbackCard> {
       _rating = (f['rating'] as num?)?.toInt() ?? 0;
       _labels.addAll(List<Object?>.from(f['labels'] as List? ?? []).map((e) => '$e'));
       _note.text = '${f['note'] ?? ''}';
+      final scores = Map<String, dynamic>.from(f['scores'] as Map? ?? {});
+      for (final g in scores.entries) {
+        _scores[g.key] = {
+          for (final d in Map<String, dynamic>.from(g.value as Map).entries)
+            d.key: (d.value as num).toInt()
+        };
+      }
       _saved = _rating > 0;
     }
   }
@@ -60,7 +81,8 @@ class _FeedbackCardState extends State<FeedbackCard> {
     try {
       await context
           .read<ApiClient>()
-          .saveFeedback(widget.id, rating: _rating, labels: _labels.toList(), note: _note.text);
+          .saveFeedback(widget.id,
+              rating: _rating, labels: _labels.toList(), note: _note.text, scores: _scores);
       if (mounted) {
         setState(() => _saved = true);
         showMessage(context, 'Đã lưu đánh giá.');
@@ -70,6 +92,35 @@ class _FeedbackCardState extends State<FeedbackCard> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Widget _levelRow(String group, String dim, String label) {
+    final current = _scores[group]?[dim];
+    return Row(children: [
+      SizedBox(width: 92, child: Text(label)),
+      for (var n = 1; n <= 5; n++)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: ChoiceChip(
+            key: ValueKey('level-$group-$dim-$n'),
+            label: Text('$n'),
+            tooltip: _levelWords[n - 1],
+            visualDensity: VisualDensity.compact,
+            showCheckmark: false,
+            selected: current == n,
+            onSelected: (_) => setState(() {
+              final dims = _scores.putIfAbsent(group, () => {});
+              if (current == n) {
+                dims.remove(dim);
+                if (dims.isEmpty) _scores.remove(group);
+              } else {
+                dims[dim] = n;
+              }
+              _saved = false;
+            }),
+          ),
+        ),
+    ]);
   }
 
   @override
@@ -107,6 +158,20 @@ class _FeedbackCardState extends State<FeedbackCard> {
               ),
           ]),
           const SizedBox(height: 8),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Chấm chi tiết (không bắt buộc)'),
+            subtitle: const Text('Mỗi mục 1 đến 5, chạm lại để bỏ chọn'),
+            children: [
+              for (final g in feedbackGroups.entries) ...[
+                Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(g.value, style: Theme.of(context).textTheme.titleSmall)),
+                for (final d in feedbackDimensions.entries) _levelRow(g.key, d.key, d.value),
+                const SizedBox(height: 8),
+              ],
+            ],
+          ),
           TextField(
             controller: _note,
             maxLength: 500,

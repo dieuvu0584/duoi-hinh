@@ -118,7 +118,17 @@ class _QueueScreenState extends State<QueueScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: Text('${laneLabel('${it['lane']}')} · ${statusLabel(status)}'),
+                      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('${laneLabel('${it['lane']}')} · ${statusLabel(status)}'),
+                        if (it['rating'] != null)
+                          Row(children: [
+                            for (var s = 1; s <= 5; s++)
+                              Icon(s <= (it['rating'] as num) ? Icons.star : Icons.star_border,
+                                  size: 16, color: Colors.amber),
+                          ])
+                        else if (status == 'PUBLISHED')
+                          Text('Chưa đánh giá', style: Theme.of(context).textTheme.bodySmall),
+                      ]),
                       leading: Icon(Icons.circle, size: 14, color: statusColor(context, status)),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => _open('${it['id']}'),

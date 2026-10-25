@@ -24,6 +24,8 @@ class FeedbackRequest(BaseModel):
     rating: int = Field(ge=1, le=5)
     labels: list[str] = Field(default_factory=list, max_length=10)
     note: str = Field(default="", max_length=500)
+    # Optional levels 1-5: {"image": {"surprise": 4, ...}, "text": {"humor": 2, ...}}
+    scores: dict[str, dict[str, int]] = Field(default_factory=dict)
 
 
 @router.post("/content/{content_id}/feedback")
@@ -33,7 +35,8 @@ def save_feedback(
 ):
     """Store (or replace) the owner's verdict on this video."""
     return fs.feedback_out(fs.save_feedback(
-        session, owner, content_id, rating=body.rating, labels=body.labels, note=body.note))
+        session, owner, content_id, rating=body.rating, labels=body.labels, note=body.note,
+        scores=body.scores))
 
 
 @router.get("/feedback/summary")

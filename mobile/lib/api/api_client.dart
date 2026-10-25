@@ -376,9 +376,16 @@ class ApiClient {
   }
 
   Future<void> saveFeedback(String id,
-          {required int rating, required List<String> labels, String? note}) =>
-      _request('POST', '/api/content/$id/feedback',
-          data: {'rating': rating, 'labels': labels, 'note': (note ?? '').trim()});
+          {required int rating,
+          required List<String> labels,
+          String? note,
+          Map<String, Map<String, int>> scores = const {}}) =>
+      _request('POST', '/api/content/$id/feedback', data: {
+        'rating': rating,
+        'labels': labels,
+        'note': (note ?? '').trim(),
+        'scores': scores,
+      });
 
   Future<Map<String, dynamic>> feedbackSummary() async =>
       Map<String, dynamic>.from(await _request('GET', '/api/feedback/summary') as Map);

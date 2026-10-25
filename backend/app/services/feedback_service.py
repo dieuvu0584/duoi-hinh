@@ -25,13 +25,30 @@ LABELS = (
     "great", "funny", "confusing_image", "unclear_clues", "too_cluttered", "bad_text",
     "bad_voiceover", "too_slow", "answer_too_easy", "answer_too_hard",
 )
+GROUPS = ("image", "text")  # the picture, and the words (overlay text, caption, voiceover)
+DIMENSIONS = ("surprise", "meaning", "impact", "humor")
 MAX_PROMPT_LESSONS = 15
 DISTILL_WINDOW = 40  # most recent verdicts sent to the model
 MAX_LESSONS = 60  # approved + proposed kept; keeps prompts and the list small
 
 
+def clean_scores(scores: dict[str, dict[str, int]] | None) -> dict[str, dict[str, int]]:
+    out: dict[str, dict[str, int]] = {}
+    for group, dims in (scores or {}).items():
+        if group not in GROUPS or not isinstance(dims, dict):
+            raise ApiError(422, "unknown_score_group", f"Unknown score group: {group}")
+        for dim, value in dims.items():
+            if dim not in DIMENSIONS:
+                raise ApiError(422, "unknown_score_dimension", f"Unknown dimension: {dim}")
+            if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= 5:
+                raise ApiError(422, "bad_score", "Levels are whole numbers from 1 to 5")
+            out.setdefault(group, {})[dim] = value
+    return out
+
+
 def save_feedback(session: Session, owner, item_id: uuid.UUID, *, rating: int,
-                  labels: list[str], note: str) -> VideoFeedback:
+                  labels: list[str], note: str,
+                  scores: dict[str, dict[str, int]] | None = None) -> VideoFeedback:
     item = session.get(ContentItem, item_id)
     if item is None:
         raise ApiError(404, "not_found", "Content not found")
@@ -49,6 +66,7 @@ def save_feedback(session: Session, owner, item_id: uuid.UUID, *, rating: int,
     row.revision_id = revision.id if revision else None
     row.rating, row.labels = rating, sorted(set(labels))
     row.note, row.updated_at = note.strip(), now
+    row.scores = clean_scores(scores)
     record_audit(session, actor=f"owner:{owner.id}", action="feedback.saved", result="ok",
                  entity_type="content_item", entity_id=str(item_id),
                  metadata={"rating": rating, "labels": row.labels})
@@ -60,7 +78,7 @@ def feedback_out(row: VideoFeedback | None) -> dict[str, Any] | None:
     if row is None:
         return None
     return {"rating": row.rating, "labels": list(row.labels or []), "note": row.note,
-            "updated_at": row.updated_at.isoformat()}
+            "scores": row.scores or {}, "updated_at": row.updated_at.isoformat()}
 
 
 def summary(session: Session) -> dict[str, Any]:
@@ -69,14 +87,20 @@ def summary(session: Session) -> dict[str, Any]:
             ContentItem, ContentItem.id == VideoFeedback.content_item_id)).all()
     by_lane: dict[str, list[int]] = defaultdict(list)
     labels: Counter[str] = Counter()
+    levels: dict[str, list[int]] = defaultdict(list)
     for fb, lane in rows:
         by_lane[lane].append(fb.rating)
         labels.update(fb.labels or [])
+        for group, dims in (fb.scores or {}).items():
+            for dim, value in dims.items():
+                levels[f"{group}.{dim}"].append(value)
     return {
         "count": len(rows),
         "by_lane": {lane: {"count": len(r), "average": round(sum(r) / len(r), 2)}
                     for lane, r in by_lane.items()},
         "labels": dict(labels.most_common()),
+        "levels": {k: {"count": len(v), "average": round(sum(v) / len(v), 2)}
+                   for k, v in sorted(levels.items())},
     }
 
 
@@ -144,6 +168,7 @@ def _evidence(session: Session) -> list[dict[str, Any]]:
         qa = (data.get("qa") or [{}])[-1]
         out.append({
             "lane": item.lane, "rating": fb.rating, "labels": fb.labels, "note": fb.note,
+            "levels": fb.scores or {},
             "overlay_text": rev.overlay_text if rev else None,
             "caption": rev.caption if rev else None,
             "clues": [c.get("visual_clue") for c in (rev.clue_mapping or [])

@@ -537,6 +537,8 @@ class VideoFeedback(Base):
     rating: Mapped[int] = mapped_column(Integer)
     labels: Mapped[list[str]] = mapped_column(JSONB, default=list)
     note: Mapped[str] = mapped_column(String(500), default="")
+    # Optional levels 1-5: group (image, text) -> dimension (surprise, meaning, impact, humor)
+    scores: Mapped[dict[str, dict[str, int]]] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

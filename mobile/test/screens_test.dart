@@ -127,6 +127,22 @@ void main() {
     expect(find.textContaining('Chờ bạn duyệt'), findsOneWidget);
   });
 
+  testWidgets('published posts show their star rating, or that they are not rated yet', (tester) async {
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content': (_) => (200, {
+            'items': [
+              {'id': '1', 'lane': 'daily_life', 'status': 'PUBLISHED', 'overlay_text': 'Bài A', 'rating': 4},
+              {'id': '2', 'lane': 'daily_life', 'status': 'PUBLISHED', 'overlay_text': 'Bài B', 'rating': null},
+            ]
+          }),
+    }));
+    await tester.pumpWidget(host(api, const Scaffold(body: QueueScreen())));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.star), findsNWidgets(4));
+    expect(find.byIcon(Icons.star_border), findsNWidgets(1));
+    expect(find.text('Chưa đánh giá'), findsOneWidget);
+  });
+
   testWidgets('an empty queue says so', (tester) async {
     final api = await loggedIn(FakeBackend({'GET /api/content': (_) => (200, {'items': []})}));
     await tester.pumpWidget(host(api, const Scaffold(body: QueueScreen())));
@@ -332,10 +348,19 @@ void main() {
       await tester.ensureVisible(find.text('Chữ chưa ổn'));
       await tester.tap(find.text('Chữ chưa ổn'));
       await tester.pumpAndSettle();
+      final detail = find.text('Chấm chi tiết (không bắt buộc)');
+      await tester.ensureVisible(detail);
+      await tester.tap(detail);
+      await tester.pumpAndSettle();
+      final humor = find.byKey(const ValueKey('level-image-humor-5'));
+      await tester.ensureVisible(humor);
+      await tester.tap(humor);
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.widgetWithText(FilledButton, 'Lưu đánh giá'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Lưu đánh giá'));
       await tester.pumpAndSettle();
+      expect(sent!['scores'], {'image': {'humor': 5}});
       expect(sent!['rating'], 2);
       expect(sent!['labels'], ['bad_text']);
       expect(find.widgetWithText(FilledButton, 'Đã lưu'), findsOneWidget);
