@@ -15,7 +15,7 @@ from app.core.errors import ApiError
 from app.core.urlsafety import is_safe_public_https_url
 from app.db.models import FeedSource, IdeaCandidate, Idiom, OwnerAccount, ScanRun
 from app.db.session import get_session
-from app.services import external_prompts, feedback_service, idea_service
+from app.services import external_prompts, feedback_service, idea_image_service, idea_service
 from app.services.audit import record_audit
 
 router = APIRouter(prefix="/ideas", tags=["ideas"])
@@ -75,6 +75,33 @@ def get_candidate(
     session: Session = Depends(get_session),
 ):
     return _candidate_out(_load(session, candidate_id), detail=True)
+
+
+class FromImageRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    # base64 of a JPEG/PNG/WEBP (max ~6 MB decoded; the size is checked again after decoding)
+    image_base64: str = Field(min_length=100, max_length=9_000_000)
+    note: str | None = Field(default=None, max_length=1500)
+
+
+@router.post("/from-image")
+async def idea_from_image(
+    body: FromImageRequest,
+    owner: OwnerAccount = Depends(current_owner),
+    session: Session = Depends(get_session),
+    cfg: Settings = Depends(get_settings),
+    llm=Depends(get_llm),
+):
+    """Draft a meme idea from a picture and the owner's explanation (costs a few cents).
+
+    The picture is processed in memory and not stored; the owner edits the draft before use."""
+    out = await idea_image_service.describe(
+        session, llm, cfg, image_b64=body.image_base64, note=body.note)
+    record_audit(session, actor=f"owner:{owner.id}", action="ideas.from_image", result="ok",
+                 entity_type="idea_image", entity_id="upload",
+                 metadata={"warnings": len(out["warnings"])})
+    session.commit()
+    return out
 
 
 class RatingRequest(BaseModel):

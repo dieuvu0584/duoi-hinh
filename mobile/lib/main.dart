@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'api/api_client.dart';
 import 'api/token_store.dart';
+import 'image_chooser.dart';
 import 'media_saver.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
@@ -48,6 +49,7 @@ class _NhdAppState extends State<NhdApp> {
       providers: [
         Provider<ApiClient>.value(value: widget.client),
         Provider<MediaSaver>.value(value: const GalleryMediaSaver()),
+        Provider<ImageChooser>.value(value: const GalleryImageChooser()),
       ],
       child: MaterialApp(
         title: 'Memes On Air',

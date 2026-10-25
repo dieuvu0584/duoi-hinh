@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nhd/idea_from_image/1",
+  "title": "IdeaFromImageResult",
+  "description": "A meme idea written from a picture the owner attached and their own explanation. Never copies the picture and never identifies anyone in it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["brief", "joke_summary", "contains_identifiable_person", "warnings"],
+  "properties": {
+    "brief": { "type": "string", "maxLength": 1500 },
+    "joke_summary": { "type": "string", "maxLength": 300 },
+    "contains_identifiable_person": { "type": "boolean" },
+    "warnings": { "type": "array", "maxItems": 5, "items": { "type": "string", "maxLength": 200 } }
+  }
+}

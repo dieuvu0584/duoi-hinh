@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
+import '../image_chooser.dart';
 import '../ui_helpers.dart';
 import 'prompts_sheet.dart';
 
@@ -40,6 +43,8 @@ class _CreateScreenState extends State<CreateScreen> {
   final _answer = TextEditingController();
   final _instructions = TextEditingController();
   bool _busy = false;
+  Uint8List? _image;
+  List<String> _imageNotes = const [];
 
   @override
   void initState() {
@@ -98,6 +103,41 @@ class _CreateScreenState extends State<CreateScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        Row(children: [
+          OutlinedButton.icon(
+            onPressed: _busy ? null : _pickImage,
+            icon: const Icon(Icons.image_outlined),
+            label: Text(_image == null ? 'Đính kèm ảnh' : 'Đổi ảnh'),
+          ),
+          if (_image != null) ...[
+            const SizedBox(width: 12),
+            ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.memory(_image!, width: 56, height: 56, fit: BoxFit.cover)),
+            IconButton(
+              tooltip: 'Bỏ ảnh',
+              onPressed: _busy ? null : () => setState(() => _image = null),
+              icon: const Icon(Icons.close),
+            ),
+          ],
+        ]),
+        if (_image != null) ...[
+          const SizedBox(height: 8),
+          Text('Viết vào ô bên dưới điều bạn thấy hay ở ảnh, rồi bấm "Rút ý tưởng từ ảnh".',
+              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 8),
+          FilledButton.tonalIcon(
+            onPressed: _busy ? null : _draftFromImage,
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('Rút ý tưởng từ ảnh (tốn vài cent)'),
+          ),
+        ],
+        for (final w in _imageNotes)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text('⚠ $w', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ),
+        const SizedBox(height: 12),
         TextField(
           controller: _brief,
           maxLines: 5,
@@ -163,6 +203,41 @@ class _CreateScreenState extends State<CreateScreen> {
             style: Theme.of(context).textTheme.bodySmall),
       ],
     );
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final bytes = await context.read<ImageChooser>().pick();
+      if (bytes != null && mounted) {
+        setState(() {
+          _image = bytes;
+          _imageNotes = const [];
+        });
+      }
+    } catch (e) {
+      if (mounted) showMessage(context, friendlyError(e));
+    }
+  }
+
+  /// Claude reads the picture together with what the owner wrote and drafts the idea; the draft
+  /// replaces the text box so the owner can still edit it before creating anything.
+  Future<void> _draftFromImage() async {
+    final image = _image;
+    if (image == null) return;
+    setState(() => _busy = true);
+    try {
+      final out = await context.read<ApiClient>().ideaFromImage(image, note: _brief.text);
+      if (!mounted) return;
+      setState(() {
+        _brief.text = '${out['brief']}';
+        _imageNotes = List<Object?>.from(out['warnings'] as List? ?? []).map((e) => '$e').toList();
+      });
+      showMessage(context, 'Đã viết nháp ý tưởng từ ảnh, bạn xem và sửa trước khi tạo bài.');
+    } catch (e) {
+      if (mounted) showMessage(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _showPrompts() async {

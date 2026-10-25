@@ -1,6 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:typed_data';
+
+import 'package:nhd_admin/image_chooser.dart';
 import 'package:nhd_admin/api/api_client.dart';
 import 'package:nhd_admin/api/token_store.dart';
 import 'package:nhd_admin/media_saver.dart';
@@ -389,6 +392,38 @@ void main() {
       expect(sent!['brief'], 'mèo lười');
       expect(find.text('Scene: mèo lười'), findsOneWidget);
       expect(find.text('Sao chép'), findsOneWidget);
+    });
+
+    testWidgets('a picture plus the owner own words become a draft idea', (tester) async {
+      Map? sent;
+      final api = await loggedIn(FakeBackend({
+        'POST /api/ideas/from-image': (c) {
+          sent = c.body as Map?;
+          return (200, {
+            'brief': 'Mèo họp online, mắt thất thần.',
+            'joke_summary': 'Họp dài',
+            'warnings': ['Ảnh có người thật: đã viết chung chung.'],
+          });
+        },
+      }));
+      await tester.pumpWidget(MultiProvider(
+        providers: [
+          Provider<ApiClient>.value(value: api),
+          Provider<ImageChooser>.value(value: _FakeChooser()),
+        ],
+        child: const MaterialApp(home: Scaffold(body: CreateScreen())),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Rút ý tưởng từ ảnh'), findsNothing); // only after a picture
+      await tester.tap(find.text('Đính kèm ảnh'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'Cảnh họp online dài lê thê');
+      await tester.tap(find.textContaining('Rút ý tưởng từ ảnh (tốn'));
+      await tester.pumpAndSettle();
+      expect(sent!['note'], 'Cảnh họp online dài lê thê');
+      expect((sent!['image_base64'] as String).isNotEmpty, isTrue);
+      expect(find.text('Mèo họp online, mắt thất thần.'), findsOneWidget);
+      expect(find.textContaining('Ảnh có người thật'), findsOneWidget);
     });
 
     testWidgets('lessons: a proposed lesson can be approved and approved ones are listed', (tester) async {
@@ -924,4 +959,17 @@ class _FakeSaver implements MediaSaver {
     if (fail) throw ApiException(0, 'network', 'x');
     saved.add('$path -> $name');
   }
+}
+
+
+/// A 1x1 transparent PNG, so the preview can decode it.
+final _tinyPng = Uint8List.fromList(const [
+  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0,
+  0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 0, 1, 0, 0, 5, 0, 1, 13, 10, 45,
+  180, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+]);
+
+class _FakeChooser implements ImageChooser {
+  @override
+  Future<Uint8List?> pick() async => _tinyPng;
 }

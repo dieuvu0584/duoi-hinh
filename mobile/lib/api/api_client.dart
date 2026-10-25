@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -374,6 +376,13 @@ class ApiClient {
     });
     return List<Map<String, dynamic>>.from((body as Map)['prompts'] as List);
   }
+
+  /// Drafts a meme idea from a picture and the owner's own explanation (a few cents).
+  Future<Map<String, dynamic>> ideaFromImage(Uint8List image, {String? note}) async =>
+      Map<String, dynamic>.from(await _request('POST', '/api/ideas/from-image', data: {
+        'image_base64': base64Encode(image),
+        'note': ?_nonEmpty(note),
+      }) as Map);
 
   Future<void> rateIdea(String id, int rating) =>
       _request('POST', '/api/ideas/candidates/$id/rating', data: {'rating': rating});
