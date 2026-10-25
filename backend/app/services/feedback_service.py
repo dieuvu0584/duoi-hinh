@@ -199,6 +199,38 @@ def _idea_evidence(session: Session) -> list[dict[str, Any]]:
              "lane": c.lane or c.suggested_lane, "made": c.status == "created"} for c in rows]
 
 
+MIN_RATED_FOR_CALIBRATION = 4
+CALIBRATION_EXAMPLES = 8  # per side (liked / disliked)
+
+
+def calibration(session: Session) -> dict[str, Any] | None:
+    """What the idea filter should learn from the owner's stars before scoring a new scan.
+
+    The owner's ratings are shown as DATA: examples of liked and disliked ideas with the score
+    Claude gave them, plus how its scores compare with the stars so far. Nothing needs approval
+    because it only changes how the next scan is scored; the backend still applies its own
+    thresholds (minimum score, risk) to whatever comes back."""
+    rated = session.scalars(
+        select(IdeaCandidate).where(IdeaCandidate.owner_rating.is_not(None))
+        .order_by(IdeaCandidate.created_at.desc()).limit(200)).all()
+    if len(rated) < MIN_RATED_FOR_CALIBRATION:
+        return None
+
+    def example(c: IdeaCandidate) -> dict[str, Any]:
+        return {"situation": c.situation[:160], "your_score": c.score,
+                "owner_stars": c.owner_rating}
+
+    liked = [c for c in rated if c.owner_rating >= 4][:CALIBRATION_EXAMPLES]
+    disliked = [c for c in rated if c.owner_rating <= 2][:CALIBRATION_EXAMPLES]
+    by_stars: dict[str, float] = {}
+    for star in range(1, 6):
+        scores = [c.score for c in rated if c.owner_rating == star]
+        if scores:
+            by_stars[str(star)] = round(sum(scores) / len(scores), 1)
+    return {"rated_count": len(rated), "average_your_score_by_owner_stars": by_stars,
+            "liked": [example(c) for c in liked], "disliked": [example(c) for c in disliked]}
+
+
 def rate_idea(session: Session, owner, candidate_id: uuid.UUID, rating: int) -> IdeaCandidate:
     cand = session.get(IdeaCandidate, candidate_id)
     if cand is None:

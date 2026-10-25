@@ -673,3 +673,31 @@ def test_approved_lessons_reach_the_idea_prompts(db, cfg, money):
     run(idea_service.propose(db, llm, cfg, c.id, "daily_life"))
     sent = json.loads(llm.calls[0][0]["text"])
     assert sent["channel_lessons"] == ["Uu tien tinh huong cong so"]
+
+
+def test_the_scan_learns_from_the_owners_stars_once_there_are_enough(db, cfg, money):
+    add_source(db)
+    for i, (stars, score) in enumerate([(5, 60), (5, 55), (1, 90), (2, 85), (3, 70)]):
+        make_candidate(db, situation=f"Tinh huong {i}", score=score, owner_rating=stars,
+                       status="dismissed",
+                       source_items=[{"title": f"t{i}", "source": "A",
+                                      "url": f"https://x.vn/old{i}", "published_at": None}])
+    llm = FakeLLM({"candidates": [cand([1], score=80)]})
+    scan(db, llm, cfg, fixed(feeds_xml("a", "b")))
+    sent = json.loads(llm.calls[0][0]["text"])
+    ex = sent["owner_rated_examples"]
+    assert ex["rated_count"] == 5
+    assert ex["average_your_score_by_owner_stars"]["5"] == 57.5  # Claude under-scored the loved ones
+    assert ex["average_your_score_by_owner_stars"]["1"] == 90.0  # and over-scored the disliked
+    assert {e["owner_stars"] for e in ex["liked"]} == {5}
+    assert {e["owner_stars"] for e in ex["disliked"]} == {1, 2}
+    assert "headlines" in sent
+
+
+def test_with_too_few_ratings_the_scan_sends_the_headlines_unchanged(db, cfg, money):
+    add_source(db)
+    make_candidate(db, owner_rating=5, status="dismissed")
+    llm = FakeLLM({"candidates": [cand([1], score=80)]})
+    scan(db, llm, cfg, fixed(feeds_xml("a", "b")))
+    sent = json.loads(llm.calls[0][0]["text"])
+    assert isinstance(sent, list)  # no calibration object yet

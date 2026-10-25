@@ -150,7 +150,16 @@ class _LessonsScreenState extends State<LessonsScreen> {
         .join(' · ');
     final ideas = Map<String, dynamic>.from(s['ideas'] as Map? ?? {});
     final ideaCount = (ideas['count'] as num?)?.toInt() ?? 0;
-    final ideaText = ideaCount == 0 ? '' : ' $ideaCount ý tưởng đã chấm sao (trung bình ${ideas['average_rating']}).';
+    final byStars = Map<String, dynamic>.from(ideas['average_claude_score_by_rating'] as Map? ?? {});
+    final starKeys = byStars.keys.toList()..sort();
+    final calib = starKeys.length < 2
+        ? ''
+        : ' Điểm Claude chấm trung bình: ${byStars[starKeys.last]} cho ý tưởng ${starKeys.last} sao, '
+            '${byStars[starKeys.first]} cho ý tưởng ${starKeys.first} sao (càng chênh đúng hướng càng tốt, '
+            'lần quét sau tự chỉnh theo sao của bạn).';
+    final ideaText = ideaCount == 0
+        ? ''
+        : ' $ideaCount ý tưởng đã chấm sao (trung bình ${ideas['average_rating']}).$calib';
     return '$count video đã đánh giá. $lanes$ideaText';
   }
 

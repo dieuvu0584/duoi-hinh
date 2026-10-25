@@ -203,10 +203,13 @@ async def _shortlist(
                 "source": names.get(it.source_id, "")} for i, it in enumerate(items, start=1)]
     prompt = _read_prompt(cfg, FILTER_PROMPT)
     lessons = feedback_service.approved_lessons(session, "daily_life")
-    body = {"headlines": payload, **({"channel_lessons": lessons} if lessons else {})}
+    calib = feedback_service.calibration(session)
+    extras = {**({"channel_lessons": lessons} if lessons else {}),
+              **({"owner_rated_examples": calib} if calib else {})}
+    body = {"headlines": payload, **extras}
     out = await llm_service.call_json(
         session, llm, cfg, purpose="idea_filter", system_prompt=prompt,
-        content=[{"type": "text", "text": _dumps(body if lessons else payload)}],
+        content=[{"type": "text", "text": _dumps(body if extras else payload)}],
         schema_name="idea_filter",
         entity_type="scan_run", entity_id=str(run.id), schema_dir=cfg.schemas_dir,
         est_input_tokens=8000, max_tokens=6000)
