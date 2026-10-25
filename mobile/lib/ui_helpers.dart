@@ -131,6 +131,12 @@ Future<bool> withReauth(
   return true;
 }
 
+/// Statuses while a video is still being made: the owner may cancel it at any time.
+const creatingStatuses = {
+  'DRAFT', 'ANALYZING', 'READY_FOR_GENERATION', 'NEEDS_REWORK', 'GENERATING', 'RENDERING',
+  'QA_PENDING', 'FINAL_SAFETY_PENDING',
+};
+
 String laneLabel(String lane) => switch (lane) {
       'daily_life' => 'Đời sống',
       'rebus' => 'Đố hình',

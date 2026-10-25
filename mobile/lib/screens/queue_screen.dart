@@ -52,8 +52,33 @@ class _QueueScreenState extends State<QueueScreen> {
 
   Future<void> _reload() async {
     final next = _load();
-    setState(() => _items = next);
+    setState(() {
+      _items = next;
+    });
     await next.catchError((_) => <Map<String, dynamic>>[]);
+  }
+
+  Future<void> _cancel(Map<String, dynamic> it) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hủy tạo bài này?'),
+        content: Text('"${_title(it)}" sẽ dừng ngay, không tốn thêm tiền cho các bước sau. '
+            'Bước đang chạy dở (nếu có) vẫn đã tính phí.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Giữ lại')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Hủy tạo bài')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await context.read<ApiClient>().cancelCreation('${it['id']}');
+      if (mounted) showMessage(context, 'Đã hủy tạo bài.');
+    } catch (e) {
+      if (mounted) showMessage(context, friendlyError(e));
+    }
+    if (mounted) _reload();
   }
 
   Future<void> _open(String id) async {
@@ -130,7 +155,13 @@ class _QueueScreenState extends State<QueueScreen> {
                           Text('Chưa đánh giá', style: Theme.of(context).textTheme.bodySmall),
                       ]),
                       leading: Icon(Icons.circle, size: 14, color: statusColor(context, status)),
-                      trailing: const Icon(Icons.chevron_right),
+                      trailing: creatingStatuses.contains(status)
+                          ? IconButton(
+                              tooltip: 'Hủy tạo bài',
+                              icon: const Icon(Icons.cancel_outlined),
+                              onPressed: () => _cancel(it),
+                            )
+                          : const Icon(Icons.chevron_right),
                       onTap: () => _open('${it['id']}'),
                     );
                   },

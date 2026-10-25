@@ -88,6 +88,28 @@ def retry_now(
     return {"id": str(item.id), "status": item.status}
 
 
+@router.post("/{content_id}/cancel")
+def cancel_creation(
+    content_id: uuid.UUID,
+    owner: OwnerAccount = Depends(current_owner),
+    session: Session = Depends(get_session),
+):
+    """Stop making a video that is still being created (no more paid steps are started).
+
+    A step already running at the provider cannot be recalled; nothing after it will run."""
+    item = _load(session, content_id)
+    if item.status not in {s.value for s in pipeline_runner.ACTIVE}:
+        raise ApiError(409, "not_in_pipeline", "This item is not being created")
+    stage = item.status
+    content_service.transition_content(session, item, ContentState.REJECTED,
+                                       actor=f"owner:{owner.id}", reason="owner_cancelled")
+    data = {**(item.pipeline_input or {})}
+    data["notes"] = [*(data.get("notes") or []), {"stage": stage, "reason": "owner_cancelled"}]
+    item.pipeline_input = data
+    session.commit()
+    return {"id": str(item.id), "status": item.status}
+
+
 @router.post("/{content_id}/resume")
 def resume_held(
     content_id: uuid.UUID,

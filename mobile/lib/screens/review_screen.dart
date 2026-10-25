@@ -411,7 +411,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
   /// The system itself turned the item down (quality check, safety, regeneration limit).
   Widget _rejectedCard(String kind, String stage, String reason) {
     final score = RegExp(r'score ([0-9.]+)').firstMatch(reason)?.group(1);
-    final advice = reason.startsWith('qa_rejected')
+    final advice = reason == 'owner_cancelled'
+        ? 'Bạn đã hủy tạo bài này nên hệ thống dừng lại.'
+        : reason.startsWith('qa_rejected')
         ? 'Kiểm tra chất lượng tự động chấm ${score ?? '?'} điểm (dưới 65) nên hệ thống tự loại bài này, '
             'không cần bạn bấm gì. Ảnh không thể hiện đúng ý tưởng; chi tiết ở mục "Lỗi kiểm tra chất lượng" bên dưới.'
         : reason == 'regeneration_limit'
@@ -687,10 +689,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
             onPressed: _busy ? null : _retract, child: const Text('Gỡ bài đã đăng')),
       ));
     }
-    if (const {
-      'DRAFT', 'ANALYZING', 'READY_FOR_GENERATION', 'NEEDS_REWORK', 'GENERATING',
-      'RENDERING', 'QA_PENDING', 'FINAL_SAFETY_PENDING'
-    }.contains(status)) {
+    if (creatingStatuses.contains(status)) {
+      buttons.add(Expanded(
+        child: OutlinedButton(
+            onPressed: _busy
+                ? null
+                : () => _act(() => _api.cancelCreation(widget.id),
+                    done: 'Đã hủy tạo bài', pop: true),
+            child: const Text('Hủy tạo bài')),
+      ));
       buttons.add(Expanded(
         child: OutlinedButton(
             onPressed: _busy

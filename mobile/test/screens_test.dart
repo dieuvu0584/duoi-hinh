@@ -146,6 +146,31 @@ void main() {
     expect(find.text('Chưa đánh giá'), findsOneWidget);
   });
 
+  testWidgets('a video still being created can be cancelled from the list', (tester) async {
+    var cancelled = 0;
+    final api = await loggedIn(FakeBackend({
+      'GET /api/content': (_) => (200, {
+            'items': [
+              {'id': '1', 'lane': 'daily_life', 'status': 'GENERATING', 'brief': 'Mèo lười'},
+              {'id': '2', 'lane': 'daily_life', 'status': 'PENDING_APPROVAL', 'overlay_text': 'Xong'},
+            ]
+          }),
+      'POST /api/content/1/cancel': (_) {
+        cancelled++;
+        return (200, {'id': '1', 'status': 'REJECTED'});
+      },
+    }));
+    await tester.pumpWidget(host(api, const Scaffold(body: QueueScreen())));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Hủy tạo bài'), findsOneWidget); // only the one still being made
+    await tester.tap(find.byTooltip('Hủy tạo bài'));
+    await tester.pumpAndSettle();
+    expect(cancelled, 0); // asks first
+    await tester.tap(find.widgetWithText(FilledButton, 'Hủy tạo bài'));
+    await tester.pumpAndSettle();
+    expect(cancelled, 1);
+  });
+
   testWidgets('an empty queue says so', (tester) async {
     final api = await loggedIn(FakeBackend({'GET /api/content': (_) => (200, {'items': []})}));
     await tester.pumpWidget(host(api, const Scaffold(body: QueueScreen())));

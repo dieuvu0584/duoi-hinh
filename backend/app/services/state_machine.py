@@ -70,23 +70,26 @@ class PublishState(StrEnum):
 C, J, P = ContentState, JobState, PublishState
 
 CONTENT_TRANSITIONS: dict[ContentState, frozenset[ContentState]] = {
-    C.DRAFT: frozenset({C.ANALYZING}),
+    # REJECTED from any in-pipeline state = the owner cancels the video before it is finished.
+    C.DRAFT: frozenset({C.ANALYZING, C.REJECTED}),
     C.ANALYZING: frozenset({C.READY_FOR_GENERATION, C.HELD_FOR_HUMAN, C.REJECTED}),
     # A hold can come from the intake gate or the final gate; the service must check which one
     # before choosing READY_FOR_GENERATION (intake) or PENDING_APPROVAL (final).
     # RENDERING: the owner retries a render that failed (the assets already exist).
     C.HELD_FOR_HUMAN: frozenset(
         {C.READY_FOR_GENERATION, C.RENDERING, C.PENDING_APPROVAL, C.REJECTED}),
-    C.READY_FOR_GENERATION: frozenset({C.GENERATING}),
+    C.READY_FOR_GENERATION: frozenset({C.GENERATING, C.REJECTED}),
     # Mid-pipeline stops that need a person (e.g. the image prompt cannot represent the idea).
     # ANALYZING: a concept the image model could not draw is redesigned once, automatically.
-    C.GENERATING: frozenset({C.RENDERING, C.NEEDS_REWORK, C.HELD_FOR_HUMAN, C.ANALYZING}),
-    C.RENDERING: frozenset({C.QA_PENDING, C.NEEDS_REWORK, C.HELD_FOR_HUMAN}),
+    C.GENERATING: frozenset(
+        {C.RENDERING, C.NEEDS_REWORK, C.HELD_FOR_HUMAN, C.ANALYZING, C.REJECTED}),
+    C.RENDERING: frozenset({C.QA_PENDING, C.NEEDS_REWORK, C.HELD_FOR_HUMAN, C.REJECTED}),
     C.QA_PENDING: frozenset(
         {C.FINAL_SAFETY_PENDING, C.NEEDS_REWORK, C.REJECTED, C.HELD_FOR_HUMAN}
     ),
     C.NEEDS_REWORK: frozenset({C.GENERATING, C.REJECTED}),
-    C.FINAL_SAFETY_PENDING: frozenset({C.PENDING_APPROVAL, C.HELD_FOR_HUMAN, C.BLOCKED}),
+    C.FINAL_SAFETY_PENDING: frozenset(
+        {C.PENDING_APPROVAL, C.HELD_FOR_HUMAN, C.BLOCKED, C.REJECTED}),
     C.PENDING_APPROVAL: frozenset({C.APPROVED, C.REJECTED, C.NEEDS_REWORK}),
     C.APPROVED: frozenset({C.SCHEDULED, C.REJECTED}),  # REJECTED = the owner withdraws approval
     C.SCHEDULED: frozenset({C.APPROVED, C.PUBLISHED}),

@@ -87,6 +87,10 @@ async def run_pending(
             outcomes = await cp.run_until_wait(session, deps, item_id)
         except Exception as exc:  # noqa: BLE001 - one bad item must not stop the others
             session.rollback()
+            item = session.get(ContentItem, item_id, populate_existing=True)
+            if item is not None and item.status == CS.REJECTED.value:
+                notes.append(f"{item_id}:cancelled_by_owner")  # stopped mid-stage: not an error
+                continue
             log.exception("pipeline: unexpected error on %s", item_id)
             notes.append(f"{item_id}:unexpected:{type(exc).__name__}")
             item = session.get(ContentItem, item_id, populate_existing=True)

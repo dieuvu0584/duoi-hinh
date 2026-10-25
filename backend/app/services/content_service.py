@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError
@@ -32,6 +33,12 @@ def transition_content(
     reason: str | None = None,
 ) -> None:
     """The only place a content status changes. Raises 409 on an invalid transition."""
+    if sa_inspect(item).persistent:
+        # Another session (the owner cancelling in the app) may have moved the item while this
+        # one was busy: judge the transition from the stored status, never from a stale copy.
+        stored = session.scalar(select(ContentItem.status).where(ContentItem.id == item.id))
+        if stored is not None and stored != item.status:
+            item.status = stored
     source = ContentState(item.status)
     try:
         check_content_transition(source, target)

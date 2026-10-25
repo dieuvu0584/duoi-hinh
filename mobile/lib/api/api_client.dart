@@ -260,6 +260,8 @@ class ApiClient {
       Map<String, dynamic>.from(await _request('POST', '/api/content/$id/retract',
           data: {'reason': reason, 'password': password}) as Map);
 
+  Future<void> cancelCreation(String id) => _request('POST', '/api/content/$id/cancel');
+
   Future<void> retryNow(String id, {String? instructions}) => _request(
       'POST', '/api/content/$id/retry',
       data: {'instructions': ?_nonEmpty(instructions)});

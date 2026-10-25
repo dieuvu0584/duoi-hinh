@@ -501,3 +501,46 @@ def test_instructions_are_limited_and_shown_back_on_the_ticket(world, client, au
         "lane": "daily_life", "brief": "Mèo lười", "instructions": "Nền màu xanh"}).json()
     t = client.get(f"/api/content/{ok['id']}/review", headers=auth_headers).json()
     assert t["source"]["instructions"] == "Nền màu xanh"
+
+
+def test_the_owner_can_cancel_a_video_that_is_still_being_created(
+        world, client, auth_headers, db):
+    item = start_draft(world)
+    assert client.post(f"/api/content/{item.id}/cancel").status_code == 401
+    r = client.post(f"/api/content/{item.id}/cancel", headers=auth_headers)
+    assert r.status_code == 200 and r.json()["status"] == "REJECTED"
+    after = reload(db, item)
+    assert after.pipeline_input["notes"][-1] == {"stage": "DRAFT", "reason": "owner_cancelled"}
+    # nothing is made for a cancelled item, so nothing more is paid
+    notes = run(pipeline_runner.run_pending(db, world.deps))
+    assert world.images.calls == [] and world.llm.calls == [] and notes == []
+    assert reload(db, item).status == "REJECTED"
+
+
+def test_only_items_being_created_can_be_cancelled(world, client, auth_headers, db):
+    item = start_draft(world)
+    run(pipeline_runner.run_pending(db, world.deps))
+    assert reload(db, item).status == "PENDING_APPROVAL"
+    r = client.post(f"/api/content/{item.id}/cancel", headers=auth_headers)
+    assert r.status_code == 409 and r.json()["error"]["code"] == "not_in_pipeline"
+
+
+def test_a_cancel_during_a_step_is_not_undone_when_the_step_finishes(world, db):
+    from sqlalchemy.orm import Session as _S
+
+    item = start_draft(world)
+    real = world.deps.render_both
+
+    def cancel_then_render(session, cfg, **kw):
+        # the owner cancels (another session) while this step is running
+        with _S(bind=session.get_bind()) as other:
+            row = other.get(ContentItem, item.id)
+            content_service.transition_content(other, row, cp.CS.REJECTED, actor="owner:x",
+                                               reason="owner_cancelled")
+            other.commit()
+        return real(session, cfg, **kw)
+
+    world.deps.render_both = cancel_then_render
+    notes = run(pipeline_runner.run_pending(db, world.deps))
+    assert reload(db, item).status == "REJECTED"  # never revived by the finishing step
+    assert any("cancelled_by_owner" in n for n in notes)
