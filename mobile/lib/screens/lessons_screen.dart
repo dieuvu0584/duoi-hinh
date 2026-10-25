@@ -142,13 +142,16 @@ class _LessonsScreenState extends State<LessonsScreen> {
   String _summaryText(Map<String, dynamic> s) {
     final count = (s['count'] as num?)?.toInt() ?? 0;
     if (count == 0) {
-      return 'Chưa có đánh giá nào. Mở một video và bấm sao ở mục "Đánh giá video này".';
+      return 'Chưa có video nào được đánh giá. Mở một video và bấm sao ở mục "Đánh giá video này".';
     }
     final byLane = Map<String, dynamic>.from(s['by_lane'] as Map? ?? {});
     final lanes = byLane.entries
         .map((e) => '${_laneNames[e.key] ?? e.key}: ${e.value['average']} sao (${e.value['count']})')
         .join(' · ');
-    return '$count video đã đánh giá. $lanes';
+    final ideas = Map<String, dynamic>.from(s['ideas'] as Map? ?? {});
+    final ideaCount = (ideas['count'] as num?)?.toInt() ?? 0;
+    final ideaText = ideaCount == 0 ? '' : ' $ideaCount ý tưởng đã chấm sao (trung bình ${ideas['average_rating']}).';
+    return '$count video đã đánh giá. $lanes$ideaText';
   }
 
   @override

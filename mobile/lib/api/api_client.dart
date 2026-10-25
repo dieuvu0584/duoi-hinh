@@ -375,6 +375,9 @@ class ApiClient {
     return List<Map<String, dynamic>>.from((body as Map)['prompts'] as List);
   }
 
+  Future<void> rateIdea(String id, int rating) =>
+      _request('POST', '/api/ideas/candidates/$id/rating', data: {'rating': rating});
+
   Future<void> saveFeedback(String id,
           {required int rating,
           required List<String> labels,

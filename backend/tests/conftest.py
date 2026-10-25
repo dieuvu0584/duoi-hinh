@@ -68,6 +68,7 @@ def db(engine):
                 " max_publishes_per_day=3, max_lateness_minutes=30, prepare_lead_minutes=20,"
                 " facebook_page_id=NULL, youtube_channel_id=NULL, elevenlabs_voice_id=NULL,"
                 " scan_enabled=false, youtube_enabled=false, publish_on_approve=false,"
+                " auto_create_per_day=0, auto_create_per_scan=3, auto_create_min_score=70,"
                 " scan_times='[\"10:00\",\"16:00\",\"20:00\",\"00:00\"]'::jsonb"
             )
         )

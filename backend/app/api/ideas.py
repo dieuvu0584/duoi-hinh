@@ -15,7 +15,7 @@ from app.core.errors import ApiError
 from app.core.urlsafety import is_safe_public_https_url
 from app.db.models import FeedSource, IdeaCandidate, Idiom, OwnerAccount, ScanRun
 from app.db.session import get_session
-from app.services import external_prompts, idea_service
+from app.services import external_prompts, feedback_service, idea_service
 from app.services.audit import record_audit
 
 router = APIRouter(prefix="/ideas", tags=["ideas"])
@@ -29,6 +29,7 @@ def _candidate_out(c: IdeaCandidate, *, detail: bool = False) -> dict[str, Any]:
                     for s in c.source_items],
         "created_at": c.created_at.isoformat(), "expires_at": c.expires_at.isoformat(),
         "lane": c.lane, "content_item_id": str(c.content_item_id) if c.content_item_id else None,
+        "owner_rating": c.owner_rating,
     }
     if detail:
         out["proposals"] = c.proposals or []
@@ -74,6 +75,23 @@ def get_candidate(
     session: Session = Depends(get_session),
 ):
     return _candidate_out(_load(session, candidate_id), detail=True)
+
+
+class RatingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    rating: int = Field(ge=1, le=5)
+
+
+@router.post("/candidates/{candidate_id}/rating")
+def rate_candidate(
+    candidate_id: uuid.UUID,
+    body: RatingRequest,
+    owner: OwnerAccount = Depends(current_owner),
+    session: Session = Depends(get_session),
+):
+    """The owner's stars for an idea (any status); Claude learns from them when lessons are made."""
+    cand = feedback_service.rate_idea(session, owner, candidate_id, body.rating)
+    return _candidate_out(cand)
 
 
 class ProposeRequest(BaseModel):

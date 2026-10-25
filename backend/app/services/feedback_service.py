@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.errors import ApiError
 from app.db.base import utcnow
-from app.db.models import ContentItem, ContentRevision, Lesson, VideoFeedback
+from app.db.models import ContentItem, ContentRevision, IdeaCandidate, Lesson, VideoFeedback
 from app.services import llm_service
 from app.services.audit import record_audit
 
@@ -94,7 +94,20 @@ def summary(session: Session) -> dict[str, Any]:
         for group, dims in (fb.scores or {}).items():
             for dim, value in dims.items():
                 levels[f"{group}.{dim}"].append(value)
+    rated_ideas = session.execute(
+        select(IdeaCandidate.owner_rating, IdeaCandidate.score)
+        .where(IdeaCandidate.owner_rating.is_not(None))).all()
     return {
+        "ideas": {
+            "count": len(rated_ideas),
+            "average_rating": (round(sum(r for r, _ in rated_ideas) / len(rated_ideas), 2)
+                               if rated_ideas else None),
+            # What Claude's own score looks like for each star level the owner gave.
+            "average_claude_score_by_rating": {
+                str(star): round(sum(s for r, s in rated_ideas if r == star)
+                                 / sum(1 for r, _ in rated_ideas if r == star), 1)
+                for star in range(1, 6) if any(r == star for r, _ in rated_ideas)},
+        },
         "count": len(rows),
         "by_lane": {lane: {"count": len(r), "average": round(sum(r) / len(r), 2)}
                     for lane, r in by_lane.items()},
@@ -178,18 +191,39 @@ def _evidence(session: Session) -> list[dict[str, Any]]:
     return out
 
 
+def _idea_evidence(session: Session) -> list[dict[str, Any]]:
+    rows = session.scalars(
+        select(IdeaCandidate).where(IdeaCandidate.owner_rating.is_not(None))
+        .order_by(IdeaCandidate.created_at.desc()).limit(DISTILL_WINDOW)).all()
+    return [{"situation": c.situation[:200], "score": c.score, "owner_rating": c.owner_rating,
+             "lane": c.lane or c.suggested_lane, "made": c.status == "created"} for c in rows]
+
+
+def rate_idea(session: Session, owner, candidate_id: uuid.UUID, rating: int) -> IdeaCandidate:
+    cand = session.get(IdeaCandidate, candidate_id)
+    if cand is None:
+        raise ApiError(404, "not_found", "Idea not found")
+    cand.owner_rating = rating
+    record_audit(session, actor=f"owner:{owner.id}", action="idea.rated", result="ok",
+                 entity_type="idea_candidate", entity_id=str(cand.id),
+                 metadata={"rating": rating})
+    session.commit()
+    return cand
+
+
 async def distill(session: Session, llm, cfg: Settings, owner) -> list[Lesson]:
     """Ask the model for NEW lesson proposals from recent feedback; nothing is applied."""
     evidence = _evidence(session)
-    if len(evidence) < 3:
+    ideas = _idea_evidence(session)
+    if len(evidence) + len(ideas) < 3:
         raise ApiError(409, "not_enough_feedback",
-                       "Cần ít nhất 3 video đã có đánh giá để rút bài học")
+                       "Cần ít nhất 3 video hoặc ý tưởng đã có đánh giá để rút bài học")
     existing = session.scalars(
         select(Lesson).where(Lesson.status != "rejected")
         .order_by(Lesson.created_at.desc()).limit(MAX_LESSONS)).all()
     if len(existing) >= MAX_LESSONS:
         raise ApiError(409, "too_many_lessons", "Hãy xóa bớt bài học cũ trước")
-    payload = {"feedback": evidence,
+    payload = {"feedback": evidence, "idea_feedback": ideas,
                "existing_lessons": [{"text": r.text, "lane": r.lane} for r in existing]}
     prompt = (Path(cfg.prompts_dir) / "distill_lessons.md").read_text(encoding="utf-8")
     try:

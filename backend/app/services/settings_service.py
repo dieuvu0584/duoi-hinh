@@ -17,6 +17,7 @@ EDITABLE_FIELDS = {
     "max_publishes_per_day": int,
     "auto_create_per_day": int,
     "auto_create_per_scan": int,
+    "auto_create_min_score": int,
     "max_lateness_minutes": int,
     "prepare_lead_minutes": int,
     "facebook_page_id": str,
@@ -34,7 +35,7 @@ TEXT_FIELDS = {"facebook_page_id", "youtube_channel_id", "elevenlabs_voice_id"}
 REAUTH_FIELDS = {"news_lane_enabled", "daily_budget_limit", "monthly_budget_limit",
                  "automation_enabled", "facebook_page_id", "youtube_channel_id", "youtube_enabled",
                  "publish_on_approve", "auto_create_per_day",
-                 "auto_create_per_scan"}
+                 "auto_create_per_scan", "auto_create_min_score"}
 
 
 def normalise_scan_times(values: list[str]) -> list[str]:
@@ -92,6 +93,7 @@ def snapshot(row: SystemSettings, cfg=None) -> dict:
         "max_publishes_per_day": row.max_publishes_per_day,
         "auto_create_per_day": row.auto_create_per_day,
         "auto_create_per_scan": row.auto_create_per_scan,
+        "auto_create_min_score": row.auto_create_min_score,
         "max_lateness_minutes": row.max_lateness_minutes,
         "prepare_lead_minutes": row.prepare_lead_minutes,
         "facebook_page_id": row.facebook_page_id,

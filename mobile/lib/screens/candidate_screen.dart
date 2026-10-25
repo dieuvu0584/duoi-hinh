@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../api/api_client.dart';
 import '../ui_helpers.dart';
+import 'idea_stars.dart';
 import 'prompts_sheet.dart';
 
 class CandidateScreen extends StatefulWidget {
@@ -152,7 +153,13 @@ class _CandidateScreenState extends State<CandidateScreen> {
                 Text('${idea['situation']}', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 6),
                 Text('${idea['why']}'),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
+                Row(children: [
+                  const Text('Chấm sao ý tưởng này:'),
+                  IdeaStars(
+                      id: widget.id, rating: (idea['owner_rating'] as num?)?.toInt()),
+                ]),
+                const SizedBox(height: 4),
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   title: const Text('Tin gốc (chỉ để tham khảo)'),

@@ -129,6 +129,23 @@ void main() {
     expect(created!['brief'], contains('mèo'));
   });
 
+  testWidgets('the owner can star an idea in the list', (tester) async {
+    Map? sent;
+    final api = await loggedIn(FakeBackend({
+      'GET /api/ideas/candidates': (_) => (200, {'items': [idea()], 'last_scan': null}),
+      'POST /api/ideas/candidates/c1/rating': (c) {
+        sent = c.body as Map?;
+        return (200, {});
+      },
+    }));
+    await tester.pumpWidget(host(api, const Scaffold(body: IdeasScreen())));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('4 sao cho ý tưởng này'));
+    await tester.pumpAndSettle();
+    expect(sent!['rating'], 4);
+    expect(find.byIcon(Icons.star), findsNWidgets(4));
+  });
+
   testWidgets('a rebus cannot be created with an empty answer', (tester) async {
     var calls = 0;
     final api = await loggedIn(FakeBackend({

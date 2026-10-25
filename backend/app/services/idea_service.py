@@ -29,7 +29,7 @@ from app.db.models import (
 )
 from app.providers.contracts import JsonLLM
 from app.providers.errors import ProviderError
-from app.services import content_pipeline, feed_service, llm_service
+from app.services import content_pipeline, feed_service, feedback_service, llm_service
 from app.services.audit import record_audit
 from app.services.safety_rules import _fold, leaks_answer
 from app.services.settings_service import get_settings_row
@@ -202,9 +202,12 @@ async def _shortlist(
     payload = [{"id": i, "title": it.title, "summary": (it.summary or "")[:200],
                 "source": names.get(it.source_id, "")} for i, it in enumerate(items, start=1)]
     prompt = _read_prompt(cfg, FILTER_PROMPT)
+    lessons = feedback_service.approved_lessons(session, "daily_life")
+    body = {"headlines": payload, **({"channel_lessons": lessons} if lessons else {})}
     out = await llm_service.call_json(
         session, llm, cfg, purpose="idea_filter", system_prompt=prompt,
-        content=[{"type": "text", "text": _dumps(payload)}], schema_name="idea_filter",
+        content=[{"type": "text", "text": _dumps(body if lessons else payload)}],
+        schema_name="idea_filter",
         entity_type="scan_run", entity_id=str(run.id), schema_dir=cfg.schemas_dir,
         est_input_tokens=8000, max_tokens=6000)
     active_urls = {
@@ -292,8 +295,10 @@ async def propose(
         bank = list(session.scalars(select(Idiom).where(Idiom.enabled.is_(True))))
         if not bank:
             raise ApiError(422, "no_idioms", "Add idioms to the idiom bank first")
+    lessons = feedback_service.approved_lessons(session, lane)
     payload = {"lane": lane, "situation": cand.situation,
                "headlines": [s["title"] for s in cand.source_items],
+               **({"channel_lessons": lessons} if lessons else {}),
                **({"idiom_bank": [{"text": i.text, "meaning": i.meaning} for i in bank]}
                   if lane == "rebus" else {})}
     try:
@@ -367,6 +372,7 @@ async def auto_create(
     ranked = session.scalars(
         select(IdeaCandidate).where(
             IdeaCandidate.status == "new", IdeaCandidate.risk_level == AUTO_RISK,
+            IdeaCandidate.score >= row.auto_create_min_score,
             IdeaCandidate.expires_at > now)
         .order_by(IdeaCandidate.score.desc(), IdeaCandidate.created_at).limit(30)).all()
     per_scan: dict[uuid.UUID, int] = {}

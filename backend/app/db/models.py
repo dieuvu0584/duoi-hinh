@@ -77,6 +77,7 @@ class SystemSettings(TimestampMixin, Base):
         CheckConstraint("max_publishes_per_day BETWEEN 0 AND 30", name="publish_cap_range"),
         CheckConstraint("auto_create_per_day BETWEEN 0 AND 10", name="auto_create_range"),
         CheckConstraint("auto_create_per_scan BETWEEN 1 AND 10", name="auto_scan_range"),
+        CheckConstraint("auto_create_min_score BETWEEN 0 AND 100", name="auto_score_range"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
@@ -95,6 +96,8 @@ class SystemSettings(TimestampMixin, Base):
     auto_create_per_day: Mapped[int] = mapped_column(Integer, default=0)
     # At most this many ideas from ONE scan are turned into videos automatically.
     auto_create_per_scan: Mapped[int] = mapped_column(Integer, default=3)
+    # Ideas scored lower than this by the idea filter are never made into videos automatically.
+    auto_create_min_score: Mapped[int] = mapped_column(Integer, default=70)
     max_lateness_minutes: Mapped[int] = mapped_column(Integer, default=30)
     prepare_lead_minutes: Mapped[int] = mapped_column(Integer, default=20)
     # Where and with which voice we publish. Owner-editable; the environment value is only the
@@ -510,6 +513,8 @@ class IdeaCandidate(Base):
     categories: Mapped[list[str]] = mapped_column(JSONB, default=list)
     source_items: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(String(10), default="new")
+    # The owner's own 1-5 stars for the idea; Claude learns from them (see feedback_service).
+    owner_rating: Mapped[int | None] = mapped_column(Integer)
     lane: Mapped[str | None] = mapped_column(String(10))
     proposals: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     content_item_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("content_items.id"))

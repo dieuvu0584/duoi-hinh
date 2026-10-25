@@ -46,6 +46,7 @@ class SettingsUpdate(BaseModel):
     max_publishes_per_day: int | None = Field(default=None, ge=0, le=30)
     auto_create_per_day: int | None = Field(default=None, ge=0, le=10)
     auto_create_per_scan: int | None = Field(default=None, ge=1, le=10)
+    auto_create_min_score: int | None = Field(default=None, ge=0, le=100)
     max_lateness_minutes: int | None = Field(default=None, ge=1, le=1440)
     prepare_lead_minutes: int | None = Field(default=None, ge=5, le=240)
     # "" clears the value (the environment default applies again).

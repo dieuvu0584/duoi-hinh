@@ -1,6 +1,7 @@
 """Idea scan: feed parsing, schedule slots, shortlist rules, proposals, API."""
 
 import asyncio
+import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -623,7 +624,9 @@ def test_no_more_than_the_per_scan_limit_from_one_scan_become_videos(db, cfg, mo
     db.commit()
     for score in (90, 80, 70):
         make_candidate(db, score=score, scan_run_id=scan_a.id)
-    other = make_candidate(db, score=10, scan_run_id=scan_b.id)
+    other = make_candidate(db, score=60, scan_run_id=scan_b.id)
+    db.execute(text("UPDATE system_settings SET auto_create_min_score=50"))
+    db.commit()
     llm = FakeLLM({"options": [option()]})
     made = [run(idea_service.auto_create(db, llm, cfg, now=NOW)) for _ in range(4)]
     assert [m is not None for m in made] == [True, True, True, False]
@@ -631,3 +634,42 @@ def test_no_more_than_the_per_scan_limit_from_one_scan_become_videos(db, cfg, mo
     assert db.get(IdeaCandidate, other.id).status == "created"
     left = db.scalars(select(IdeaCandidate).where(IdeaCandidate.status == "new")).all()
     assert [c.score for c in left] == [70]
+
+
+def test_ideas_below_the_minimum_score_are_never_made_automatically(db, cfg, money):
+    set_auto(db, 3)
+    weak = make_candidate(db, score=69)  # default minimum is 70
+    llm = FakeLLM({"options": [option()]})
+    assert run(idea_service.auto_create(db, llm, cfg, now=NOW)) is None
+    assert llm.calls == [] and db.get(IdeaCandidate, weak.id).status == "new"
+    db.execute(text("UPDATE system_settings SET auto_create_min_score=60"))
+    db.commit()
+    assert run(idea_service.auto_create(db, llm, cfg, now=NOW)) is not None
+
+
+def test_the_owner_can_star_an_idea_and_the_stars_feed_the_summary(
+        client, owner, auth_headers, db):
+    c = make_candidate(db, score=80)
+    url = f"/api/ideas/candidates/{c.id}/rating"
+    assert client.post(url, json={"rating": 4}).status_code == 401
+    assert client.post(url, headers=auth_headers, json={"rating": 6}).status_code == 422
+    r = client.post(url, headers=auth_headers, json={"rating": 4})
+    assert r.status_code == 200 and r.json()["owner_rating"] == 4
+    listed = client.get("/api/ideas/candidates", headers=auth_headers).json()["items"]
+    assert listed[0]["owner_rating"] == 4
+    ideas = client.get("/api/feedback/summary", headers=auth_headers).json()["ideas"]
+    assert ideas == {"count": 1, "average_rating": 4.0,
+                     "average_claude_score_by_rating": {"4": 80.0}}
+    assert client.post(f"/api/ideas/candidates/{'0' * 8}-0000-0000-0000-{'0' * 12}/rating",
+                       headers=auth_headers, json={"rating": 3}).status_code == 404
+
+
+def test_approved_lessons_reach_the_idea_prompts(db, cfg, money):
+    from app.db.models import Lesson
+    db.add(Lesson(text="Uu tien tinh huong cong so", lane="all", status="approved"))
+    db.commit()
+    c = make_candidate(db)
+    llm = FakeLLM({"options": [option()]})
+    run(idea_service.propose(db, llm, cfg, c.id, "daily_life"))
+    sent = json.loads(llm.calls[0][0]["text"])
+    assert sent["channel_lessons"] == ["Uu tien tinh huong cong so"]

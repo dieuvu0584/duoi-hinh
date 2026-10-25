@@ -5,6 +5,7 @@ import '../api/api_client.dart';
 import '../ui_helpers.dart';
 import 'candidate_screen.dart';
 import 'create_screen.dart';
+import 'idea_stars.dart';
 import 'scan_schedule_screen.dart';
 import 'sources_screen.dart';
 
@@ -159,6 +160,14 @@ class _IdeasScreenState extends State<IdeasScreen> {
               Chip(label: Text(laneHint('${it['suggested_lane']}')), visualDensity: VisualDensity.compact),
               if (it['status'] == 'proposed')
                 const Chip(label: Text('Đã có gợi ý'), visualDensity: VisualDensity.compact),
+            ]),
+            Row(children: [
+              Text('Chấm ý tưởng:', style: Theme.of(context).textTheme.bodySmall),
+              IdeaStars(
+                  key: ValueKey('stars-${it['id']}'),
+                  id: '${it['id']}',
+                  rating: (it['owner_rating'] as num?)?.toInt(),
+                  dense: true),
             ]),
             if (sources.isNotEmpty) ...[
               const SizedBox(height: 4),
