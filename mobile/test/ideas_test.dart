@@ -161,6 +161,34 @@ void main() {
     expect(find.byIcon(Icons.star), findsNWidgets(3));
   });
 
+  testWidgets('an idea rated under 3 stars is hidden, and the filter brings it back', (tester) async {
+    var hidden = false;
+    final seen = <String>[];
+    final api = await loggedIn(FakeBackend({
+      'GET /api/ideas/candidates': (c) {
+        final filter = c.query['rating'] as String;
+        seen.add(filter);
+        final show = filter == 'hidden' || filter == 'all' || !hidden;
+        return (200, {'items': show ? [idea()] : [], 'last_scan': null});
+      },
+      'POST /api/ideas/candidates/c1/rating': (_) {
+        hidden = true;
+        return (200, {});
+      },
+    }));
+    await tester.pumpWidget(host(api, const Scaffold(body: IdeasScreen())));
+    await tester.pumpAndSettle();
+    expect(seen.last, 'visible'); // the default shows ideas from 3 stars up
+    await tester.tap(find.byTooltip('2 sao cho ý tưởng này'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('xem lại ở bộ lọc'), findsOneWidget);
+    expect(find.byTooltip('2 sao cho ý tưởng này'), findsNothing); // hidden from the default list
+    await tester.tap(find.text('Đã ẩn (dưới 3 sao)'));
+    await tester.pumpAndSettle();
+    expect(seen.last, 'hidden');
+    expect(find.byTooltip('2 sao cho ý tưởng này'), findsOneWidget); // not deleted
+  });
+
   testWidgets('a rebus cannot be created with an empty answer', (tester) async {
     var calls = 0;
     final api = await loggedIn(FakeBackend({

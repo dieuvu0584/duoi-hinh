@@ -5,11 +5,12 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 class Call {
-  Call(this.method, this.path, this.auth, this.body);
+  Call(this.method, this.path, this.auth, this.body, [this.query = const {}]);
   final String method;
   final String path;
   final String? auth;
   final Object? body;
+  final Map<String, String> query;
 }
 
 typedef Handler = (int, Object?) Function(Call call);
@@ -29,7 +30,8 @@ class FakeBackend implements HttpClientAdapter {
       throw DioException.connectionError(requestOptions: options, reason: 'offline');
     }
     final call = Call(
-        options.method, options.uri.path, options.headers['Authorization'] as String?, options.data);
+        options.method, options.uri.path, options.headers['Authorization'] as String?, options.data,
+        options.uri.queryParameters);
     calls.add(call);
     await Future<void>.delayed(Duration.zero);
     final handler = routes['${options.method} ${options.uri.path}'];

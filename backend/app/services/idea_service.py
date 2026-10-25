@@ -11,7 +11,7 @@ import uuid
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -103,6 +103,20 @@ def _title_key(title: str) -> str:
     return _fold(title).strip()
 
 
+def disliked_sources(session: Session) -> tuple[set[str], set[str]]:
+    """URLs and normalised titles of stories behind ideas the owner rated under 3 stars."""
+    urls: set[str] = set()
+    titles: set[str] = set()
+    for (src,) in session.execute(
+            select(IdeaCandidate.source_items).where(
+                IdeaCandidate.owner_rating.is_not(None),
+                IdeaCandidate.owner_rating < feedback_service.DISLIKED_BELOW)):
+        for s in src:
+            urls.add(s["url"])
+            titles.add(_title_key(s["title"]))
+    return urls, titles
+
+
 def pick_batch(items: list[FeedItem], limit: int = MAX_PENDING_ITEMS) -> list[FeedItem]:
     """Newest first, but the sources take turns, so one busy feed (or the foreign ones) cannot
     crowd the others out of the limited batch sent to the model."""
@@ -165,6 +179,14 @@ async def run_scan(
             select(FeedItem).where(FeedItem.processed_at.is_(None),
                                    FeedItem.fetched_at > now - LOOKBACK)
             .order_by(FeedItem.published_at.desc().nullslast()).limit(600))))
+        bad_urls, bad_titles = disliked_sources(session)
+        if bad_urls:
+            skipped = [i for i in pending
+                       if i.url in bad_urls or _title_key(i.title) in bad_titles]
+            for item in skipped:  # never shown to the model again
+                item.processed_at = now
+            pending = [i for i in pending if i not in skipped]
+            session.commit()
         if not pending:
             return _finish(session, run, "done", note="no_new_items")
         candidates = await _shortlist(session, llm, cfg, pending, run, now)
@@ -376,6 +398,8 @@ async def auto_create(
         select(IdeaCandidate).where(
             IdeaCandidate.status == "new", IdeaCandidate.risk_level == AUTO_RISK,
             IdeaCandidate.score >= row.auto_create_min_score,
+            or_(IdeaCandidate.owner_rating.is_(None),
+                IdeaCandidate.owner_rating >= feedback_service.DISLIKED_BELOW),
             IdeaCandidate.expires_at > now)
         .order_by(IdeaCandidate.score.desc(), IdeaCandidate.created_at).limit(30)).all()
     per_scan: dict[uuid.UUID, int] = {}

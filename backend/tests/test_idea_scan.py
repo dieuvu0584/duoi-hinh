@@ -701,3 +701,55 @@ def test_with_too_few_ratings_the_scan_sends_the_headlines_unchanged(db, cfg, mo
     scan(db, llm, cfg, fixed(feeds_xml("a", "b")))
     sent = json.loads(llm.calls[0][0]["text"])
     assert isinstance(sent, list)  # no calibration object yet
+
+
+def test_an_idea_under_three_stars_is_hidden_by_default_not_deleted(
+        client, owner, auth_headers, db):
+    low = make_candidate(db, score=80)
+    fine = make_candidate(db, score=70)
+    fresh = make_candidate(db, score=60)
+    for cand, stars in ((low, 2), (fine, 4)):
+        r = client.post(f"/api/ideas/candidates/{cand.id}/rating", headers=auth_headers,
+                        json={"rating": stars})
+        assert r.status_code == 200
+
+    def ids(rating=None):
+        url = "/api/ideas/candidates" + (f"?rating={rating}" if rating else "")
+        return [i["id"] for i in client.get(url, headers=auth_headers).json()["items"]]
+
+    assert ids() == [str(fine.id), str(fresh.id)]  # the 2-star idea is hidden by default
+    # an idea without stars shows in every filter; the filters only narrow the rated ones
+    assert ids("hidden") == [str(low.id), str(fresh.id)]  # ...the hidden one comes back
+    assert set(ids("all")) == {str(low.id), str(fine.id), str(fresh.id)}
+    assert ids("4plus") == [str(fine.id), str(fresh.id)]
+    assert ids("5") == [str(fresh.id)]
+    assert client.get("/api/ideas/candidates?rating=nope",
+                      headers=auth_headers).status_code == 422
+    db.expire_all()
+    assert db.get(IdeaCandidate, low.id).status == "new"  # nothing was closed or deleted
+
+
+def test_a_hidden_idea_is_never_made_into_a_video_automatically(db, cfg, money):
+    set_auto(db, 3)
+    make_candidate(db, score=95, owner_rating=2)
+    llm = FakeLLM({"options": [option()]})
+    assert run(idea_service.auto_create(db, llm, cfg, now=NOW)) is None
+    assert llm.calls == []
+
+
+def test_the_same_story_is_not_scanned_again_after_a_low_rating(db, cfg, money):
+    add_source(db)
+    make_candidate(db, owner_rating=1, status="dismissed",
+                   source_items=[{"title": "Mèo ngủ gật", "source": "A",
+                                  "url": "https://x.vn/dis", "published_at": None}])
+    fresh_xml = (
+        '<?xml version="1.0"?><rss version="2.0"><channel>'
+        "<item><title>Mèo ngủ gật</title><link>https://other.vn/same</link></item>"
+        "<item><title>Chuyen khac hoan toan</title><link>https://x.vn/new</link></item>"
+        "<item><title>Mot chuyen moi nua</title><link>https://x.vn/dis</link></item>"
+        "</channel></rss>").encode()
+    llm = FakeLLM({"candidates": []})
+    scan(db, llm, cfg, fixed(fresh_xml))
+    titles = [h["title"] for h in json.loads(llm.calls[0][0]["text"])]
+    # the disliked URL and the same story from another outlet never reach the model again
+    assert titles == ["Chuyen khac hoan toan"]

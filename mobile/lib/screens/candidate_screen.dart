@@ -157,7 +157,9 @@ class _CandidateScreenState extends State<CandidateScreen> {
                 Row(children: [
                   const Text('Chấm sao ý tưởng này:'),
                   IdeaStars(
-                      id: widget.id, rating: (idea['owner_rating'] as num?)?.toInt()),
+                      id: widget.id,
+                      rating: (idea['owner_rating'] as num?)?.toInt(),
+                      onDismissed: () => Navigator.of(context).maybePop()),
                 ]),
                 const SizedBox(height: 4),
                 ExpansionTile(

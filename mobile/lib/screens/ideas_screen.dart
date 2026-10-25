@@ -20,10 +20,19 @@ class IdeasScreen extends StatefulWidget {
   State<IdeasScreen> createState() => _IdeasScreenState();
 }
 
+const _ratingFilters = {
+  'visible': 'Từ 3 sao',
+  '4plus': 'Từ 4 sao',
+  '5': '5 sao',
+  'hidden': 'Đã ẩn (dưới 3 sao)',
+  'all': 'Tất cả',
+};
+
 class _IdeasScreenState extends State<IdeasScreen> {
   Map<String, dynamic>? _data;
   String? _error;
   bool _busy = false;
+  String _rating = 'visible';
 
   ApiClient get _api => context.read<ApiClient>();
 
@@ -35,7 +44,7 @@ class _IdeasScreenState extends State<IdeasScreen> {
 
   Future<void> _load() async {
     try {
-      final d = await _api.ideaCandidates();
+      final d = await _api.ideaCandidates(rating: _rating);
       if (mounted) {
         setState(() {
           _data = d;
@@ -114,6 +123,26 @@ class _IdeasScreenState extends State<IdeasScreen> {
               ),
             ]),
             const SizedBox(height: 8),
+            SizedBox(
+              height: 44,
+              child: ListView(scrollDirection: Axis.horizontal, children: [
+                for (final f in _ratingFilters.entries)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(f.value),
+                      selected: _rating == f.key,
+                      onSelected: (_) {
+                        setState(() => _rating = f.key);
+                        _load();
+                      },
+                    ),
+                  ),
+              ]),
+            ),
+            Text('Ý tưởng chưa chấm sao luôn hiện. Ý tưởng dưới 3 sao chỉ bị ẩn, xem lại ở "Đã ẩn".',
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 8),
             Text(_scanSummary(d?['last_scan'] as Map<String, dynamic>?),
                 style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 12),
@@ -123,8 +152,8 @@ class _IdeasScreenState extends State<IdeasScreen> {
               const Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                    'Chưa có ý tưởng nào. Bấm "Quét tin ngay", hoặc bật quét tự động ở mục Khung giờ quét. '
-                    'Bạn cũng có thể tự nhập ý tưởng bằng nút bên dưới.'),
+                    'Không có ý tưởng nào ở bộ lọc này. Bấm "Quét tin ngay", đổi bộ lọc, hoặc bật quét tự động ở '
+                    'mục Khung giờ quét. Bạn cũng có thể tự nhập ý tưởng bằng nút bên dưới.'),
               ),
             for (final it in items) _tile(it),
           ],
@@ -167,7 +196,8 @@ class _IdeasScreenState extends State<IdeasScreen> {
                   key: ValueKey('stars-${it['id']}'),
                   id: '${it['id']}',
                   rating: (it['owner_rating'] as num?)?.toInt(),
-                  dense: true),
+                  dense: true,
+                  onDismissed: _load),
             ]),
             if (sources.isNotEmpty) ...[
               const SizedBox(height: 4),

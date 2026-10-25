@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import or_, select, true
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -44,9 +44,23 @@ def _load(session: Session, candidate_id: uuid.UUID) -> IdeaCandidate:
 
 
 # --------------------------------------------------------------------------- candidates
+# Star filters for the idea list. They only ever narrow the RATED ideas: an idea with no stars
+# yet is always shown, whatever the filter. The default shows ideas rated 3+ stars; the ones
+# under 3 are hidden, not deleted ("hidden" shows them, "all" shows everything).
+_UNRATED = IdeaCandidate.owner_rating.is_(None)
+RATING_FILTERS = {
+    "visible": or_(_UNRATED, IdeaCandidate.owner_rating >= feedback_service.DISLIKED_BELOW),
+    "all": true(),
+    "4plus": or_(_UNRATED, IdeaCandidate.owner_rating >= 4),
+    "5": or_(_UNRATED, IdeaCandidate.owner_rating == 5),
+    "hidden": or_(_UNRATED, IdeaCandidate.owner_rating < feedback_service.DISLIKED_BELOW),
+}
+
+
 @router.get("/candidates")
 def list_candidates(
     status: str | None = Query(default=None, max_length=40),
+    rating: Literal["visible", "all", "4plus", "5", "hidden"] = "visible",
     limit: int = Query(default=50, ge=1, le=100),
     owner: OwnerAccount = Depends(current_owner),
     session: Session = Depends(get_session),
@@ -55,7 +69,7 @@ def list_candidates(
     if not states <= {"new", "proposed", "created", "dismissed", "expired"}:
         raise ApiError(422, "unknown_status", "Unknown status")
     rows = session.scalars(
-        select(IdeaCandidate).where(IdeaCandidate.status.in_(states))
+        select(IdeaCandidate).where(IdeaCandidate.status.in_(states), RATING_FILTERS[rating])
         .order_by(IdeaCandidate.score.desc(), IdeaCandidate.created_at.desc()).limit(limit)).all()
     last = session.scalar(select(ScanRun).order_by(ScanRun.requested_at.desc()).limit(1))
     return {

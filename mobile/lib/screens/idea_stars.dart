@@ -6,11 +6,15 @@ import '../ui_helpers.dart';
 
 /// The owner's stars for an idea (1-5). Tap a star to rate; Claude later learns from the stars.
 class IdeaStars extends StatefulWidget {
-  const IdeaStars({super.key, required this.id, this.rating, this.dense = false});
+  const IdeaStars(
+      {super.key, required this.id, this.rating, this.dense = false, this.onDismissed});
 
   final String id;
   final int? rating;
   final bool dense;
+
+  /// Called when the rating was under 3 stars: the server then hides the idea from the default list.
+  final VoidCallback? onDismissed;
 
   @override
   State<IdeaStars> createState() => _IdeaStarsState();
@@ -42,6 +46,11 @@ class _IdeaStarsState extends State<IdeaStars> {
     });
     try {
       await context.read<ApiClient>().rateIdea(widget.id, stars);
+      if (stars < 3 && mounted) {
+        showMessage(context,
+            'Ý tưởng dưới 3 sao được ẩn khỏi danh sách (xem lại ở bộ lọc "Đã ẩn") và không bị quét lại.');
+        widget.onDismissed?.call();
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _rating = before);

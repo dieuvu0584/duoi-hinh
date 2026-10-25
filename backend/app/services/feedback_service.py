@@ -199,6 +199,7 @@ def _idea_evidence(session: Session) -> list[dict[str, Any]]:
              "lane": c.lane or c.suggested_lane, "made": c.status == "created"} for c in rows]
 
 
+DISLIKED_BELOW = 3  # ideas rated under this many stars are hidden, never made, never rescanned
 MIN_RATED_FOR_CALIBRATION = 4
 CALIBRATION_EXAMPLES = 8  # per side (liked / disliked)
 
@@ -236,9 +237,11 @@ def rate_idea(session: Session, owner, candidate_id: uuid.UUID, rating: int) -> 
     if cand is None:
         raise ApiError(404, "not_found", "Idea not found")
     cand.owner_rating = rating
+    # Under 3 stars the idea is only hidden from the default list (the star filter shows it
+    # again), never deleted; later scans skip the same story and it is not made automatically.
     record_audit(session, actor=f"owner:{owner.id}", action="idea.rated", result="ok",
                  entity_type="idea_candidate", entity_id=str(cand.id),
-                 metadata={"rating": rating})
+                 metadata={"rating": rating, "hidden": rating < DISLIKED_BELOW})
     session.commit()
     return cand
 

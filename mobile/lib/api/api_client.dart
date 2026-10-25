@@ -318,8 +318,11 @@ class ApiClient {
       });
 
   // ------------------------------------------------------------------ idea inbox
-  Future<Map<String, dynamic>> ideaCandidates() async =>
-      Map<String, dynamic>.from(await _request('GET', '/api/ideas/candidates') as Map);
+  /// [rating] narrows only the rated ideas: visible (3+ stars, the default), 4plus, 5, hidden
+  /// (under 3 stars) or all. Ideas without stars are always included.
+  Future<Map<String, dynamic>> ideaCandidates({String rating = 'visible'}) async =>
+      Map<String, dynamic>.from(await _request('GET', '/api/ideas/candidates',
+          query: {'rating': rating}) as Map);
 
   Future<Map<String, dynamic>> ideaCandidate(String id) async =>
       Map<String, dynamic>.from(await _request('GET', '/api/ideas/candidates/$id') as Map);
