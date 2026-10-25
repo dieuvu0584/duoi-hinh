@@ -146,6 +146,21 @@ void main() {
     expect(find.byIcon(Icons.star), findsNWidgets(4));
   });
 
+  testWidgets('stars saved on another screen show after the list reloads', (tester) async {
+    var rating = null as int?;
+    final api = await loggedIn(FakeBackend({
+      'GET /api/ideas/candidates': (_) =>
+          (200, {'items': [{...idea(), 'owner_rating': rating}], 'last_scan': null}),
+    }));
+    await tester.pumpWidget(host(api, const Scaffold(body: IdeasScreen())));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.star), findsNothing);
+    rating = 3; // saved elsewhere, then the list is pulled to refresh
+    await tester.fling(find.byType(ListView).first, const Offset(0, 400), 1000);
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.star), findsNWidgets(3));
+  });
+
   testWidgets('a rebus cannot be created with an empty answer', (tester) async {
     var calls = 0;
     final api = await loggedIn(FakeBackend({

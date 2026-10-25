@@ -26,6 +26,14 @@ class _IdeaStarsState extends State<IdeaStars> {
     _rating = widget.rating;
   }
 
+  @override
+  void didUpdateWidget(IdeaStars old) {
+    super.didUpdateWidget(old);
+    // The list is reloaded after the owner rates elsewhere (e.g. on the idea screen): show the
+    // saved value instead of the stale one this widget kept from its first build.
+    if (!_busy && widget.rating != old.rating) _rating = widget.rating;
+  }
+
   Future<void> _rate(int stars) async {
     final before = _rating;
     setState(() {
