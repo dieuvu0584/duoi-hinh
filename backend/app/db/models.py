@@ -76,6 +76,7 @@ class SystemSettings(TimestampMixin, Base):
         ),
         CheckConstraint("max_publishes_per_day BETWEEN 0 AND 30", name="publish_cap_range"),
         CheckConstraint("auto_create_per_day BETWEEN 0 AND 10", name="auto_create_range"),
+        CheckConstraint("auto_create_per_scan BETWEEN 1 AND 10", name="auto_scan_range"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
@@ -92,6 +93,8 @@ class SystemSettings(TimestampMixin, Base):
     # How many ideas the worker may turn into videos by itself each day (0 = never). The owner
     # still approves every post.
     auto_create_per_day: Mapped[int] = mapped_column(Integer, default=0)
+    # At most this many ideas from ONE scan are turned into videos automatically.
+    auto_create_per_scan: Mapped[int] = mapped_column(Integer, default=3)
     max_lateness_minutes: Mapped[int] = mapped_column(Integer, default=30)
     prepare_lead_minutes: Mapped[int] = mapped_column(Integer, default=20)
     # Where and with which voice we publish. Owner-editable; the environment value is only the

@@ -364,14 +364,28 @@ async def auto_create(
         ContentItem.status.in_(["PENDING_APPROVAL", "HELD_FOR_HUMAN"]))) or 0
     if waiting >= MAX_WAITING_FOR_OWNER:
         return None
-    cand = session.scalars(
+    ranked = session.scalars(
         select(IdeaCandidate).where(
             IdeaCandidate.status == "new", IdeaCandidate.risk_level == AUTO_RISK,
             IdeaCandidate.expires_at > now)
-        .order_by(IdeaCandidate.score.desc(), IdeaCandidate.created_at).limit(1)).first()
+        .order_by(IdeaCandidate.score.desc(), IdeaCandidate.created_at).limit(30)).all()
+    per_scan: dict[uuid.UUID, int] = {}
+    cand = None
+    for c in ranked:
+        # At most `auto_create_per_scan` ideas from the same scan become videos on their own.
+        if c.scan_run_id is not None:
+            if c.scan_run_id not in per_scan:
+                per_scan[c.scan_run_id] = session.scalar(
+                    select(func.count()).select_from(ContentItem).where(
+                        ContentItem.pipeline_input["auto_scan_run"].astext
+                        == str(c.scan_run_id))) or 0
+            if per_scan[c.scan_run_id] >= row.auto_create_per_scan:
+                continue
+        cand = c
+        break
     if cand is None:
         return None
-    cand_id = cand.id
+    cand_id, scan_run_id = cand.id, cand.scan_run_id
     try:
         cand = await propose(session, llm, cfg, cand_id, "daily_life")
         brief = cand.proposals[0]["brief"]
@@ -386,7 +400,9 @@ async def auto_create(
                          entity_type="idea_candidate", entity_id=str(cand_id))
             session.commit()
         return None
-    item.pipeline_input = {**(item.pipeline_input or {}), "auto_created": True}
+    item.pipeline_input = {
+        **(item.pipeline_input or {}), "auto_created": True,
+        **({"auto_scan_run": str(scan_run_id)} if scan_run_id else {})}
     cand = session.get(IdeaCandidate, cand_id)
     cand.status, cand.lane, cand.content_item_id = "created", "daily_life", item.id
     record_audit(session, actor="system", action="ideas.auto_create",

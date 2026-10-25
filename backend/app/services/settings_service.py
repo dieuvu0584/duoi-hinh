@@ -16,6 +16,7 @@ EDITABLE_FIELDS = {
     "max_image_regenerations": int,
     "max_publishes_per_day": int,
     "auto_create_per_day": int,
+    "auto_create_per_scan": int,
     "max_lateness_minutes": int,
     "prepare_lead_minutes": int,
     "facebook_page_id": str,
@@ -32,7 +33,8 @@ TEXT_FIELDS = {"facebook_page_id", "youtube_channel_id", "elevenlabs_voice_id"}
 # Changing the publishing target is one of them: it decides which Page/channel receives posts.
 REAUTH_FIELDS = {"news_lane_enabled", "daily_budget_limit", "monthly_budget_limit",
                  "automation_enabled", "facebook_page_id", "youtube_channel_id", "youtube_enabled",
-                 "publish_on_approve", "auto_create_per_day"}
+                 "publish_on_approve", "auto_create_per_day",
+                 "auto_create_per_scan"}
 
 
 def normalise_scan_times(values: list[str]) -> list[str]:
@@ -89,6 +91,7 @@ def snapshot(row: SystemSettings, cfg=None) -> dict:
         "max_image_regenerations": row.max_image_regenerations,
         "max_publishes_per_day": row.max_publishes_per_day,
         "auto_create_per_day": row.auto_create_per_day,
+        "auto_create_per_scan": row.auto_create_per_scan,
         "max_lateness_minutes": row.max_lateness_minutes,
         "prepare_lead_minutes": row.prepare_lead_minutes,
         "facebook_page_id": row.facebook_page_id,

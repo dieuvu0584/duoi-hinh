@@ -612,3 +612,22 @@ def test_an_idea_that_fails_is_set_aside_not_retried_forever(db, cfg, money):
     llm = FakeLLM({"options": []})  # no usable option comes back
     assert run(idea_service.auto_create(db, llm, cfg, now=NOW)) is None
     assert db.get(IdeaCandidate, c.id).status == "dismissed"
+
+
+def test_no_more_than_the_per_scan_limit_from_one_scan_become_videos(db, cfg, money):
+    set_auto(db, 10)
+    db.execute(text("UPDATE system_settings SET auto_create_per_scan=2"))
+    scan_a = ScanRun(trigger="schedule", status="done", candidates=3, items_new=3)
+    scan_b = ScanRun(trigger="schedule", status="done", candidates=1, items_new=1)
+    db.add_all([scan_a, scan_b])
+    db.commit()
+    for score in (90, 80, 70):
+        make_candidate(db, score=score, scan_run_id=scan_a.id)
+    other = make_candidate(db, score=10, scan_run_id=scan_b.id)
+    llm = FakeLLM({"options": [option()]})
+    made = [run(idea_service.auto_create(db, llm, cfg, now=NOW)) for _ in range(4)]
+    assert [m is not None for m in made] == [True, True, True, False]
+    # two from scan A (limit 2), then the next best idea from another scan
+    assert db.get(IdeaCandidate, other.id).status == "created"
+    left = db.scalars(select(IdeaCandidate).where(IdeaCandidate.status == "new")).all()
+    assert [c.score for c in left] == [70]
