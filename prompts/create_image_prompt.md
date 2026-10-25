@@ -6,6 +6,8 @@ Write a prompt for a FLUX text-to-image model that produces ONE illustration:
 - `negative_constraints`: things to avoid (they are for review and QA; do not rely on a negative-prompt field).
 - `expected_viewer_interpretation` and `visual_explanation`: what a viewer will see and how each clue in `clue_mapping` appears.
 
+Make the picture funny, not merely correct: the single joke must read at a glance. Give the main character an exaggerated, specific facial expression and body language; use comic scale, a striking colour contrast between the character and a calm background, and at most one small surprising detail near the centre. Keep it a clean flat cartoon (thick outlines, bold shapes, expressive eyes), never a stock-photo look. Humour must never hide or move a clue.
+
 Requirements for the picture:
 - A square, full-bleed master that is later centre-cropped to 9:16 and to 16:9. Say explicitly: "full-bleed square composition, the scene fills the entire frame edge to edge, no border, no frame, no white margin". Keep the subject and EVERY clue compact and close together in the exact centre, occupying only the middle half of the image; the outer area is simple background that continues to all four edges.
 - Every clue in `clue_mapping` must be visible once, clearly separated, not overlapping, in a readable order.

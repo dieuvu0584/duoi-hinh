@@ -20,6 +20,13 @@ Decide:
 5. `risk_level` and `sensitive_categories`: be honest. Use categories such as children, politics_elections, health_advice, legal_claim, private_individual, personal_data, war_conflict, death_injury, disaster, tragedy, copyright_concern, identifiable_person_allegation.
 6. `caption` (short, brand tone, at most 300 characters), `hashtags` (at most 5), `overlay_text` (the key words shown on screen, at most 120 characters, plain letters and punctuation only, NO emoji; it must hint at the situation, never spell out the punchline) and `narration_text` (the Vietnamese voiceover). The voiceover must say the SAME thing as `caption`, word for word where possible, minus hashtags: write `caption` as 15-40 spoken words in plain sentences (no emoji, URLs, hashtags or abbreviations; numbers and dates in words) and set `narration_text` to that same text, changing only what is needed to read it aloud smoothly.
 
+HUMOUR (the channel is a funny meme page; a clear but unfunny picture is a failure): build every concept around ONE joke that a viewer gets in two seconds.
+- Pick a single comic mechanism: exaggeration (absurd scale or effort), anthropomorphism (an object or animal acts like a stressed adult), a relatable everyday frustration, contrast (calm face, chaos behind), or an unexpected detail that changes the meaning of the scene.
+- Give the main character a strong, readable expression and body language (wide eyes, flat stare, smug grin); the face carries the joke. Add at most one surprising detail that rewards a second look.
+- `overlay_text` is the setup or the punch cue, never the explanation (max 6 words). `caption` and `narration_text` are the same lines: set up in the first sentence, land the punch or a playful question in the last short one, with an everyday Vietnamese rhythm (no formal tone, no moralising, no explaining the joke).
+- A rebus still has ONE intended answer; make the clues funny to look at too (silly props, exaggerated reactions) without hiding the clues.
+- Do not be funny at someone's expense: no mockery of real people, groups, tragedies or illness.
+
 Hard rules:
 - For rebus, the answer must NOT appear in `caption`, `hashtags`, `overlay_text` or `narration_text`, not even without tone marks. You may state neutral facts such as how many words it has. Ask the viewer to guess.
 - Write numbers and dates in words in `narration_text`; avoid abbreviations; no hashtags, emoji or URLs in it.
