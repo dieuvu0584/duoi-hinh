@@ -8,10 +8,10 @@ content pipeline until the owner presses "create" with text they have seen and m
 import json
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -32,6 +32,7 @@ from app.providers.errors import ProviderError
 from app.services import content_pipeline, feed_service, llm_service
 from app.services.audit import record_audit
 from app.services.safety_rules import _fold, leaks_answer
+from app.services.settings_service import get_settings_row
 
 log = logging.getLogger(__name__)
 
@@ -327,6 +328,70 @@ def create_content(
     record_audit(session, actor=f"owner:{owner.id}", action="ideas.create",
                  entity_type="idea_candidate", entity_id=str(cand.id),
                  metadata={"lane": lane, "content_item_id": str(item.id)})
+    session.commit()
+    return item
+
+
+MAX_WAITING_FOR_OWNER = 6  # stop making videos while this many already wait for the owner
+AUTO_RISK = "low"  # only ideas the filter rated low risk are turned into videos by themselves
+
+
+def _vn_day_start_utc(now: datetime) -> datetime:
+    local = now.astimezone(timezone(timedelta(hours=7)))
+    return local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(UTC)
+
+
+async def auto_create(
+    session: Session, llm: JsonLLM, cfg: Settings, *, now: datetime | None = None,
+) -> ContentItem | None:
+    """Turn the best waiting idea into a video, at most `auto_create_per_day` a day.
+
+    The item still stops at "waiting for approval": the owner approves every post. One idea per
+    call, so a burst can never spend more than one idea's worth between two checks."""
+    now = now or utcnow()
+    row = get_settings_row(session)
+    limit = row.auto_create_per_day
+    if limit <= 0 or row.generation_paused:
+        return None
+    since = _vn_day_start_utc(now)
+    made_today = sum(
+        1 for (data,) in session.execute(
+            select(ContentItem.pipeline_input).where(ContentItem.created_at >= since))
+        if (data or {}).get("auto_created"))
+    if made_today >= limit:
+        return None
+    waiting = session.scalar(select(func.count()).select_from(ContentItem).where(
+        ContentItem.status.in_(["PENDING_APPROVAL", "HELD_FOR_HUMAN"]))) or 0
+    if waiting >= MAX_WAITING_FOR_OWNER:
+        return None
+    cand = session.scalars(
+        select(IdeaCandidate).where(
+            IdeaCandidate.status == "new", IdeaCandidate.risk_level == AUTO_RISK,
+            IdeaCandidate.expires_at > now)
+        .order_by(IdeaCandidate.score.desc(), IdeaCandidate.created_at).limit(1)).first()
+    if cand is None:
+        return None
+    cand_id = cand.id
+    try:
+        cand = await propose(session, llm, cfg, cand_id, "daily_life")
+        brief = cand.proposals[0]["brief"]
+        item = content_pipeline.start(session, None, lane="daily_life", brief=brief)
+    except (ApiError, llm_service.LlmInvalidOutput, llm_service.LlmRefused, KeyError, IndexError):
+        # One bad idea must not be retried forever (each try costs money): set it aside.
+        session.rollback()
+        cand = session.get(IdeaCandidate, cand_id)
+        if cand is not None:
+            cand.status = "dismissed"
+            record_audit(session, actor="system", action="ideas.auto_failed",
+                         entity_type="idea_candidate", entity_id=str(cand_id))
+            session.commit()
+        return None
+    item.pipeline_input = {**(item.pipeline_input or {}), "auto_created": True}
+    cand = session.get(IdeaCandidate, cand_id)
+    cand.status, cand.lane, cand.content_item_id = "created", "daily_life", item.id
+    record_audit(session, actor="system", action="ideas.auto_create",
+                 entity_type="idea_candidate", entity_id=str(cand_id),
+                 metadata={"content_item_id": str(item.id)})
     session.commit()
     return item
 

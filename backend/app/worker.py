@@ -72,6 +72,7 @@ async def idea_loop(*, once: bool, stop: asyncio.Event) -> None:
                     run = await idea_service.run_scan(session, llm, settings, run_id)
                     log.info("scan %s: %s candidates=%s note=%s", run.trigger, run.status,
                              run.candidates, run.note)
+                await idea_service.auto_create(session, llm, settings)
                 idea_service.expire_and_purge(session)
         except Exception:  # noqa: BLE001 - the loop must survive (db restart, feed oddities)
             log.exception("idea loop error")

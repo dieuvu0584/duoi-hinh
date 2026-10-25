@@ -24,7 +24,7 @@ from app.db.models import (
 )
 from app.main import app
 from app.providers.contracts import JsonResult
-from app.services import feed_service, idea_service
+from app.services import content_pipeline, feed_service, idea_service
 from app.services.seed_data import FEED_SOURCES, IDIOMS
 from tests.conftest import OWNER_PASSWORD
 
@@ -553,3 +553,62 @@ def test_the_batch_never_exceeds_the_limit_and_keeps_newest_first_within_a_sourc
     batch = idea_service.pick_batch(items)
     assert len(batch) == idea_service.MAX_PENDING_ITEMS
     assert [i.title for i in batch][:3] == ["n0", "n1", "n2"]
+
+
+# ------------------------------------------------------------------------------ auto creation
+def set_auto(db, n):
+    db.execute(text("UPDATE system_settings SET auto_create_per_day=:n"), {"n": n})
+    db.commit()
+
+
+def test_auto_create_is_off_by_default(db, cfg, money):
+    make_candidate(db)
+    llm = FakeLLM({"options": [option()]})
+    assert run(idea_service.auto_create(db, llm, cfg, now=NOW)) is None
+    assert llm.calls == []  # nothing is asked, nothing is spent
+
+
+def test_the_best_low_risk_idea_becomes_a_video_up_to_n_a_day(db, cfg, money):
+    set_auto(db, 2)
+    low = make_candidate(db, score=70)
+    best = make_candidate(db, score=90)
+    make_candidate(db, score=99, risk_level="medium")  # never picked by itself
+    llm = FakeLLM({"options": [option(brief="Meo ngu quen ben cua so")]})
+    first = run(idea_service.auto_create(db, llm, cfg, now=NOW))
+    assert first is not None and first.pipeline_input["auto_created"] is True
+    assert first.pipeline_input["brief"] == "Meo ngu quen ben cua so"
+    assert db.get(IdeaCandidate, best.id).status == "created"  # highest score first
+    assert db.get(IdeaCandidate, low.id).status == "new"
+    second = run(idea_service.auto_create(db, llm, cfg, now=NOW))
+    assert second is not None and db.get(IdeaCandidate, low.id).status == "created"
+    third = run(idea_service.auto_create(db, llm, cfg, now=NOW))
+    assert third is None  # N = 2 reached for the day
+
+
+def test_auto_create_waits_while_too_many_videos_wait_for_the_owner(db, cfg, money, owner):
+    set_auto(db, 5)
+    make_candidate(db)
+    for _ in range(idea_service.MAX_WAITING_FOR_OWNER):
+        item = content_pipeline.start(db, owner, lane="daily_life", brief="x")
+        item.status = "PENDING_APPROVAL"
+    db.commit()
+    llm = FakeLLM({"options": [option()]})
+    assert run(idea_service.auto_create(db, llm, cfg, now=NOW)) is None
+    assert llm.calls == []
+
+
+def test_a_paused_system_makes_nothing(db, cfg, money):
+    set_auto(db, 2)
+    db.execute(text("UPDATE system_settings SET generation_paused=true"))
+    db.commit()
+    make_candidate(db)
+    llm = FakeLLM({"options": [option()]})
+    assert run(idea_service.auto_create(db, llm, cfg, now=NOW)) is None
+
+
+def test_an_idea_that_fails_is_set_aside_not_retried_forever(db, cfg, money):
+    set_auto(db, 2)
+    c = make_candidate(db)
+    llm = FakeLLM({"options": []})  # no usable option comes back
+    assert run(idea_service.auto_create(db, llm, cfg, now=NOW)) is None
+    assert db.get(IdeaCandidate, c.id).status == "dismissed"

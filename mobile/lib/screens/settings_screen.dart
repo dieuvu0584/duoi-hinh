@@ -23,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _voice = TextEditingController();
   final _numbers = <String, TextEditingController>{
     'max_publishes_per_day': TextEditingController(),
+    'auto_create_per_day': TextEditingController(),
     'max_image_regenerations': TextEditingController(),
     'max_lateness_minutes': TextEditingController(),
     'prepare_lead_minutes': TextEditingController(),
@@ -215,6 +216,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 8),
           Text('Giới hạn vận hành', style: Theme.of(context).textTheme.titleMedium),
           _field(_numbers['max_publishes_per_day']!, 'Số bài đăng tối đa mỗi ngày', number: true),
+          _field(_numbers['auto_create_per_day']!, 'Số bài tự tạo mỗi ngày (0 = tắt, bạn vẫn duyệt)', number: true),
           _field(_numbers['max_image_regenerations']!, 'Số lần làm lại ảnh tối đa mỗi bài', number: true),
           _field(_numbers['max_lateness_minutes']!, 'Trễ tối đa (phút) trước khi bỏ lượt', number: true),
           _field(_numbers['prepare_lead_minutes']!, 'Chuẩn bị video trước giờ đăng (phút)', number: true),
