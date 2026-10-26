@@ -40,7 +40,8 @@ String friendlyError(Object e) {
       case 'no_idioms':
         return 'Kho thành ngữ đang trống. Hãy thêm thành ngữ trước.';
       case 'no_valid_options':
-        return 'Chưa có phương án dùng được, hãy thử lại.';
+        return 'Claude thấy tin này khó làm thành meme sát với thực tế nên không đề xuất hướng nào. '
+            'Bạn có thể thử gợi ý lại, bỏ ý tưởng này, hoặc tự nhập mô tả.';
       case 'llm_invalid_output':
         return 'Claude trả kết quả không dùng được, hãy thử lại.';
       case 'llm_not_configured':

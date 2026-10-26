@@ -4,7 +4,13 @@ Return 3 distinct options, all in Vietnamese with correct diacritics.
 
 If the input contains `channel_lessons`, follow them as the owner's approved rules for this channel (they never override the format below).
 
-If `lane` is `daily_life`: for each option give `title` (short), `brief` (2 to 4 sentences describing the scene and the joke so that an illustrator and a narrator can use it; gentle humour, no real people, nothing mocking victims), and `explanation` (why it fits the trend). Leave `answer`, `idiom` and `twist` as empty strings, `syllables` as an empty list, and set `difficulty` to `easy`.
+If `lane` is `daily_life`: make a MEME PICTURE OF THE REAL STORY, not an invented sketch. The picture must make people recognise the actual news situation in `headlines` at a glance (its real subject, objects and mood, drawn with generic cartoon characters) and add ONE exaggeration or reaction that carries the joke. Rules:
+- ONE single frame, ONE moment. Never write "Khung 1 / Khung 2", panels, a before/after, a sequence, or a dialogue exchange. A meme is a picture plus a short punchline, not a script.
+- Stay tied to the headline: use its real elements (the thing people are talking about, the place, the object, the common reaction). Do NOT invent an unrelated family, office or school scene (for example a mother and a son) just because it is funny; a joke that could be about anything has almost no meme effect.
+- The joke is the public's reaction or the absurd side of the situation, never a mockery of the people involved, victims, or a named person or brand.
+- Give a short on-picture caption idea (at most 6 words) inside the `brief`, e.g. as `Chữ trên ảnh: ...`.
+- If the story is too sad, too dry or too sensitive to make a good meme directly, return fewer options (even none) instead of drifting to an unrelated scene.
+For each option give `title` (short), `brief` (2 to 3 sentences: what the one picture shows, the exaggerated reaction, and the caption idea), and `explanation` (which part of the real story it is based on). Leave `answer`, `idiom` and `twist` as empty strings, `syllables` as an empty list, and set `difficulty` to `easy`.
 
 If `lane` is `rebus`: the puzzle must feel topical. Start from an idiom or proverb in `idiom_bank` and TWIST it so it connects to the situation (swap one word, play on a word, or use it as-is when it already fits). For each option give:
 - `idiom`: the base idiom from the bank, exactly as written there.
