@@ -82,3 +82,9 @@ Collect only metrics the API returns for the granted permissions (Reels video in
   - `DELETE /{video-id}` on a **published** Reel: `{"success": true}`, object gone.
   - **Promoting a draft:** `POST /{video-id}` with `published=true` returned `{"success": true}` and the video became `published: true` within seconds.
 - Still unverified: how long a `ready` draft stays valid (`expired`), whether promotion is idempotent, whether public posting needs App Review in the app's current mode (it worked here), behaviour at scale or with a longer video.
+
+## Nhạc nền cho Reel (tra cứu 2026-10-26)
+- Tài liệu chính thức "Reels Publishing API" (developers.facebook.com/docs/video-api/guides/reels-publishing) **không có tham số nào để gắn nhạc từ thư viện Facebook** vào Reel đăng qua API. Các tham số của bước hoàn tất chỉ gồm `video_id`, `upload_phase`, `video_state`, `description`, `title`, `scheduled_publish_time`, `is_ai_generated`, `place`. Âm thanh chỉ được nhắc ở phần thông số video (AAC-LC, 48 kHz, stereo, từ 128 kbps). Hướng dẫn "thêm nhạc vào reel" mà tài liệu dẫn tới là thao tác thủ công trong ứng dụng.
+- Instagram content publishing API cũng không nêu tham số chọn nhạc trong thư viện (chưa kiểm tra trang tham chiếu endpoint đầy đủ).
+- Kết luận: nhạc nền phải được **trộn sẵn vào file mp4** (ffmpeg) trước khi tải lên. Kiểm tra bản quyền của Meta vẫn chạy khi tải lên (`copyright_check_information`), nên chỉ dùng nhạc có giấy phép ghi lại (R-10, D-13).
+- Thư viện nhạc của Meta dành cho tài khoản cá nhân, không phải mục đích thương mại; tài khoản doanh nghiệp/Trang bị hạn chế và Meta hướng tới Sound Collection (miễn phí bản quyền, dùng trong ứng dụng Facebook/Instagram). Điều khoản thương mại chính xác của Sound Collection cho Trang CHƯA được xác minh từ tài liệu chính thức.
