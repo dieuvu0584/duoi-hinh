@@ -753,3 +753,24 @@ def test_the_same_story_is_not_scanned_again_after_a_low_rating(db, cfg, money):
     titles = [h["title"] for h in json.loads(llm.calls[0][0]["text"])]
     # the disliked URL and the same story from another outlet never reach the model again
     assert titles == ["Chuyen khac hoan toan"]
+
+
+def test_proposals_see_the_real_articles_not_only_the_abstract_situation(db, cfg, money):
+    from app.db.models import FeedSource
+    src = FeedSource(name="Bao A", url="https://a.vn/rss", kind="rss", enabled=True)
+    db.add(src)
+    db.commit()
+    db.add(FeedItem(source_id=src.id, url_hash="h" * 64, title="Nguoi dan mang bao tai nhan tien",
+                    summary="Nhieu nguoi vac bao tai den nhan tien den bu thay vi chuyen khoan.",
+                    url="https://x.vn/bao-tai"))
+    db.commit()
+    c = make_candidate(db, source_items=[{"title": "Nguoi dan mang bao tai nhan tien",
+                                          "source": "Bao A", "url": "https://x.vn/bao-tai",
+                                          "published_at": None}])
+    llm = FakeLLM({"options": [option()]})
+    run(idea_service.propose(db, llm, cfg, c.id, "daily_life"))
+    sent = json.loads(llm.calls[0][0]["text"])
+    assert sent["articles"] == [{
+        "title": "Nguoi dan mang bao tai nhan tien",
+        "summary": "Nhieu nguoi vac bao tai den nhan tien den bu thay vi chuyen khoan.",
+        "outlet": "Bao A", "published_at": None}]

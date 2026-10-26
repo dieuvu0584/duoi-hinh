@@ -256,6 +256,7 @@ async def _shortlist(
             score=c["score"], suggested_lane=c["suggested_lane"], risk_level=c["risk_level"],
             categories=[], status="new", expires_at=now + CANDIDATE_TTL,
             source_items=[{"title": s.title, "source": names.get(s.source_id, ""), "url": s.url,
+                           "summary": (s.summary or "")[:500],
                            "published_at": s.published_at.isoformat() if s.published_at else None}
                           for s in sources]))
         active_urls.update(s.url for s in sources)
@@ -309,6 +310,20 @@ def clean_options(lane: str, raw: list[dict], bank: list[str], cfg: Settings) ->
     return out
 
 
+def _articles(session: Session, cand: IdeaCandidate) -> list[dict]:
+    """The source stories behind an idea (title, the feed's own summary, outlet, date), so the
+    options can stay close to what the article really says instead of the abstract situation."""
+    urls = [s["url"] for s in cand.source_items]
+    stored = {u: (s or "") for u, s in session.execute(
+        select(FeedItem.url, FeedItem.summary).where(FeedItem.url.in_(urls)))}
+    out = []
+    for s in cand.source_items:
+        summary = (s.get("summary") or stored.get(s["url"]) or "").strip()
+        out.append({"title": s["title"], "summary": summary[:500], "outlet": s.get("source", ""),
+                    "published_at": s.get("published_at")})
+    return out
+
+
 async def propose(
     session: Session, llm: JsonLLM, cfg: Settings, candidate_id: uuid.UUID, lane: str,
 ) -> IdeaCandidate:
@@ -322,7 +337,7 @@ async def propose(
             raise ApiError(422, "no_idioms", "Add idioms to the idiom bank first")
     lessons = feedback_service.approved_lessons(session, lane)
     payload = {"lane": lane, "situation": cand.situation,
-               "headlines": [s["title"] for s in cand.source_items],
+               "articles": _articles(session, cand),
                **({"channel_lessons": lessons} if lessons else {}),
                **({"idiom_bank": [{"text": i.text, "meaning": i.meaning} for i in bank]}
                   if lane == "rebus" else {})}
