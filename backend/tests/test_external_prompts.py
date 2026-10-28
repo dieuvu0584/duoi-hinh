@@ -40,3 +40,10 @@ def test_the_prompts_endpoint_needs_login_and_returns_prompts(client, owner, aut
     assert r.status_code == 200 and len(r.json()["prompts"]) == 4
     assert client.post("/api/ideas/prompts", json={**body, "lane": "news"},
                        headers=auth_headers).status_code == 422
+
+
+def test_the_picture_prompt_asks_for_a_comic_and_the_script_for_a_commentary():
+    out = ep.build_from_brief(lane="daily_life", brief="Giá vàng tăng", instructions=None)
+    by = {p["tool"]: p["text"] for p in out}
+    assert "comic" in by["gemini"] and "no panels" in by["gemini"]
+    assert "LỜI BÌNH" in by["gemini_text"] and "25-50" in by["gemini_text"]

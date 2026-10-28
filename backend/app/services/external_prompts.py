@@ -12,6 +12,11 @@ FRAMING = (
     "no frame, no white margin. Keep the subject and every clue compact and close together in the "
     "exact centre (middle half of the image); the outer area is simple background."
 )
+COMIC = (
+    "Create ONE comic-style illustration (comic-book / webcomic look): thick black ink "
+    "outlines, bold flat colours with light halftone shading, expressive faces, a single "
+    "frame with no panels and no speech bubbles. Never photorealistic, never a real person."
+)
 NO_TEXT = "No text, letters, numbers, logos, watermarks or signs anywhere in the picture."
 
 
@@ -36,8 +41,7 @@ def build(*, lane: str, data: dict[str, Any], clue_mapping: list[Any], caption: 
     prompts: list[dict[str, str]] = []
 
     if scene or clues:
-        lines = ["Create ONE flat, lightly shaded illustration with clear silhouettes and high "
-                 "contrast for phones (never photorealistic, never a real person)."]
+        lines = [COMIC]
         if scene:
             lines.append(f"Scene: {scene}")
         if clues:
@@ -86,11 +90,7 @@ def build_from_brief(*, lane: str, brief: str, instructions: str | None) -> list
     extra = (instructions or "").strip()
     if not brief:
         return []
-    image = [
-        "Create ONE flat, lightly shaded illustration with clear silhouettes and high contrast "
-        "for phones (never photorealistic, never a real person).",
-        f"Scene: {brief}",
-    ]
+    image = [COMIC, f"Scene: {brief}"]
     if extra:
         image.append(f"Extra requests: {extra}")
     if lane == "rebus":
@@ -105,9 +105,10 @@ def build_from_brief(*, lane: str, brief: str, instructions: str | None) -> list
         "text, no logos, no morphing. Keep the flat illustration style. Silent clip (the "
         "voiceover is added later)." + (f"\nExtra requests: {extra}" if extra else ""))
     script = (
-        "Viết bằng tiếng Việt, giọng thân thiện, vui. Trả về 2 phần: (1) CHÚ THÍCH đăng kèm 15-40 "
-        "từ, câu đơn giản, không emoji, không hashtag, số viết bằng chữ; (2) CHỮ TRÊN VIDEO tối "
-        "đa 6 từ gợi tình huống nhưng không nói ra điểm hài. "
+        "Viết bằng tiếng Việt, giọng thân thiện, vui. Trả về 2 phần: (1) LỜI BÌNH kiêm chú thích "
+        "đăng kèm, 25-50 từ, 2 đến 4 câu đơn giản (chuyện gì xảy ra, ý nghĩa hoặc điểm trớ trêu, "
+        "một câu chốt nhẹ nhàng), không emoji, không hashtag, số viết bằng chữ, không thêm sự "
+        "kiện không có trong bài; (2) CHỮ TRÊN VIDEO tối đa 6 từ gợi tình huống. "
         + ("Đây là câu đố hình: KHÔNG được nói hay gợi ra đáp án. " if lane == "rebus" else "")
         + f"\nÝ tưởng: {brief}" + (f"\nYêu cầu thêm: {extra}" if extra else ""))
     return [
